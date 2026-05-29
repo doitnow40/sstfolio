@@ -689,6 +689,10 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   <div class="settings-section">
     <div class="settings-title">연결 정보</div>
     <div class="settings-row">
+      <span class="settings-label">Worker URL</span>
+      <span class="settings-value" id="settingWorkerUrl" style="font-size:11px;max-width:400px;overflow:hidden;text-overflow:ellipsis"></span>
+    </div>
+    <div class="settings-row">
       <span class="settings-label">GAS URL</span>
       <span class="settings-value" id="settingGasUrl" style="font-size:11px;max-width:400px;overflow:hidden;text-overflow:ellipsis"></span>
     </div>
@@ -697,6 +701,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <span class="settings-value" id="settingLastFetch">–</span>
     </div>
     <div style="margin-top:12px">
+      <input class="form-input" id="inputWorkerUrl" placeholder="Cloudflare Worker URL (https://sstfolio-worker.doitnow40.workers.dev)" style="margin-bottom:8px">
       <input class="form-input" id="inputGasUrl" placeholder="GAS 웹앱 URL을 여기에 붙여넣기..." style="margin-bottom:8px">
       <button class="btn-primary" onclick="saveGasUrl()">저장 및 데이터 불러오기</button>
     </div>
@@ -830,7 +835,9 @@ let state = {
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('settingGasUrl').textContent = GAS_URL || '미설정';
+  document.getElementById('settingWorkerUrl').textContent = WORKER_URL || '미설정';
   document.getElementById('inputGasUrl').value = GAS_URL;
+  document.getElementById('inputWorkerUrl').value = WORKER_URL;
 
   if (!GAS_URL && !WORKER_URL) {
     document.getElementById('setupBanner').style.display = 'block';
@@ -1949,11 +1956,19 @@ async function deleteHolding(id) {
 // GAS URL 저장
 // ============================================================
 function saveGasUrl() {
-  const url = document.getElementById('inputGasUrl').value.trim();
-  if (!url) { alert('URL을 입력하세요'); return; }
-  GAS_URL = url;
-  localStorage.setItem('GAS_URL', url);
-  document.getElementById('settingGasUrl').textContent = url;
+  const gasUrl    = document.getElementById('inputGasUrl').value.trim();
+  const workerUrl = document.getElementById('inputWorkerUrl').value.trim();
+  if (!gasUrl && !workerUrl) { alert('GAS URL 또는 Worker URL을 입력하세요'); return; }
+  if (gasUrl) {
+    GAS_URL = gasUrl;
+    localStorage.setItem('sstfolio_gas_url', gasUrl);
+    document.getElementById('settingGasUrl').textContent = gasUrl;
+  }
+  if (workerUrl) {
+    WORKER_URL = workerUrl;
+    localStorage.setItem('sstfolio_worker_url', workerUrl);
+    document.getElementById('settingWorkerUrl').textContent = workerUrl;
+  }
   document.getElementById('setupBanner').style.display = 'none';
   loadData();
 }
