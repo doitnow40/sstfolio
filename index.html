@@ -1821,13 +1821,13 @@ function renderGroupAccountChecks() {
     const checks = byOwner[owner].map(function(a) {
       const acctLabel = ((a.broker || '') + ' ' + (a.account_type || '')).trim();
       const id = 'grpChk_' + String(a.account_id);
-      return `<label><input type="checkbox" id="${id}" value="${a.account_id}"> ${acctLabel}</label>`;
+      return `<label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer"><input type="checkbox" id="${id}" value="${a.account_id}"> ${acctLabel}</label>`;
     }).join('');
-    return `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px">
-      <span style="font-size:12px;color:var(--blue);font-weight:600;white-space:nowrap;min-width:40px;padding-top:2px">${owner}</span>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">${checks}</div>
+    return `<div style="display:block;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--blue);font-weight:600;margin-bottom:6px">${owner}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;padding-left:8px">${checks}</div>
     </div>`;
-  }).join('');
+  }).join('<hr style="border:none;border-top:1px solid var(--border);margin:4px 0 10px">');
 }
 
 // 그룹 수정 버튼 클릭 시 폼에 값 채우기
