@@ -454,7 +454,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 }
 .group-item-name { font-size:13px; font-weight:600; color:var(--purple); }
 .group-item-labels { font-size:11px; color:var(--text2); margin-top:2px; }
-.group-account-checks { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+.group-account-checks { display:flex; flex-direction:column; gap:0; margin:10px 0; }
 .group-account-checks label { 
   display:flex; align-items:center; gap:4px; font-size:12px; 
   cursor:pointer; color:var(--text2); 
@@ -1821,13 +1821,12 @@ function renderGroupAccountChecks() {
     const checks = byOwner[owner].map(function(a) {
       const acctLabel = ((a.broker || '') + ' ' + (a.account_type || '')).trim();
       const id = 'grpChk_' + String(a.account_id);
-      return `<label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer"><input type="checkbox" id="${id}" value="${a.account_id}"> ${acctLabel}</label>`;
+      return `<label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer;margin-right:12px"><input type="checkbox" id="${id}" value="${a.account_id}"> ${acctLabel}</label>`;
     }).join('');
-    return `<div style="display:block;margin-bottom:10px">
-      <div style="font-size:12px;color:var(--blue);font-weight:600;margin-bottom:6px">${owner}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;padding-left:8px">${checks}</div>
+    return `<div style="width:100%;margin-bottom:10px;border-top:1px solid var(--border);padding-top:8px">
+      <span style="font-size:12px;color:var(--blue);font-weight:600;margin-right:10px">${owner}</span>${checks}
     </div>`;
-  }).join('<hr style="border:none;border-top:1px solid var(--border);margin:4px 0 10px">');
+  }).join('');
 }
 
 // 그룹 수정 버튼 클릭 시 폼에 값 채우기
