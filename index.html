@@ -1807,10 +1807,26 @@ function renderAccountGroupList() {
 function renderGroupAccountChecks() {
   const el = document.getElementById('groupAccountChecks');
   if (!el) return;
-  el.innerHTML = (state.accounts || []).map(function(a) {
-    const fullLabel = (a.owner || '') + ' · ' + ((a.broker || '') + ' ' + (a.account_type || '')).trim();
-    const id = 'grpChk_' + String(a.account_id);
-    return `<label><input type="checkbox" id="${id}" value="${a.account_id}"> ${fullLabel}</label>`;
+
+  // 소유자별로 그룹핑
+  const byOwner = {};
+  const ownerOrder = [];
+  (state.accounts || []).forEach(function(a) {
+    const owner = a.owner || '기타';
+    if (!byOwner[owner]) { byOwner[owner] = []; ownerOrder.push(owner); }
+    byOwner[owner].push(a);
+  });
+
+  el.innerHTML = ownerOrder.map(function(owner) {
+    const checks = byOwner[owner].map(function(a) {
+      const acctLabel = ((a.broker || '') + ' ' + (a.account_type || '')).trim();
+      const id = 'grpChk_' + String(a.account_id);
+      return `<label><input type="checkbox" id="${id}" value="${a.account_id}"> ${acctLabel}</label>`;
+    }).join('');
+    return `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px">
+      <span style="font-size:12px;color:var(--blue);font-weight:600;white-space:nowrap;min-width:40px;padding-top:2px">${owner}</span>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${checks}</div>
+    </div>`;
   }).join('');
 }
 
