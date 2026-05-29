@@ -1435,7 +1435,7 @@ function renderByAccount() {
 
     // ── 계좌 헤더
     html += '<div class="table-wrap" style="margin-bottom:6px">';
-    html += '<div class="table-header" style="cursor:pointer;flex-wrap:nowrap;gap:6px" onclick="toggleAccount('' + accId + '')">';
+    html += '<div class="table-header" style="cursor:pointer;flex-wrap:nowrap;gap:6px" onclick="toggleAccount(\'' + accId + '\')">'; 
     html += '<div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;overflow:hidden">';
     html += '<button class="account-toggle-btn ' + isCollapsed + '" id="acc-btn-' + accId + '">▼</button>';
     html += '<span class="table-title acc-title-text">' + acc.owner + ' · ' + acc.broker + ' ' + acc.account_type + '</span>';
@@ -1481,7 +1481,7 @@ function renderByAccount() {
           + '<div class="mobile-card-pct" style="color:' + col2 + '">' + sign2 + pct2 + '%</div>'
           + '<div class="mobile-card-profit" style="color:' + col2 + '">' + sign2 + (h.profit_amount || 0).toLocaleString('ko-KR') + '원</div>'
           + '</div>'
-          + '<button class="btn-icon" onclick="editHolding('' + h.id + '')" style="margin-left:4px;flex-shrink:0">✏️</button>'
+          + '<button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" style="margin-left:4px;flex-shrink:0">✏️</button>'
           + '</div>';
       });
       html += '</div>';
