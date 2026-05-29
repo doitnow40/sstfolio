@@ -2470,6 +2470,7 @@ function renderTrendChart() {
       plugins: {
         legend: { position: 'top', labels: { color: '#e6edf3', font: { size: 11 } } },
         tooltip: {
+          itemSort: function(a, b) { return b.parsed.y - a.parsed.y; },
           callbacks: {
             label: function(ctx) {
               if (isYield) {
