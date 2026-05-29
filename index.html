@@ -1311,14 +1311,9 @@ function setGlobalAccount(id, event) {
 // 하위 호환
 function setChartAccount(id, event) { setGlobalAccount(id, event); }
 
-// 그룹에 속한 account_id 배열 반환
+// 그룹에 속한 account_id 배열 반환 (accountIds 직접 사용)
 function getGroupAccountIds(group) {
-  return (state.accounts || [])
-    .filter(function(a) {
-      const label = ((a.broker || '') + ' ' + (a.account_type || '')).trim();
-      return (group.labels || []).some(function(l) { return l.trim() === label; });
-    })
-    .map(function(a) { return String(a.account_id); });
+  return (group.accountIds || []).map(function(id) { return String(id); });
 }
 
 // 그룹 칩 클릭 시 해당 계좌들 일괄 선택/해제
@@ -1798,7 +1793,7 @@ function renderAccountGroupList() {
     return `<div class="group-item">
       <div>
         <div class="group-item-name">🗂 ${g.name}</div>
-        <div class="group-item-labels">${(g.labels || []).join(', ')}</div>
+        <div class="group-item-labels">${(g.displayLabels || g.labels || []).join(', ')}</div>
       </div>
       <div style="display:flex;gap:6px">
         <button class="btn-icon" onclick="editAccountGroup('${encodeURIComponent(g.name)}')" title="수정">✏️</button>
@@ -1813,9 +1808,9 @@ function renderGroupAccountChecks() {
   const el = document.getElementById('groupAccountChecks');
   if (!el) return;
   el.innerHTML = (state.accounts || []).map(function(a) {
-    const label = ((a.broker || '') + ' ' + (a.account_type || '')).trim();
-    const id    = 'grpChk_' + String(a.account_id);
-    return `<label><input type="checkbox" id="${id}" value="${label}"> ${label}</label>`;
+    const fullLabel = (a.owner || '') + ' · ' + ((a.broker || '') + ' ' + (a.account_type || '')).trim();
+    const id = 'grpChk_' + String(a.account_id);
+    return `<label><input type="checkbox" id="${id}" value="${a.account_id}"> ${fullLabel}</label>`;
   }).join('');
 }
 
@@ -1825,11 +1820,10 @@ function editAccountGroup(encodedName) {
   const group = (state.accountGroups || []).find(function(g) { return g.name === name; });
   if (!group) return;
   document.getElementById('inputGroupName').value = name;
-  // 체크박스 선택
+  // 체크박스 선택 (account_id 기준)
   (state.accounts || []).forEach(function(a) {
-    const label = ((a.broker || '') + ' ' + (a.account_type || '')).trim();
-    const cb    = document.getElementById('grpChk_' + String(a.account_id));
-    if (cb) cb.checked = (group.labels || []).some(function(l) { return l.trim() === label; });
+    const cb = document.getElementById('grpChk_' + String(a.account_id));
+    if (cb) cb.checked = (group.accountIds || []).some(function(id) { return String(id) === String(a.account_id); });
   });
   document.getElementById('inputGroupName').scrollIntoView({ behavior: 'smooth' });
 }
@@ -1838,23 +1832,24 @@ function editAccountGroup(encodedName) {
 async function saveAccountGroup() {
   const name = document.getElementById('inputGroupName').value.trim();
   if (!name) { alert('그룹명을 입력하세요'); return; }
-  const labels = [];
+  const accountIds = [];
+  const displayLabels = [];
   (state.accounts || []).forEach(function(a) {
     const cb = document.getElementById('grpChk_' + String(a.account_id));
     if (cb && cb.checked) {
-      labels.push(((a.broker || '') + ' ' + (a.account_type || '')).trim());
+      accountIds.push(String(a.account_id));
+      displayLabels.push((a.owner || '') + ' · ' + ((a.broker || '') + ' ' + (a.account_type || '')).trim());
     }
   });
-  if (labels.length === 0) { alert('계좌를 1개 이상 선택하세요'); return; }
+  if (accountIds.length === 0) { alert('계좌를 1개 이상 선택하세요'); return; }
 
   const postUrl = WORKER_URL ? WORKER_URL + '/api/account-group' : GAS_URL;
   try {
-    const res  = await fetch(postUrl, { method:'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action:'save_account_group', groupName:name, labels }) });
+    const res  = await fetch(postUrl, { method:'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action:'save_account_group', groupName:name, accountIds, displayLabels }) });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     alert('✅ 그룹 저장 완료: ' + name);
     document.getElementById('inputGroupName').value = '';
-    // 체크박스 초기화
     (state.accounts || []).forEach(function(a) {
       const cb = document.getElementById('grpChk_' + String(a.account_id));
       if (cb) cb.checked = false;
