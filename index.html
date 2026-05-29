@@ -1410,6 +1410,7 @@ function toggleAccount(accId) {
 }
 
 function renderByAccount() {
+  const isMobile = window.innerWidth <= 768;
   const accounts = state.accounts;
   let html = '';
 
@@ -1451,45 +1452,68 @@ function renderByAccount() {
           <span style="margin-left:6px;color:${color};font-weight:700">${totalProfit >= 0 ? '+' : ''}${totalPct}%</span>
         </div>
       </div>
-      <div class="account-body ${isCollapsed}" id="acc-body-${accId}">
-      <table style="table-layout:fixed;width:100%">
-        <colgroup>
-          <col style="width:28%">
-          <col style="width:6%">
-          <col class="tbl-acct-col-qty" style="width:6%">
-          <col class="tbl-acct-col-avg" style="width:10%">
-          <col style="width:11%">
-          <col class="tbl-acct-col-cost" style="width:12%">
-          <col style="width:12%">
-          <col style="width:12%">
-          <col style="width:9%">
-        </colgroup>
-        <thead><tr>
-          <th>종목명</th><th>시장</th>
-          <th class="tbl-acct-col-qty">수량</th><th class="tbl-acct-col-avg">평단가</th><th>현재가</th>
-          <th class="tbl-acct-col-cost">매수금액</th><th>평가금액</th><th>손익</th><th>수익률</th>
-        </tr></thead>
-        <tbody>`;
-
-    accHoldings.forEach(h => {
-      const pct    = h.profit_pct || 0;
-      const color2 = pct >= 0 ? 'var(--green)' : 'var(--red)';
-      const sign   = pct >= 0 ? '+' : '';
-      html += `<tr>
-        <td><strong>${h.name || h.ticker}</strong><br>
-            <small style="color:var(--text2)">${h.ticker} · ${h.sector}</small></td>
-        <td><span class="badge badge-${h.market === 'US' ? 'us' : 'kr'}">${h.market}</span></td>
-        <td class="tbl-acct-col-qty">${(h.quantity || 0).toLocaleString()}</td>
-        <td class="tbl-acct-col-avg">${(h.avg_price || 0).toLocaleString()}${h.market === 'US' ? '$' : '원'}</td>
-        <td>${(h.current_price || 0).toLocaleString()}${h.market === 'US' ? '$' : '원'}</td>
-        <td class="tbl-acct-col-cost">${(h.cost_amount || 0).toLocaleString('ko-KR')}원</td>
-        <td>${(h.eval_amount || 0).toLocaleString('ko-KR')}원</td>
-        <td style="color:${color2}">${sign}${(h.profit_amount || 0).toLocaleString('ko-KR')}원</td>
-        <td style="color:${color2};font-weight:700">${sign}${pct}%</td>
-      </tr>`;
-    });
-
-    html += '</tbody></table></div></div>';
+    // 모바일: 카드형 / PC: 테이블형
+    if (isMobile) {
+      let cards = '<div class="mobile-card-list">';
+      accHoldings.forEach(function(h) {
+        const pct2   = h.profit_pct || 0;
+        const col2   = pct2 >= 0 ? 'var(--green)' : 'var(--red)';
+        const sign2  = pct2 >= 0 ? '+' : '';
+        const badge2 = h.market === 'US'
+          ? '<span class="badge badge-us">US</span>'
+          : '<span class="badge badge-kr">KR</span>';
+        const price2 = h.market === 'US'
+          ? '$' + (h.current_price || 0).toFixed(2)
+          : (h.current_price || 0).toLocaleString('ko-KR') + '원';
+        cards += '<div class="mobile-card-row">'
+          + '<div class="mobile-card-left">'
+          + '<div class="mobile-card-name">' + (h.name || h.ticker) + ' ' + badge2 + '</div>'
+          + '<div class="mobile-card-sub">' + h.ticker + ' · ' + (h.sector || '') + '</div>'
+          + '</div>'
+          + '<div class="mobile-card-right">'
+          + '<div class="mobile-card-price">' + price2 + '</div>'
+          + '<div class="mobile-card-pct" style="color:' + col2 + '">' + sign2 + pct2 + '%</div>'
+          + '<div class="mobile-card-profit" style="color:' + col2 + '">' + sign2 + (h.profit_amount || 0).toLocaleString('ko-KR') + '원</div>'
+          + '</div>'
+          + '<button class="btn-icon" onclick="editHolding('' + h.id + '')" style="margin-left:4px;flex-shrink:0">✏️</button>'
+          + '</div>';
+      });
+      cards += '</div>';
+      html += '<div class="account-body ' + isCollapsed + '" id="acc-body-' + accId + '">' + cards + '</div></div>';
+    } else {
+      let tbl = '<div class="account-body ' + isCollapsed + '" id="acc-body-' + accId + '">'
+        + '<table style="table-layout:fixed;width:100%">'
+        + '<colgroup>'
+        + '<col style="width:28%"><col style="width:6%">'
+        + '<col style="width:6%"><col style="width:10%">'
+        + '<col style="width:11%"><col style="width:12%">'
+        + '<col style="width:12%"><col style="width:12%"><col style="width:9%">'
+        + '</colgroup>'
+        + '<thead><tr>'
+        + '<th>종목명</th><th>시장</th>'
+        + '<th>수량</th><th>평단가</th><th>현재가</th>'
+        + '<th>매수금액</th><th>평가금액</th><th>손익</th><th>수익률</th>'
+        + '</tr></thead><tbody>';
+      accHoldings.forEach(function(h) {
+        const pct2   = h.profit_pct || 0;
+        const col2   = pct2 >= 0 ? 'var(--green)' : 'var(--red)';
+        const sign2  = pct2 >= 0 ? '+' : '';
+        tbl += '<tr>'
+          + '<td><strong>' + (h.name || h.ticker) + '</strong><br>'
+          + '<small style="color:var(--text2)">' + h.ticker + ' · ' + (h.sector || '') + '</small></td>'
+          + '<td><span class="badge badge-' + (h.market === 'US' ? 'us' : 'kr') + '">' + h.market + '</span></td>'
+          + '<td>' + (h.quantity || 0).toLocaleString() + '</td>'
+          + '<td>' + (h.avg_price || 0).toLocaleString() + (h.market === 'US' ? '$' : '원') + '</td>'
+          + '<td>' + (h.current_price || 0).toLocaleString() + (h.market === 'US' ? '$' : '원') + '</td>'
+          + '<td>' + (h.cost_amount || 0).toLocaleString('ko-KR') + '원</td>'
+          + '<td>' + (h.eval_amount || 0).toLocaleString('ko-KR') + '원</td>'
+          + '<td style="color:' + col2 + '">' + sign2 + (h.profit_amount || 0).toLocaleString('ko-KR') + '원</td>'
+          + '<td style="color:' + col2 + ';font-weight:700">' + sign2 + pct2 + '%</td>'
+          + '</tr>';
+      });
+      tbl += '</tbody></table></div></div>';
+      html += tbl;
+    }
   });
 
   document.getElementById('byAccountContainer').innerHTML = html || '<div style="padding:40px;text-align:center;color:var(--text2)">데이터 없음</div>';
