@@ -2261,9 +2261,9 @@ async function loadTrendData() {
   document.getElementById('trendChart').style.display   = 'none';
 
   try {
-    const gasUrl = GAS_URL;
-    if (!gasUrl) { showTrendNoData(); return; }
-    const res  = await fetch(gasUrl + '?action=snapshot');
+    const apiUrl = WORKER_URL ? WORKER_URL + '/api/snapshot' : (GAS_URL ? GAS_URL + '?action=snapshot' : null);
+    if (!apiUrl) { showTrendNoData(); return; }
+    const res  = await fetch(apiUrl);
     const data = await res.json();
     trendState.rawRows = data.rows || [];
     trendState.loaded  = true;
@@ -2542,9 +2542,10 @@ function renderTrendSummary(rows, dates) {
 
 // 수동 스냅샷 저장
 async function manualSnapshot() {
-  if (!GAS_URL) { alert('GAS URL을 먼저 설정하세요'); return; }
+  const postUrl = WORKER_URL ? WORKER_URL + '/api/snapshot' : GAS_URL;
+  if (!postUrl) { alert('Worker URL 또는 GAS URL을 먼저 설정하세요'); return; }
   try {
-    const res  = await fetch(GAS_URL, {
+    const res  = await fetch(postUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'save_snapshot' }),
