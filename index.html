@@ -446,6 +446,33 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 .chip.group { border-color:var(--purple); color:var(--purple); background:transparent; }
 .chip.group.active { border-color:var(--purple); color:#fff; background:var(--purple); }
 
+/* ── 추이 분석 탭 ─────────────────────────────────────────── */
+.trend-period-btn, .trend-mode-btn {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  transition: all .2s;
+}
+.trend-period-btn:hover, .trend-mode-btn:hover { border-color:var(--blue); color:var(--blue); }
+.trend-period-btn.active { border-color:var(--blue); color:#fff; background:var(--blue); }
+.trend-mode-btn.active   { border-color:var(--blue); color:#fff; background:var(--blue); }
+.trend-period-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.trend-summary-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  min-width: 140px;
+  flex: 1;
+}
+.trend-summary-card .label { font-size:11px; color:var(--text2); margin-bottom:3px; }
+.trend-summary-card .value { font-size:16px; font-weight:700; }
+.trend-summary-card .sub   { font-size:11px; color:var(--text2); margin-top:2px; }
+
 /* ── 계좌 그룹 관리 ─────────────────────────────────────────── */
 .group-item {
   display:flex; align-items:center; justify-content:space-between;
@@ -580,6 +607,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   <div class="tab active" onclick="switchTab('overview')">전체 현황</div>
   <div class="tab" onclick="switchTab('byAccount')">계좌별</div>
   <div class="tab" onclick="switchTab('charts')">차트 분석</div>
+  <div class="tab" onclick="switchTab('trend')">추이 분석</div>
   <div class="tab" onclick="switchTab('settings')">설정</div>
 </div>
 
@@ -699,6 +727,57 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     </div>
 
   </div>
+</div>
+
+<!-- ── 패널: 추이 분석 ─────────────────────────────────── -->
+<div class="panel" id="panel-trend">
+  <!-- 기간 선택 -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--text2);margin-right:4px">기간:</span>
+    <div id="trendPeriodBtns" style="display:flex;gap:4px;flex-wrap:wrap">
+      <button class="trend-period-btn active" data-period="1M">1개월</button>
+      <button class="trend-period-btn" data-period="6M">6개월</button>
+      <button class="trend-period-btn" data-period="YTD">YTD</button>
+      <button class="trend-period-btn" data-period="1Y">1년</button>
+      <button class="trend-period-btn" data-period="2Y">2년</button>
+      <button class="trend-period-btn" data-period="3Y">3년</button>
+      <button class="trend-period-btn" data-period="5Y">5년</button>
+      <button class="trend-period-btn" data-period="10Y">10년</button>
+    </div>
+  </div>
+
+  <!-- 보기 모드 -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--text2);margin-right:4px">모드:</span>
+    <div id="trendModeBtns" style="display:flex;gap:4px;flex-wrap:wrap">
+      <button class="trend-mode-btn active" data-mode="total">전체 합산</button>
+      <button class="trend-mode-btn" data-mode="owner">소유자별</button>
+      <button class="trend-mode-btn" data-mode="account">계좌별</button>
+      <button class="trend-mode-btn" data-mode="group">그룹별</button>
+    </div>
+    <div style="margin-left:16px;display:flex;align-items:center;gap:6px">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer">
+        <input type="checkbox" id="trendShowCost" onchange="renderTrendChart()"> 매수금액 라인 표시
+      </label>
+    </div>
+  </div>
+
+  <!-- 차트 영역 -->
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;position:relative">
+    <div id="trendNoData" style="display:none;text-align:center;padding:60px 0;color:var(--text2)">
+      <div style="font-size:32px;margin-bottom:12px">📈</div>
+      <div style="font-size:14px;margin-bottom:6px">아직 스냅샷 데이터가 없습니다</div>
+      <div style="font-size:12px">매일 오후 4시에 자동으로 데이터가 쌓입니다</div>
+      <button class="btn-primary" style="margin-top:16px" onclick="manualSnapshot()">지금 스냅샷 저장</button>
+    </div>
+    <div id="trendLoading" style="display:none;text-align:center;padding:60px 0;color:var(--text2)">
+      <div style="font-size:13px">데이터 불러오는 중...</div>
+    </div>
+    <canvas id="trendChart" style="max-height:420px"></canvas>
+  </div>
+
+  <!-- 요약 통계 -->
+  <div id="trendSummary" style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap"></div>
 </div>
 
 <!-- ── 패널: 설정 ──────────────────────────────────────── -->
@@ -1897,7 +1976,7 @@ async function deleteAccountGroup(encodedName) {
 function switchTab(tab) {
   state.activeTab = tab;
   document.querySelectorAll('.tab').forEach((el, i) => {
-    const tabs = ['overview','byAccount','charts','settings'];
+    const tabs = ['overview','byAccount','charts','trend','settings'];
     el.classList.toggle('active', tabs[i] === tab);
   });
   document.querySelectorAll('.panel').forEach(el => {
@@ -1905,6 +1984,7 @@ function switchTab(tab) {
   });
 
   if (tab === 'charts') renderCharts();
+  if (tab === 'trend')  initTrendTab();
 }
 
 // ============================================================
@@ -2134,6 +2214,347 @@ async function deleteHolding(id) {
     await loadData();
   } catch (err) {
     alert('삭제 실패: ' + err.message);
+  }
+}
+
+
+// ============================================================
+// 추이 분석 탭
+// ============================================================
+const trendState = {
+  period:   '1M',
+  mode:     'total',
+  rawRows:  [],
+  chart:    null,
+  loaded:   false,
+};
+
+const TREND_COLORS = [
+  '#58a6ff','#f85149','#3fb950','#d29922','#bc8cff',
+  '#79c0ff','#ff7b72','#56d364','#e3b341','#d2a8ff',
+];
+
+function initTrendTab() {
+  // 버튼 이벤트
+  document.querySelectorAll('.trend-period-btn').forEach(function(btn) {
+    btn.onclick = function() {
+      document.querySelectorAll('.trend-period-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      trendState.period = btn.dataset.period;
+      renderTrendChart();
+    };
+  });
+  document.querySelectorAll('.trend-mode-btn').forEach(function(btn) {
+    btn.onclick = function() {
+      document.querySelectorAll('.trend-mode-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      trendState.mode = btn.dataset.mode;
+      renderTrendChart();
+    };
+  });
+  loadTrendData();
+}
+
+async function loadTrendData() {
+  document.getElementById('trendLoading').style.display = 'block';
+  document.getElementById('trendNoData').style.display  = 'none';
+  document.getElementById('trendChart').style.display   = 'none';
+
+  try {
+    const gasUrl = GAS_URL;
+    if (!gasUrl) { showTrendNoData(); return; }
+    const res  = await fetch(gasUrl + '?action=snapshot');
+    const data = await res.json();
+    trendState.rawRows = data.rows || [];
+    trendState.loaded  = true;
+    document.getElementById('trendLoading').style.display = 'none';
+    if (trendState.rawRows.length === 0) { showTrendNoData(); return; }
+    document.getElementById('trendChart').style.display = 'block';
+    renderTrendChart();
+  } catch(err) {
+    document.getElementById('trendLoading').style.display = 'none';
+    showTrendNoData();
+  }
+}
+
+function showTrendNoData() {
+  document.getElementById('trendNoData').style.display = 'block';
+  document.getElementById('trendChart').style.display  = 'none';
+}
+
+function getTrendDateRange() {
+  const now   = new Date();
+  const today = now.toISOString().slice(0,10);
+  let from;
+  switch (trendState.period) {
+    case '1M':  from = new Date(now); from.setMonth(from.getMonth() - 1);   break;
+    case '6M':  from = new Date(now); from.setMonth(from.getMonth() - 6);   break;
+    case 'YTD': from = new Date(now.getFullYear(), 0, 1);                   break;
+    case '1Y':  from = new Date(now); from.setFullYear(from.getFullYear()-1); break;
+    case '2Y':  from = new Date(now); from.setFullYear(from.getFullYear()-2); break;
+    case '3Y':  from = new Date(now); from.setFullYear(from.getFullYear()-3); break;
+    case '5Y':  from = new Date(now); from.setFullYear(from.getFullYear()-5); break;
+    case '10Y': from = new Date(now); from.setFullYear(from.getFullYear()-10); break;
+    default:    from = new Date(now); from.setMonth(from.getMonth() - 1);
+  }
+  return { from: from.toISOString().slice(0,10), to: today };
+}
+
+function filterTrendRows() {
+  const { from, to } = getTrendDateRange();
+  return trendState.rawRows.filter(function(r) {
+    return r.date >= from && r.date <= to;
+  });
+}
+
+function renderTrendChart() {
+  if (!trendState.loaded || trendState.rawRows.length === 0) return;
+  const rows     = filterTrendRows();
+  const showCost = document.getElementById('trendShowCost').checked;
+  const mode     = trendState.mode;
+
+  if (rows.length === 0) {
+    // 해당 기간 데이터 없음
+    showTrendNoData();
+    return;
+  }
+  document.getElementById('trendNoData').style.display = 'none';
+  document.getElementById('trendChart').style.display  = 'block';
+
+  // 날짜 목록 (중복 제거, 정렬)
+  const dates = [...new Set(rows.map(function(r) { return r.date; }))].sort();
+
+  let datasets = [];
+
+  if (mode === 'total') {
+    // 전체 합산
+    const evalByDate = {}, costByDate = {};
+    dates.forEach(function(d) { evalByDate[d] = 0; costByDate[d] = 0; });
+    rows.forEach(function(r) {
+      evalByDate[r.date] = (evalByDate[r.date] || 0) + Number(r.eval_amount || 0);
+      costByDate[r.date] = (costByDate[r.date] || 0) + Number(r.cost_amount || 0);
+    });
+    datasets.push({
+      label: '전체 평가금액',
+      data:  dates.map(function(d) { return evalByDate[d]; }),
+      borderColor: TREND_COLORS[0], backgroundColor: TREND_COLORS[0] + '33',
+      fill: true, tension: 0.3, pointRadius: dates.length > 60 ? 0 : 3,
+    });
+    if (showCost) {
+      datasets.push({
+        label: '전체 매수금액',
+        data:  dates.map(function(d) { return costByDate[d]; }),
+        borderColor: TREND_COLORS[1], backgroundColor: 'transparent',
+        borderDash: [5,3], fill: false, tension: 0.3, pointRadius: 0,
+      });
+    }
+  } else if (mode === 'owner') {
+    const owners = [...new Set(rows.map(function(r) { return r.owner; }))].sort();
+    owners.forEach(function(owner, i) {
+      const evalByDate = {}, costByDate = {};
+      dates.forEach(function(d) { evalByDate[d] = 0; costByDate[d] = 0; });
+      rows.filter(function(r) { return r.owner === owner; }).forEach(function(r) {
+        evalByDate[r.date] = (evalByDate[r.date] || 0) + Number(r.eval_amount || 0);
+        costByDate[r.date] = (costByDate[r.date] || 0) + Number(r.cost_amount || 0);
+      });
+      datasets.push({
+        label: owner + ' 평가금액',
+        data:  dates.map(function(d) { return evalByDate[d]; }),
+        borderColor: TREND_COLORS[i % TREND_COLORS.length], backgroundColor: 'transparent',
+        fill: false, tension: 0.3, pointRadius: dates.length > 60 ? 0 : 3,
+      });
+      if (showCost) {
+        datasets.push({
+          label: owner + ' 매수금액',
+          data:  dates.map(function(d) { return costByDate[d]; }),
+          borderColor: TREND_COLORS[i % TREND_COLORS.length], backgroundColor: 'transparent',
+          borderDash: [5,3], fill: false, tension: 0.3, pointRadius: 0,
+        });
+      }
+    });
+  } else if (mode === 'account') {
+    // 현재 계좌 필터 기준으로 표시 (전체면 모든 계좌)
+    const acctIds = selectedAccounts.size > 0
+      ? [...selectedAccounts]
+      : [...new Set(rows.map(function(r) { return String(r.account_id); }))];
+    acctIds.forEach(function(acctId, i) {
+      const acctRows  = rows.filter(function(r) { return String(r.account_id) === acctId; });
+      if (acctRows.length === 0) return;
+      const acct      = (state.accounts || []).find(function(a) { return String(a.account_id) === acctId; });
+      const label     = acct ? (acct.owner + ' · ' + acct.broker + ' ' + acct.account_type) : acctId;
+      const evalByDate = {}, costByDate = {};
+      dates.forEach(function(d) { evalByDate[d] = 0; costByDate[d] = 0; });
+      acctRows.forEach(function(r) {
+        evalByDate[r.date] = (evalByDate[r.date] || 0) + Number(r.eval_amount || 0);
+        costByDate[r.date] = (costByDate[r.date] || 0) + Number(r.cost_amount || 0);
+      });
+      datasets.push({
+        label: label,
+        data:  dates.map(function(d) { return evalByDate[d]; }),
+        borderColor: TREND_COLORS[i % TREND_COLORS.length], backgroundColor: 'transparent',
+        fill: false, tension: 0.3, pointRadius: dates.length > 60 ? 0 : 3,
+      });
+      if (showCost) {
+        datasets.push({
+          label: label + ' (매수)',
+          data:  dates.map(function(d) { return costByDate[d]; }),
+          borderColor: TREND_COLORS[i % TREND_COLORS.length], backgroundColor: 'transparent',
+          borderDash: [5,3], fill: false, tension: 0.3, pointRadius: 0,
+        });
+      }
+    });
+  } else if (mode === 'group') {
+    const groups = state.accountGroups || [];
+    if (groups.length === 0) {
+      showTrendNoData(); return;
+    }
+    groups.forEach(function(g, i) {
+      const ids        = getGroupAccountIds(g);
+      const groupRows  = rows.filter(function(r) { return ids.includes(String(r.account_id)); });
+      if (groupRows.length === 0) return;
+      const evalByDate = {}, costByDate = {};
+      dates.forEach(function(d) { evalByDate[d] = 0; costByDate[d] = 0; });
+      groupRows.forEach(function(r) {
+        evalByDate[r.date] = (evalByDate[r.date] || 0) + Number(r.eval_amount || 0);
+        costByDate[r.date] = (costByDate[r.date] || 0) + Number(r.cost_amount || 0);
+      });
+      datasets.push({
+        label: '🗂 ' + g.name,
+        data:  dates.map(function(d) { return evalByDate[d]; }),
+        borderColor: TREND_COLORS[i % TREND_COLORS.length], backgroundColor: 'transparent',
+        fill: false, tension: 0.3, pointRadius: dates.length > 60 ? 0 : 3,
+      });
+      if (showCost) {
+        datasets.push({
+          label: '🗂 ' + g.name + ' (매수)',
+          data:  dates.map(function(d) { return costByDate[d]; }),
+          borderColor: TREND_COLORS[i % TREND_COLORS.length], backgroundColor: 'transparent',
+          borderDash: [5,3], fill: false, tension: 0.3, pointRadius: 0,
+        });
+      }
+    });
+  }
+
+  // 기간 버튼 비활성화 (데이터 없는 기간)
+  const minDate = trendState.rawRows.reduce(function(m, r) { return r.date < m ? r.date : m; }, '9999');
+  updatePeriodBtnAvailability(minDate);
+
+  // Chart.js 렌더링
+  const canvas = document.getElementById('trendChart');
+  if (trendState.chart) { trendState.chart.destroy(); trendState.chart = null; }
+  trendState.chart = new Chart(canvas, {
+    type: 'line',
+    data: { labels: dates, datasets: datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { color: '#e6edf3', font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              return ' ' + ctx.dataset.label + ': ' + Math.round(ctx.parsed.y).toLocaleString('ko-KR') + '원';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color:'#8b949e', font:{size:10}, maxTicksLimit: 10 },
+          grid:  { color:'#30363d' },
+        },
+        y: {
+          ticks: {
+            color:'#8b949e', font:{size:10},
+            callback: function(v) {
+              if (v >= 100000000) return (v/100000000).toFixed(1) + '억';
+              if (v >= 10000)     return (v/10000).toFixed(0) + '만';
+              return v.toLocaleString('ko-KR');
+            }
+          },
+          grid: { color:'#30363d' },
+        }
+      }
+    }
+  });
+
+  // 요약 통계 렌더링
+  renderTrendSummary(rows, dates);
+}
+
+function updatePeriodBtnAvailability(minDate) {
+  const now = new Date();
+  const thresholds = {
+    '1M':  new Date(now.getFullYear(), now.getMonth()-1,  now.getDate()),
+    '6M':  new Date(now.getFullYear(), now.getMonth()-6,  now.getDate()),
+    'YTD': new Date(now.getFullYear(), 0, 1),
+    '1Y':  new Date(now.getFullYear()-1,  now.getMonth(), now.getDate()),
+    '2Y':  new Date(now.getFullYear()-2,  now.getMonth(), now.getDate()),
+    '3Y':  new Date(now.getFullYear()-3,  now.getMonth(), now.getDate()),
+    '5Y':  new Date(now.getFullYear()-5,  now.getMonth(), now.getDate()),
+    '10Y': new Date(now.getFullYear()-10, now.getMonth(), now.getDate()),
+  };
+  document.querySelectorAll('.trend-period-btn').forEach(function(btn) {
+    const t = thresholds[btn.dataset.period];
+    btn.disabled = t ? (t.toISOString().slice(0,10) < minDate) : false;
+  });
+}
+
+function renderTrendSummary(rows, dates) {
+  const el = document.getElementById('trendSummary');
+  if (!el || dates.length < 2) { if(el) el.innerHTML = ''; return; }
+  const firstDate = dates[0], lastDate = dates[dates.length-1];
+  const firstRows = rows.filter(function(r) { return r.date === firstDate; });
+  const lastRows  = rows.filter(function(r) { return r.date === lastDate;  });
+  const firstEval = firstRows.reduce(function(s,r) { return s + Number(r.eval_amount||0); }, 0);
+  const lastEval  = lastRows.reduce(function(s,r)  { return s + Number(r.eval_amount||0); }, 0);
+  const lastCost  = lastRows.reduce(function(s,r)  { return s + Number(r.cost_amount||0); }, 0);
+  const change    = lastEval - firstEval;
+  const changePct = firstEval > 0 ? (change / firstEval * 100) : 0;
+  const profit    = lastEval - lastCost;
+  const profitPct = lastCost  > 0 ? (profit / lastCost  * 100) : 0;
+  const pos = function(v) { return v >= 0 ? 'pos' : 'neg'; };
+  const fmt = function(v) { return (v>=0?'+':'') + Math.round(v).toLocaleString('ko-KR') + '원'; };
+  const fmtPct = function(v) { return (v>=0?'+':'') + v.toFixed(1) + '%'; };
+
+  el.innerHTML = `
+    <div class="trend-summary-card">
+      <div class="label">현재 평가금액</div>
+      <div class="value">${Math.round(lastEval).toLocaleString('ko-KR')}원</div>
+      <div class="sub">${lastDate} 기준</div>
+    </div>
+    <div class="trend-summary-card">
+      <div class="label">기간 수익</div>
+      <div class="value ${pos(change)}">${fmt(change)}</div>
+      <div class="sub ${pos(changePct)}">${fmtPct(changePct)} (${firstDate} 대비)</div>
+    </div>
+    <div class="trend-summary-card">
+      <div class="label">총 수익 (매수 대비)</div>
+      <div class="value ${pos(profit)}">${fmt(profit)}</div>
+      <div class="sub ${pos(profitPct)}">${fmtPct(profitPct)}</div>
+    </div>
+    <div class="trend-summary-card">
+      <div class="label">데이터 기간</div>
+      <div class="value" style="font-size:13px">${dates.length}일</div>
+      <div class="sub">${firstDate} ~ ${lastDate}</div>
+    </div>`;
+}
+
+// 수동 스냅샷 저장
+async function manualSnapshot() {
+  if (!GAS_URL) { alert('GAS URL을 먼저 설정하세요'); return; }
+  try {
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save_snapshot' }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    alert('✅ 스냅샷 저장 완료! 추이 탭을 새로고침하세요.');
+    await loadTrendData();
+  } catch(err) {
+    alert('저장 실패: ' + err.message);
   }
 }
 
