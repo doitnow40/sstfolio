@@ -126,6 +126,86 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
   margin-bottom: 24px;
 }
 @media (max-width:900px) { .chart-grid { grid-template-columns:1fr; } }
+
+/* ══════════════════════════════════════════════════════════
+   모바일 반응형 (768px 이하)
+══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* 헤더 */
+  .header { height: auto; padding: 6px 0; }
+  .header-inner { padding: 0 10px; flex-wrap: wrap; gap: 4px; }
+  .logo { font-size: 15px; }
+  .logo img { width: 20px !important; height: 20px !important; }
+  .logo span { font-size: 11px; }
+  .last-updated { font-size: 10px; }
+  .btn-refresh { padding: 4px 8px; font-size: 11px; }
+  .btn-add     { padding: 4px 8px; font-size: 11px; }
+
+  /* 요약 카드: 2x2 그리드 */
+  .summary-grid { grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+  .card { padding: 8px 10px; }
+  .card-value { font-size: 15px; }
+  .card-label { font-size: 10px; }
+  .card-sub   { font-size: 10px; }
+
+  /* 필터 칩: 가로 스크롤 */
+  #globalOwnerFilter,
+  #globalAccountFilter {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  #globalOwnerFilter::-webkit-scrollbar,
+  #globalAccountFilter::-webkit-scrollbar { display: none; }
+  .chip { white-space: nowrap; flex-shrink: 0; }
+
+  /* 탭 */
+  .tabs { gap: 0; }
+  .tab  { font-size: 12px; padding: 8px 10px; }
+
+  /* main 패딩 */
+  main { padding: 8px 10px; }
+
+  /* 전체 현황 테이블: 핵심 컬럼만 표시 */
+  .tbl-col-qty    { display: none; }
+  .tbl-col-avg    { display: none; }
+  .tbl-col-cost   { display: none; }
+  .tbl-col-eval   { display: none; }
+  .tbl-col-weight { display: none; }
+  .tbl-col-btn    { display: none; }
+
+  /* 테이블 폰트 */
+  thead th { font-size: 10px; padding: 4px 6px; }
+  tbody td { font-size: 11px; padding: 4px 6px; }
+
+  /* 계좌별 테이블도 동일 */
+  .tbl-acct-col-qty  { display: none; }
+  .tbl-acct-col-avg  { display: none; }
+  .tbl-acct-col-cost { display: none; }
+
+  /* 패널 패딩 */
+  .panel { padding-top: 8px; }
+
+  /* 차트 x축 레이블 */
+  .chart-section { margin-bottom: 12px; }
+
+  /* 추이 분석 버튼 줄바꿈 */
+  #trendPeriodBtns { gap: 3px; }
+  #trendModeBtns   { gap: 3px; }
+  .trend-period-btn, .trend-mode-btn { padding: 2px 7px; font-size: 10px; }
+  .trend-summary-card { min-width: 120px; padding: 8px 10px; }
+  .trend-summary-card .value { font-size: 13px; }
+
+  /* 설정 탭 */
+  .settings-section { margin-bottom: 16px; }
+  .settings-row { flex-direction: column; align-items: flex-start; gap: 2px; }
+
+  /* 스크롤 버튼 */
+  #scrollTopBtn, #scrollBottomBtn { width: 32px; height: 32px; font-size: 14px; }
+}
 .chart-card {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -1141,9 +1221,9 @@ function renderTable() {
     </colgroup>
     <thead><tr>
       <th>종목명</th><th>계좌</th>
-      <th>수량</th><th>평단가</th><th>현재가</th>
-      <th>매수금액</th><th>평가금액</th>
-      <th>평가손익</th><th>수익률</th><th>비중</th><th></th>
+      <th class="tbl-col-qty">수량</th><th class="tbl-col-avg">평단가</th><th>현재가</th>
+      <th class="tbl-col-cost">매수금액</th><th class="tbl-col-eval">평가금액</th>
+      <th>평가손익</th><th>수익률</th><th class="tbl-col-weight">비중</th><th class="tbl-col-btn"></th>
     </tr></thead><tbody>`;
 
   let lastGroupKey = null;
@@ -1188,15 +1268,15 @@ function renderTable() {
           <small style="color:var(--text2)">${h.ticker} · ${h.sector || ''}</small></td>
       <td>${h.broker || ''} ${acctBadge}<br>
           <small style="color:var(--text2)">${h.account_type || ''} · ${h.owner || ''}</small></td>
-      <td>${(h.quantity || 0).toLocaleString()}</td>
-      <td>${avgDisplay}</td>
+      <td class="tbl-col-qty">${(h.quantity || 0).toLocaleString()}</td>
+      <td class="tbl-col-avg">${avgDisplay}</td>
       <td>${priceDisplay}</td>
-      <td>${(h.cost_amount || 0).toLocaleString('ko-KR')}원</td>
-      <td>${(h.eval_amount || 0).toLocaleString('ko-KR')}원</td>
+      <td class="tbl-col-cost">${(h.cost_amount || 0).toLocaleString('ko-KR')}원</td>
+      <td class="tbl-col-eval">${(h.eval_amount || 0).toLocaleString('ko-KR')}원</td>
       <td style="color:${color}">${sign}${(h.profit_amount || 0).toLocaleString('ko-KR')}원</td>
       <td style="color:${color};font-weight:700">${sign}${pct}%</td>
-      <td style="color:var(--text2)">${weight}%</td>
-      <td>
+      <td class="tbl-col-weight" style="color:var(--text2)">${weight}%</td>
+      <td class="tbl-col-btn">
         <button class="btn-icon" onclick="editHolding('${h.id}')" title="수정">✏️</button>
         <button class="btn-icon" onclick="deleteHolding('${h.id}')" title="삭제">🗑️</button>
       </td>
@@ -1292,20 +1372,20 @@ function renderByAccount() {
       <div class="account-body ${isCollapsed}" id="acc-body-${accId}">
       <table style="table-layout:fixed;width:100%">
         <colgroup>
-          <col style="width:22%">
-          <col style="width:5%">
+          <col style="width:28%">
           <col style="width:6%">
-          <col style="width:10%">
-          <col style="width:10%">
+          <col class="tbl-acct-col-qty" style="width:6%">
+          <col class="tbl-acct-col-avg" style="width:10%">
+          <col style="width:11%">
+          <col class="tbl-acct-col-cost" style="width:12%">
           <col style="width:12%">
           <col style="width:12%">
-          <col style="width:12%">
-          <col style="width:8%">
+          <col style="width:9%">
         </colgroup>
         <thead><tr>
           <th>종목명</th><th>시장</th>
-          <th>수량</th><th>평단가</th><th>현재가</th>
-          <th>매수금액</th><th>평가금액</th><th>손익</th><th>수익률</th>
+          <th class="tbl-acct-col-qty">수량</th><th class="tbl-acct-col-avg">평단가</th><th>현재가</th>
+          <th class="tbl-acct-col-cost">매수금액</th><th>평가금액</th><th>손익</th><th>수익률</th>
         </tr></thead>
         <tbody>`;
 
@@ -1317,10 +1397,10 @@ function renderByAccount() {
         <td><strong>${h.name || h.ticker}</strong><br>
             <small style="color:var(--text2)">${h.ticker} · ${h.sector}</small></td>
         <td><span class="badge badge-${h.market === 'US' ? 'us' : 'kr'}">${h.market}</span></td>
-        <td>${(h.quantity || 0).toLocaleString()}</td>
-        <td>${(h.avg_price || 0).toLocaleString()}${h.market === 'US' ? '$' : '원'}</td>
+        <td class="tbl-acct-col-qty">${(h.quantity || 0).toLocaleString()}</td>
+        <td class="tbl-acct-col-avg">${(h.avg_price || 0).toLocaleString()}${h.market === 'US' ? '$' : '원'}</td>
         <td>${(h.current_price || 0).toLocaleString()}${h.market === 'US' ? '$' : '원'}</td>
-        <td>${(h.cost_amount || 0).toLocaleString('ko-KR')}원</td>
+        <td class="tbl-acct-col-cost">${(h.cost_amount || 0).toLocaleString('ko-KR')}원</td>
         <td>${(h.eval_amount || 0).toLocaleString('ko-KR')}원</td>
         <td style="color:${color2}">${sign}${(h.profit_amount || 0).toLocaleString('ko-KR')}원</td>
         <td style="color:${color2};font-weight:700">${sign}${pct}%</td>
