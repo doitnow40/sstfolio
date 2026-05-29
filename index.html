@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>포트폴리오 관리</title>
+<title>SSTfolio</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap@2.3.0/dist/chartjs-chart-treemap.min.js"></script>
 <style>
@@ -497,7 +497,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <!-- ── 헤더 ──────────────────────────────────────────────── -->
 <header>
   <div class="header-inner">
-    <div class="logo">📈 포트폴리오 <span id="headerSub">로딩중...</span></div>
+    <div class="logo">📈 SSTfolio <span id="headerSub">로딩중...</span></div>
     <div class="header-right">
       <span class="last-updated" id="lastUpdated">–</span>
       <button class="btn-refresh" onclick="loadData()">⟳ 새로고침</button>
@@ -606,8 +606,8 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>섹터별 비중</span>
         <div class="chart-view-toggle">
-          <button class="chart-view-btn active" onclick="switchChartView('sector','donut',this)">도넛</button>
-          <button class="chart-view-btn"        onclick="switchChartView('sector','treemap',this)">맵</button>
+          <button class="chart-view-btn"        onclick="switchChartView('sector','donut',this)">도넛</button>
+          <button class="chart-view-btn active" onclick="switchChartView('sector','treemap',this)">맵</button>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chartSector"></canvas></div>
@@ -616,8 +616,8 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>계좌별 비중</span>
         <div class="chart-view-toggle">
-          <button class="chart-view-btn active" onclick="switchChartView('account','donut',this)">도넛</button>
-          <button class="chart-view-btn"        onclick="switchChartView('account','treemap',this)">맵</button>
+          <button class="chart-view-btn"        onclick="switchChartView('account','donut',this)">도넛</button>
+          <button class="chart-view-btn active" onclick="switchChartView('account','treemap',this)">맵</button>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chartAccount"></canvas></div>
@@ -1208,8 +1208,8 @@ const CHART_COLORS = [
 
 // 차트 뷰 상태 저장 (donut / treemap)
 const chartViewState = {
-  sector:  'donut',
-  account: 'donut',
+  sector:  'treemap',
+  account: 'treemap',
   market:  'donut',
   asset:   'donut',
   owner:   'donut',
