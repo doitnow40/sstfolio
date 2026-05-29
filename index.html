@@ -2393,15 +2393,18 @@ function renderTrendChart() {
   }
 
   // 금액/수익률 데이터셋 생성 헬퍼
-  function makeDataset(label, evalByDate, costByDate, colorIdx, isFill) {
+  function makeDataset(label, evalByDate, costByDate, colorIdx, isFill, opts) {
     const color = TREND_COLORS[colorIdx % TREND_COLORS.length];
+    const bw    = (opts && opts.borderWidth) || 1.5;
+    const dash  = (opts && opts.borderDash)  || [];
+    const pr    = (opts && opts.pointRadius !== undefined) ? opts.pointRadius : (dates.length > 60 ? 0 : 3);
     if (isYield) {
       return {
         label: label,
         data:  dates.map(function(d) {
           return parseFloat(calcYield(evalByDate[d]||0, costByDate[d]||0).toFixed(2));
         }),
-        borderColor: color,
+        borderColor: color, borderWidth: bw, borderDash: dash,
         backgroundColor: isFill
           ? function(ctx) {
               const chart = ctx.chart;
@@ -2414,17 +2417,15 @@ function renderTrendChart() {
             }
           : 'transparent',
         fill: isFill ? 'origin' : false,
-        tension: 0.3,
-        pointRadius: dates.length > 60 ? 0 : 3,
+        tension: 0.3, pointRadius: pr,
       };
     } else {
       return {
         label: label,
         data:  dates.map(function(d) { return evalByDate[d] || 0; }),
-        borderColor: color,
+        borderColor: color, borderWidth: bw, borderDash: dash,
         backgroundColor: isFill ? color + '33' : 'transparent',
-        fill: isFill, tension: 0.3,
-        pointRadius: dates.length > 60 ? 0 : 3,
+        fill: isFill, tension: 0.3, pointRadius: pr,
       };
     }
   }
@@ -2472,19 +2473,53 @@ function renderTrendChart() {
     const acctIds = selectedAccounts.size > 0
       ? [...selectedAccounts]
       : [...new Set(rows.map(function(r) { return String(r.account_id); }))];
+
+    // 선택된 계좌 중 그룹에 속하는 것들 감지 → 그룹 합산선 추가
+    const drawnGroupIds = new Set(); // 중복 방지
+    let colorOffset = 0;
+    (state.accountGroups || []).forEach(function(g, gi) {
+      const groupIds    = getGroupAccountIds(g);
+      const matchedIds  = groupIds.filter(function(id) { return acctIds.includes(id); });
+      if (matchedIds.length < 2) return; // 2개 이상 계좌가 선택된 그룹만
+      // 그룹 합산 데이터
+      const evalByDate = {}, costByDate = {};
+      dates.forEach(function(d) { evalByDate[d] = 0; costByDate[d] = 0; });
+      rows.filter(function(r) { return matchedIds.includes(String(r.account_id)); })
+          .forEach(function(r) {
+            evalByDate[r.date] += Number(r.eval_amount || 0);
+            costByDate[r.date] += Number(r.cost_amount || 0);
+          });
+      // 굵은 실선으로 그룹 합산 선 추가
+      datasets.push(makeDataset(
+        '🗂 ' + g.name + (isYield ? ' 합산 수익률' : ' 합산'),
+        evalByDate, costByDate, colorOffset++, false,
+        { borderWidth: 3, pointRadius: dates.length > 60 ? 0 : 4 }
+      ));
+      if (showCost && !isYield) datasets.push(makeCostDataset('🗂 ' + g.name + ' 매수', costByDate, colorOffset - 1));
+      matchedIds.forEach(function(id) { drawnGroupIds.add(id); });
+    });
+
+    // 개별 계좌 선 (그룹 포함 계좌는 점선으로 구분)
     acctIds.forEach(function(acctId, i) {
       const acctRows = rows.filter(function(r) { return String(r.account_id) === acctId; });
       if (acctRows.length === 0) return;
-      const acct  = (state.accounts || []).find(function(a) { return String(a.account_id) === acctId; });
-      const label = acct ? (acct.owner + ' · ' + acct.broker + ' ' + acct.account_type) : acctId;
+      const acct    = (state.accounts || []).find(function(a) { return String(a.account_id) === acctId; });
+      const label   = acct ? (acct.owner + ' · ' + acct.broker + ' ' + acct.account_type) : acctId;
+      const inGroup = drawnGroupIds.has(acctId);
       const evalByDate = {}, costByDate = {};
       dates.forEach(function(d) { evalByDate[d] = 0; costByDate[d] = 0; });
       acctRows.forEach(function(r) {
         evalByDate[r.date] += Number(r.eval_amount || 0);
         costByDate[r.date] += Number(r.cost_amount || 0);
       });
-      datasets.push(makeDataset(label + (isYield ? ' 수익률' : ''), evalByDate, costByDate, i, false));
-      if (showCost && !isYield) datasets.push(makeCostDataset(label + ' 매수', costByDate, i));
+      datasets.push(makeDataset(
+        label + (isYield ? ' 수익률' : ''),
+        evalByDate, costByDate, colorOffset + i, false,
+        inGroup
+          ? { borderWidth: 1, borderDash: [4, 3], pointRadius: 0 }  // 그룹 내 계좌: 가는 점선
+          : { borderWidth: 1.5 }                                      // 일반 계좌: 보통 실선
+      ));
+      if (showCost && !isYield) datasets.push(makeCostDataset(label + ' 매수', costByDate, colorOffset + i));
     });
 
   } else if (mode === 'group') {
