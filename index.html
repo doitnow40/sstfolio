@@ -783,7 +783,9 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <div id="trendLoading" style="display:none;text-align:center;padding:60px 0;color:var(--text2)">
       <div style="font-size:13px">데이터 불러오는 중...</div>
     </div>
-    <canvas id="trendChart" style="max-height:420px"></canvas>
+    <div style="position:relative;height:380px;width:100%">
+      <canvas id="trendChart"></canvas>
+    </div>
   </div>
 
   <!-- 요약 통계 -->
@@ -2467,6 +2469,7 @@ function renderTrendChart() {
     data: { labels: dates, datasets: datasets },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { position: 'top', labels: { color: '#e6edf3', font: { size: 11 } } },
