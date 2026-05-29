@@ -737,6 +737,12 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
 <!-- ── 패널: 추이 분석 ─────────────────────────────────── -->
 <div class="panel" id="panel-trend">
+  <!-- 현재 필터 표시 -->
+  <div id="trendFilterBadge" style="display:none;align-items:center;gap:6px;margin-bottom:10px;padding:6px 12px;background:var(--bg3);border:1px solid var(--blue);border-radius:var(--radius)">
+    <span style="font-size:11px;color:var(--blue)">🔍 필터 적용 중:</span>
+    <span id="trendFilterText" style="font-size:11px;color:var(--text2)"></span>
+    <button onclick="clearTrendFilter()" style="margin-left:auto;font-size:11px;color:var(--text2);background:none;border:none;cursor:pointer">✕ 필터 해제</button>
+  </div>
   <!-- 기간 선택 -->
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <span style="font-size:12px;color:var(--text2);margin-right:4px">기간:</span>
@@ -1032,6 +1038,7 @@ function renderAll() {
   renderAccountList();
   renderAccountGroupList();
   renderGroupAccountChecks();
+  if (state.activeTab === 'trend' && trendState.loaded) renderTrendChart();
 }
 
 // ── 요약 카드 ────────────────────────────────────────────────
@@ -2247,6 +2254,12 @@ const TREND_COLORS = [
   '#79c0ff','#ff7b72','#56d364','#e3b341','#d2a8ff',
 ];
 
+function clearTrendFilter() {
+  selectedOwners.clear();
+  selectedAccounts.clear();
+  renderAll();
+}
+
 function setTrendView(view) {
   trendState.view = view;
   document.getElementById('trendViewAmount').classList.toggle('active', view === 'amount');
@@ -2331,10 +2344,41 @@ function filterTrendRows() {
 
 function renderTrendChart() {
   if (!trendState.loaded || trendState.rawRows.length === 0) return;
-  const rows     = filterTrendRows();
+  let rows       = filterTrendRows();
   const showCost = document.getElementById('trendShowCost').checked;
   const mode     = trendState.mode;
   const isYield  = trendState.view === 'yield';
+
+  // ── 필터 배지 갱신 ─────────────────────────────────────────
+  (function() {
+    const badge    = document.getElementById('trendFilterBadge');
+    const badgeTxt = document.getElementById('trendFilterText');
+    const parts    = [];
+    if (selectedOwners.size > 0)   parts.push('소유자: ' + [...selectedOwners].join(', '));
+    if (selectedAccounts.size > 0) {
+      const labels = [...selectedAccounts].map(function(id) {
+        const a = (state.accounts || []).find(function(a) { return String(a.account_id) === id; });
+        return a ? a.broker + ' ' + a.account_type : id;
+      });
+      parts.push('계좌: ' + labels.join(', '));
+    }
+    if (parts.length > 0) {
+      badge.style.display = 'flex';
+      badgeTxt.textContent = parts.join(' / ');
+    } else {
+      badge.style.display = 'none';
+    }
+  })();
+  // ── 상단 필터 연동 ──────────────────────────────────────────
+  // 소유자 필터 적용 (그룹별 모드 제외)
+  if (selectedOwners.size > 0 && mode !== 'group') {
+    rows = rows.filter(function(r) { return selectedOwners.has(r.owner); });
+  }
+  // 계좌 필터 적용 (계좌별/그룹별 모드 제외 — 해당 모드는 자체 처리)
+  if (selectedAccounts.size > 0 && mode !== 'account' && mode !== 'group') {
+    rows = rows.filter(function(r) { return selectedAccounts.has(String(r.account_id)); });
+  }
+  // ────────────────────────────────────────────────────────────
 
   if (rows.length === 0) { showTrendNoData(); return; }
   document.getElementById('trendNoData').style.display = 'none';
@@ -2408,7 +2452,11 @@ function renderTrendChart() {
     if (showCost && !isYield) datasets.push(makeCostDataset('전체 매수금액', costByDate, 1));
 
   } else if (mode === 'owner') {
-    const owners = [...new Set(rows.map(function(r) { return r.owner; }))].sort();
+    // 소유자 필터 적용 시 선택된 소유자만, 아니면 전체
+    const allOwners = [...new Set(rows.map(function(r) { return r.owner; }))].sort();
+    const owners    = selectedOwners.size > 0
+      ? allOwners.filter(function(o) { return selectedOwners.has(o); })
+      : allOwners;
     owners.forEach(function(owner, i) {
       const evalByDate = {}, costByDate = {};
       dates.forEach(function(d) { evalByDate[d] = 0; costByDate[d] = 0; });
