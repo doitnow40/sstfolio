@@ -932,11 +932,11 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
 <script>
 // ============================================================
-// ★ 여기에 GAS URL을 붙여넣으세요 ★
-// GAS 배포 후 받은 URL을 아래 빈 문자열에 입력
 // ============================================================
-let GAS_URL     = localStorage.getItem('sstfolio_gas_url')    || '';
-let WORKER_URL  = localStorage.getItem('sstfolio_worker_url') || '';
+// ★ 서비스 URL 설정 (하드코딩 — 어느 기기에서든 자동 연결)
+// ============================================================
+let GAS_URL    = localStorage.getItem('sstfolio_gas_url')    || 'https://script.google.com/macros/s/AKfycbxATlxHQi45Oii_TyFZlB1aGCiM_vKDuL811YSkA_BgLusWbJ6Frlut74EOREMYb2DV/exec';
+let WORKER_URL = localStorage.getItem('sstfolio_worker_url') || 'https://sstfolio-worker.doitnow40.workers.dev';
 function getApiUrl() { return WORKER_URL || GAS_URL; }
 
 // ============================================================
