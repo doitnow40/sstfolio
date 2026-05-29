@@ -443,6 +443,23 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   transition: all .2s;
 }
 .chip.active { border-color:var(--blue); color:var(--blue); background:#1f2d3d; }
+.chip.group { border-color:var(--purple); color:var(--purple); background:transparent; }
+.chip.group.active { border-color:var(--purple); color:var(--purple); background:#2a1f3d; }
+
+/* ── 계좌 그룹 관리 ─────────────────────────────────────────── */
+.group-item {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 12px; background:var(--bg3); border-radius:var(--radius);
+  border:1px solid var(--border); margin-bottom:6px;
+}
+.group-item-name { font-size:13px; font-weight:600; color:var(--purple); }
+.group-item-labels { font-size:11px; color:var(--text2); margin-top:2px; }
+.group-account-checks { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+.group-account-checks label { 
+  display:flex; align-items:center; gap:4px; font-size:12px; 
+  cursor:pointer; color:var(--text2); 
+}
+.group-account-checks input[type=checkbox] { accent-color:var(--purple); }
 
 /* ── 구분선 행 ────────────────────────────────────────────── */
 .account-group-row td {
@@ -711,6 +728,22 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <div id="accountList"></div>
   </div>
   <div class="settings-section">
+    <div class="settings-title">계좌 그룹 관리</div>
+    <div style="color:var(--text2);font-size:12px;margin-bottom:12px">
+      여러 계좌를 묶어 그룹으로 만들면 계좌 필터에 그룹 버튼이 추가됩니다.
+    </div>
+    <!-- 기존 그룹 목록 -->
+    <div id="accountGroupList" style="margin-bottom:14px"></div>
+    <!-- 그룹 추가/수정 폼 -->
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:600">새 그룹 만들기</div>
+      <input class="form-input" id="inputGroupName" placeholder="그룹명 (예: 연금계좌그룹)" style="margin-bottom:10px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">포함할 계좌 선택:</div>
+      <div class="group-account-checks" id="groupAccountChecks"></div>
+      <button class="btn-primary" onclick="saveAccountGroup()" style="margin-top:4px">그룹 저장</button>
+    </div>
+  </div>
+  <div class="settings-section">
     <div class="settings-title">차트 진단</div>
     <div style="color:var(--text2);font-size:13px;margin-bottom:12px">
       차트 수치가 이상할 때 현재 데이터 상태를 확인합니다.
@@ -828,6 +861,7 @@ let state = {
   activeOwner: 'all',
   editingId: null,
   charts: {},
+  accountGroups: [],
 };
 
 // ============================================================
@@ -863,9 +897,10 @@ async function loadData() {
 
     if (data.error) throw new Error(data.error);
 
-    state.holdings = data.holdings || [];
-    state.accounts = data.accounts || [];
-    state.config   = data.config   || {};
+    state.holdings      = data.holdings      || [];
+    state.accounts      = data.accounts      || [];
+    state.config        = data.config        || {};
+    state.accountGroups = data.accountGroups || [];
 
     document.getElementById('lastUpdated').textContent =
       '갱신: ' + new Date().toLocaleTimeString('ko-KR');
@@ -904,6 +939,8 @@ function renderAll() {
   renderByAccount();
   renderCharts();
   renderAccountList();
+  renderAccountGroupList();
+  renderGroupAccountChecks();
 }
 
 // ── 요약 카드 ────────────────────────────────────────────────
@@ -1232,6 +1269,15 @@ function renderGlobalAccountFilter() {
   });
   const allAcctSelected = selectedAccounts.size === 0;
   let html = '<button class="chip ' + (allAcctSelected ? 'active' : '') + '" onclick="setGlobalAccount(&apos;all&apos;, event)">전체</button>';
+
+  // 그룹 칩 (보라색)
+  (state.accountGroups || []).forEach(function(g) {
+    const groupIds = getGroupAccountIds(g);
+    const isActive = groupIds.length > 0 && groupIds.every(function(id) { return selectedAccounts.has(id); });
+    html += '<button class="chip group ' + (isActive ? 'active' : '') + '" onclick="setGlobalAccountGroup(&apos;' + encodeURIComponent(g.name) + '&apos;, event)">🗂 ' + g.name + '</button>';
+  });
+
+  // 개별 계좌 칩
   accounts.forEach(a => {
     const id    = String(a.account_id);
     const label = (a.broker || '') + ' ' + (a.account_type || '');
@@ -1264,6 +1310,39 @@ function setGlobalAccount(id, event) {
 }
 // 하위 호환
 function setChartAccount(id, event) { setGlobalAccount(id, event); }
+
+// 그룹에 속한 account_id 배열 반환
+function getGroupAccountIds(group) {
+  return (state.accounts || [])
+    .filter(function(a) {
+      const label = ((a.broker || '') + ' ' + (a.account_type || '')).trim();
+      return (group.labels || []).some(function(l) { return l.trim() === label; });
+    })
+    .map(function(a) { return String(a.account_id); });
+}
+
+// 그룹 칩 클릭 시 해당 계좌들 일괄 선택/해제
+function setGlobalAccountGroup(encodedName, event) {
+  const name  = decodeURIComponent(encodedName);
+  const group = (state.accountGroups || []).find(function(g) { return g.name === name; });
+  if (!group) return;
+  const ids = getGroupAccountIds(group);
+  if (ids.length === 0) return;
+  const allSelected = ids.every(function(id) { return selectedAccounts.has(id); });
+  if (allSelected) {
+    // 이미 전부 선택됨 → 해제
+    ids.forEach(function(id) { selectedAccounts.delete(id); });
+  } else {
+    if (event && event.ctrlKey) {
+      ids.forEach(function(id) { selectedAccounts.add(id); });
+    } else {
+      selectedAccounts.clear();
+      ids.forEach(function(id) { selectedAccounts.add(id); });
+    }
+  }
+  renderGlobalAccountFilter();
+  renderAll();
+}
 
 // 소유자 필터는 전역 필터로 통합 (setGlobalOwner 참고)
 
@@ -1704,6 +1783,102 @@ function renderAccountList() {
       <span class="settings-value">${a.account_type}</span>
     </div>`
   ).join('') || '<div style="color:var(--text2);padding:10px 0">계좌 없음</div>';
+}
+
+// ── 계좌 그룹 목록 렌더링 ─────────────────────────────────────
+function renderAccountGroupList() {
+  const el = document.getElementById('accountGroupList');
+  if (!el) return;
+  const groups = state.accountGroups || [];
+  if (groups.length === 0) {
+    el.innerHTML = '<div style="color:var(--text2);font-size:12px;padding:6px 0">등록된 그룹 없음</div>';
+    return;
+  }
+  el.innerHTML = groups.map(function(g) {
+    return `<div class="group-item">
+      <div>
+        <div class="group-item-name">🗂 ${g.name}</div>
+        <div class="group-item-labels">${(g.labels || []).join(', ')}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-icon" onclick="editAccountGroup('${encodeURIComponent(g.name)}')" title="수정">✏️</button>
+        <button class="btn-icon" onclick="deleteAccountGroup('${encodeURIComponent(g.name)}')" title="삭제">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// 계좌 체크박스 렌더링
+function renderGroupAccountChecks() {
+  const el = document.getElementById('groupAccountChecks');
+  if (!el) return;
+  el.innerHTML = (state.accounts || []).map(function(a) {
+    const label = ((a.broker || '') + ' ' + (a.account_type || '')).trim();
+    const id    = 'grpChk_' + String(a.account_id);
+    return `<label><input type="checkbox" id="${id}" value="${label}"> ${label}</label>`;
+  }).join('');
+}
+
+// 그룹 수정 버튼 클릭 시 폼에 값 채우기
+function editAccountGroup(encodedName) {
+  const name  = decodeURIComponent(encodedName);
+  const group = (state.accountGroups || []).find(function(g) { return g.name === name; });
+  if (!group) return;
+  document.getElementById('inputGroupName').value = name;
+  // 체크박스 선택
+  (state.accounts || []).forEach(function(a) {
+    const label = ((a.broker || '') + ' ' + (a.account_type || '')).trim();
+    const cb    = document.getElementById('grpChk_' + String(a.account_id));
+    if (cb) cb.checked = (group.labels || []).some(function(l) { return l.trim() === label; });
+  });
+  document.getElementById('inputGroupName').scrollIntoView({ behavior: 'smooth' });
+}
+
+// 그룹 저장 (POST → Worker → GAS → config 시트)
+async function saveAccountGroup() {
+  const name = document.getElementById('inputGroupName').value.trim();
+  if (!name) { alert('그룹명을 입력하세요'); return; }
+  const labels = [];
+  (state.accounts || []).forEach(function(a) {
+    const cb = document.getElementById('grpChk_' + String(a.account_id));
+    if (cb && cb.checked) {
+      labels.push(((a.broker || '') + ' ' + (a.account_type || '')).trim());
+    }
+  });
+  if (labels.length === 0) { alert('계좌를 1개 이상 선택하세요'); return; }
+
+  const postUrl = WORKER_URL ? WORKER_URL + '/api/account-group' : GAS_URL;
+  try {
+    const res  = await fetch(postUrl, { method:'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action:'save_account_group', groupName:name, labels }) });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    alert('✅ 그룹 저장 완료: ' + name);
+    document.getElementById('inputGroupName').value = '';
+    // 체크박스 초기화
+    (state.accounts || []).forEach(function(a) {
+      const cb = document.getElementById('grpChk_' + String(a.account_id));
+      if (cb) cb.checked = false;
+    });
+    await loadData();
+  } catch(err) {
+    alert('저장 실패: ' + err.message);
+  }
+}
+
+// 그룹 삭제
+async function deleteAccountGroup(encodedName) {
+  const name = decodeURIComponent(encodedName);
+  if (!confirm('그룹 "' + name + '" 을 삭제할까요?')) return;
+  const postUrl = WORKER_URL ? WORKER_URL + '/api/account-group' : GAS_URL;
+  try {
+    const res  = await fetch(postUrl, { method:'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action:'delete_account_group', groupName:name }) });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    alert('🗑️ 그룹 삭제 완료: ' + name);
+    await loadData();
+  } catch(err) {
+    alert('삭제 실패: ' + err.message);
+  }
 }
 
 // ============================================================
