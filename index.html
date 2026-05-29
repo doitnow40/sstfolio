@@ -169,6 +169,22 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
   /* main 패딩 */
   main { padding: 8px 10px; }
 
+  /* 전체 현황: 카드형 레이아웃 */
+  .mobile-card-list { display: flex; flex-direction: column; gap: 1px; }
+  .mobile-card-row {
+    display: flex; align-items: center;
+    padding: 8px 10px; border-bottom: 1px solid var(--border);
+    background: var(--bg2); gap: 8px;
+  }
+  .mobile-card-row:last-child { border-bottom: none; }
+  .mobile-card-left { flex: 1; min-width: 0; }
+  .mobile-card-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mobile-card-sub  { font-size: 10px; color: var(--text2); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mobile-card-right { text-align: right; flex-shrink: 0; }
+  .mobile-card-price { font-size: 12px; color: var(--text2); }
+  .mobile-card-pct   { font-size: 14px; font-weight: 700; }
+  .mobile-card-profit { font-size: 10px; margin-top: 1px; }
+
   /* 전체 현황 테이블: 핵심 컬럼만 표시 */
   .tbl-col-qty    { display: none; }
   .tbl-col-avg    { display: none; }
@@ -205,6 +221,12 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
 
   /* 스크롤 버튼 */
   #scrollTopBtn, #scrollBottomBtn { width: 32px; height: 32px; font-size: 14px; }
+
+  /* 계좌별 헤더 — PC용 숨기고 모바일용 표시 */
+  .acc-hdr-detail { display: none !important; }
+  .acc-hdr-mobile { display: block !important; }
+  .acc-title-text { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .table-header   { flex-wrap: nowrap !important; }
 }
 .chart-card {
   background: var(--bg2);
@@ -791,7 +813,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <!-- 섹터별 수익률 -->
     <div class="chart-card" id="card-bar-sector" style="width:100%">
       <div class="chart-title">섹터별 수익률 (%)</div>
-      <div style="position:relative;height:300px"><canvas id="chartBarSector"></canvas></div>
+      <div style="position:relative;height:480px"><canvas id="chartBarSector"></canvas></div>
     </div>
 
     <!-- 종목별 수익률 Top20 -->
@@ -803,7 +825,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <!-- 계좌별 수익률 — 전체 선택 시만 표시 -->
     <div class="chart-card" id="card-bar-account" style="width:100%">
       <div class="chart-title">계좌별 수익률 (%)</div>
-      <div style="position:relative;height:300px"><canvas id="chartBarAccount"></canvas></div>
+      <div style="position:relative;height:480px"><canvas id="chartBarAccount"></canvas></div>
     </div>
 
     <!-- 소유자별 수익률 — 전체 선택 시만 표시 -->
@@ -1203,6 +1225,12 @@ function renderTable() {
     return;
   }
 
+  // 모바일 카드형 레이아웃
+  if (window.innerWidth <= 768) {
+    renderTableMobile(rows, sort);
+    return;
+  }
+
   const totalEval = rows.reduce((s, x) => s + (x.eval_amount || 0), 0);
 
   let html = `<table style="table-layout:fixed;width:100%">
@@ -1287,6 +1315,53 @@ function renderTable() {
   document.getElementById('tableContainer').innerHTML = html;
 }
 
+function renderTableMobile(rows, sort) {
+  const totalEval = rows.reduce((s, x) => s + (x.eval_amount || 0), 0);
+  let lastGroupKey = null;
+  let html = '<div class="mobile-card-list">';
+
+  rows.forEach(h => {
+    // 그룹 헤더
+    if (sort === 'account' || sort === 'sector') {
+      const gkey = sort === 'account'
+        ? `${h.owner} · ${h.broker} ${h.account_type}`
+        : h.sector;
+      if (gkey !== lastGroupKey) {
+        html += `<div style="padding:6px 10px;background:var(--bg3);font-size:11px;color:var(--text2);font-weight:600">${gkey}</div>`;
+        lastGroupKey = gkey;
+      }
+    }
+
+    const pct   = h.profit_pct || 0;
+    const color = pct >= 0 ? 'var(--green)' : 'var(--red)';
+    const sign  = pct >= 0 ? '+' : '';
+    const marketBadge = h.market === 'US'
+      ? '<span class="badge badge-us">US</span>'
+      : '<span class="badge badge-kr">KR</span>';
+    const priceDisplay = h.market === 'US'
+      ? `$${(h.current_price || 0).toFixed(2)}`
+      : `${(h.current_price || 0).toLocaleString('ko-KR')}원`;
+    const profitAmt = (h.profit_amount || 0).toLocaleString('ko-KR');
+    const evalAmt   = (h.eval_amount   || 0).toLocaleString('ko-KR');
+
+    html += `<div class="mobile-card-row">
+      <div class="mobile-card-left">
+        <div class="mobile-card-name">${h.name || h.ticker} ${marketBadge}</div>
+        <div class="mobile-card-sub">${h.ticker} · ${h.broker} ${h.account_type} · ${h.owner}</div>
+      </div>
+      <div class="mobile-card-right">
+        <div class="mobile-card-price">${priceDisplay}</div>
+        <div class="mobile-card-pct" style="color:${color}">${sign}${pct}%</div>
+        <div class="mobile-card-profit" style="color:${color}">${sign}${profitAmt}원</div>
+      </div>
+      <button class="btn-icon" onclick="editHolding('${h.id}')" title="수정" style="margin-left:4px;flex-shrink:0">✏️</button>
+    </div>`;
+  });
+
+  html += '</div>';
+  document.getElementById('tableContainer').innerHTML = html;
+}
+
 function sortHoldings(rows, sort) {
   return [...rows].sort((a, b) => {
     switch (sort) {
@@ -1357,16 +1432,23 @@ function renderByAccount() {
 
     html += `
     <div class="table-wrap" style="margin-bottom:6px">
-      <div class="table-header" style="cursor:pointer" onclick="toggleAccount('${accId}')">
-        <div style="display:flex;align-items:center;gap:6px">
+      <div class="table-header" style="cursor:pointer;flex-wrap:nowrap;gap:6px" onclick="toggleAccount('${accId}')">
+        <!-- PC: 기존 형식 / 모바일: 한 줄 요약 -->
+        <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;overflow:hidden">
           <button class="account-toggle-btn ${isCollapsed}" id="acc-btn-${accId}">▼</button>
-          <span class="table-title">${acc.owner} · ${acc.broker} ${acc.account_type}</span>
-          <span style="color:var(--text2);font-size:12px">${accHoldings.length}종목</span>
+          <span class="table-title acc-title-text">${acc.owner} · ${acc.broker} ${acc.account_type}</span>
+          <span style="color:var(--text2);font-size:12px;white-space:nowrap">${accHoldings.length}종목</span>
         </div>
-        <div style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap">
+        <div class="acc-hdr-detail" style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap">
           <span>매수 <strong>${totalCost.toLocaleString('ko-KR')}원</strong></span>
           <span>평가 <strong>${totalEval.toLocaleString('ko-KR')}원</strong></span>
           <span style="color:${color}">손익 <strong>${totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString('ko-KR')}원 (${totalProfit >= 0 ? '+' : ''}${totalPct}%)</strong></span>
+        </div>
+        <div class="acc-hdr-mobile" style="display:none;font-size:11px;white-space:nowrap;flex-shrink:0;text-align:right">
+          <span style="color:var(--text2)">${(totalCost/100000000>=1?(totalCost/100000000).toFixed(1)+'억':(totalCost/10000).toFixed(0)+'만')}</span>
+          <span style="margin:0 3px;color:var(--border)">→</span>
+          <span style="color:var(--text2)">${(totalEval/100000000>=1?(totalEval/100000000).toFixed(1)+'억':(totalEval/10000).toFixed(0)+'만')}</span>
+          <span style="margin-left:6px;color:${color};font-weight:700">${totalProfit >= 0 ? '+' : ''}${totalPct}%</span>
         </div>
       </div>
       <div class="account-body ${isCollapsed}" id="acc-body-${accId}">
@@ -1551,10 +1633,10 @@ function renderCharts() {
   renderChart('owner',   'chartOwner',   chartDataCache.owner);
 
   // bar 차트
-  renderBarChart('chartBarSector',  buildBarBySector());
-  renderBarChart('chartBarTop20',   buildBarTop20(),    { horizontal: true, top20: true });
-  renderBarChart('chartBarAccount', buildBarByAccount());
-  renderBarChart('chartBarOwner',   buildBarByOwner());
+  renderBarChart('chartBarSector',  buildBarBySector(),  { horizontal: true });
+  renderBarChart('chartBarTop20',   buildBarTop20(),     { horizontal: true, top20: true });
+  renderBarChart('chartBarAccount', buildBarByAccount(), { horizontal: true });
+  renderBarChart('chartBarOwner',   buildBarByOwner(),   { horizontal: true });
 }
 
 // ── bar 차트 데이터 빌더 ──────────────────────────────────────
