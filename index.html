@@ -1414,47 +1414,53 @@ function renderByAccount() {
   const accounts = state.accounts;
   let html = '';
 
-  const filteredAccounts = accounts.filter(acc => {
+  const filteredAccounts = accounts.filter(function(acc) {
     if (selectedOwners.size > 0 && !selectedOwners.has(acc.owner)) return false;
     if (selectedAccounts.size > 0 && !selectedAccounts.has(String(acc.account_id))) return false;
     return true;
   });
-  filteredAccounts.forEach(acc => {
+
+  filteredAccounts.forEach(function(acc) {
     const accId       = String(acc.account_id);
-    const accHoldings = getFilteredHoldings().filter(h => String(h.account_id) === accId);
+    const accHoldings = getFilteredHoldings().filter(function(h) { return String(h.account_id) === accId; });
     if (accHoldings.length === 0) return;
 
-    const totalEval   = accHoldings.reduce((s, x) => s + (x.eval_amount || 0), 0);
-    const totalCost   = accHoldings.reduce((s, x) => s + (x.cost_amount || 0), 0);
+    const totalEval   = accHoldings.reduce(function(s, x) { return s + (x.eval_amount || 0); }, 0);
+    const totalCost   = accHoldings.reduce(function(s, x) { return s + (x.cost_amount || 0); }, 0);
     const totalProfit = totalEval - totalCost;
     const totalPct    = totalCost > 0 ? (totalProfit / totalCost * 100).toFixed(1) : '0.0';
     const color       = totalProfit >= 0 ? 'var(--green)' : 'var(--red)';
     const isCollapsed = accountCollapseState[accId] ? 'collapsed' : '';
+    const fmtAmt      = function(v) { return v >= 100000000 ? (v/100000000).toFixed(1)+'억' : (v/10000).toFixed(0)+'만'; };
 
-    html += `
-    <div class="table-wrap" style="margin-bottom:6px">
-      <div class="table-header" style="cursor:pointer;flex-wrap:nowrap;gap:6px" onclick="toggleAccount('${accId}')">
-        <!-- PC: 기존 형식 / 모바일: 한 줄 요약 -->
-        <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;overflow:hidden">
-          <button class="account-toggle-btn ${isCollapsed}" id="acc-btn-${accId}">▼</button>
-          <span class="table-title acc-title-text">${acc.owner} · ${acc.broker} ${acc.account_type}</span>
-          <span style="color:var(--text2);font-size:12px;white-space:nowrap">${accHoldings.length}종목</span>
-        </div>
-        <div class="acc-hdr-detail" style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap">
-          <span>매수 <strong>${totalCost.toLocaleString('ko-KR')}원</strong></span>
-          <span>평가 <strong>${totalEval.toLocaleString('ko-KR')}원</strong></span>
-          <span style="color:${color}">손익 <strong>${totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString('ko-KR')}원 (${totalProfit >= 0 ? '+' : ''}${totalPct}%)</strong></span>
-        </div>
-        <div class="acc-hdr-mobile" style="display:none;font-size:11px;white-space:nowrap;flex-shrink:0;text-align:right">
-          <span style="color:var(--text2)">${(totalCost/100000000>=1?(totalCost/100000000).toFixed(1)+'억':(totalCost/10000).toFixed(0)+'만')}</span>
-          <span style="margin:0 3px;color:var(--border)">→</span>
-          <span style="color:var(--text2)">${(totalEval/100000000>=1?(totalEval/100000000).toFixed(1)+'억':(totalEval/10000).toFixed(0)+'만')}</span>
-          <span style="margin-left:6px;color:${color};font-weight:700">${totalProfit >= 0 ? '+' : ''}${totalPct}%</span>
-        </div>
-      </div>
-    // 모바일: 카드형 / PC: 테이블형
+    // ── 계좌 헤더
+    html += '<div class="table-wrap" style="margin-bottom:6px">';
+    html += '<div class="table-header" style="cursor:pointer;flex-wrap:nowrap;gap:6px" onclick="toggleAccount('' + accId + '')">';
+    html += '<div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;overflow:hidden">';
+    html += '<button class="account-toggle-btn ' + isCollapsed + '" id="acc-btn-' + accId + '">▼</button>';
+    html += '<span class="table-title acc-title-text">' + acc.owner + ' · ' + acc.broker + ' ' + acc.account_type + '</span>';
+    html += '<span style="color:var(--text2);font-size:12px;white-space:nowrap">' + accHoldings.length + '종목</span>';
+    html += '</div>';
+    // PC 헤더
+    html += '<div class="acc-hdr-detail" style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap">';
+    html += '<span>매수 <strong>' + totalCost.toLocaleString('ko-KR') + '원</strong></span>';
+    html += '<span>평가 <strong>' + totalEval.toLocaleString('ko-KR') + '원</strong></span>';
+    html += '<span style="color:' + color + '">손익 <strong>' + (totalProfit >= 0 ? '+' : '') + totalProfit.toLocaleString('ko-KR') + '원 (' + (totalProfit >= 0 ? '+' : '') + totalPct + '%)</strong></span>';
+    html += '</div>';
+    // 모바일 헤더
+    html += '<div class="acc-hdr-mobile" style="display:none;font-size:11px;white-space:nowrap;flex-shrink:0;text-align:right">';
+    html += '<span style="color:var(--text2)">' + fmtAmt(totalCost) + '</span>';
+    html += '<span style="margin:0 3px;color:var(--border)">→</span>';
+    html += '<span style="color:var(--text2)">' + fmtAmt(totalEval) + '</span>';
+    html += '<span style="margin-left:6px;color:' + color + ';font-weight:700">' + (totalProfit >= 0 ? '+' : '') + totalPct + '%</span>';
+    html += '</div>';
+    html += '</div>'; // table-header 닫기
+
+    // ── 종목 목록: 모바일=카드형 / PC=테이블형
+    html += '<div class="account-body ' + isCollapsed + '" id="acc-body-' + accId + '">';
+
     if (isMobile) {
-      let cards = '<div class="mobile-card-list">';
+      html += '<div class="mobile-card-list">';
       accHoldings.forEach(function(h) {
         const pct2   = h.profit_pct || 0;
         const col2   = pct2 >= 0 ? 'var(--green)' : 'var(--red)';
@@ -1465,7 +1471,7 @@ function renderByAccount() {
         const price2 = h.market === 'US'
           ? '$' + (h.current_price || 0).toFixed(2)
           : (h.current_price || 0).toLocaleString('ko-KR') + '원';
-        cards += '<div class="mobile-card-row">'
+        html += '<div class="mobile-card-row">'
           + '<div class="mobile-card-left">'
           + '<div class="mobile-card-name">' + (h.name || h.ticker) + ' ' + badge2 + '</div>'
           + '<div class="mobile-card-sub">' + h.ticker + ' · ' + (h.sector || '') + '</div>'
@@ -1478,11 +1484,9 @@ function renderByAccount() {
           + '<button class="btn-icon" onclick="editHolding('' + h.id + '')" style="margin-left:4px;flex-shrink:0">✏️</button>'
           + '</div>';
       });
-      cards += '</div>';
-      html += '<div class="account-body ' + isCollapsed + '" id="acc-body-' + accId + '">' + cards + '</div></div>';
+      html += '</div>';
     } else {
-      let tbl = '<div class="account-body ' + isCollapsed + '" id="acc-body-' + accId + '">'
-        + '<table style="table-layout:fixed;width:100%">'
+      html += '<table style="table-layout:fixed;width:100%">'
         + '<colgroup>'
         + '<col style="width:28%"><col style="width:6%">'
         + '<col style="width:6%"><col style="width:10%">'
@@ -1495,10 +1499,10 @@ function renderByAccount() {
         + '<th>매수금액</th><th>평가금액</th><th>손익</th><th>수익률</th>'
         + '</tr></thead><tbody>';
       accHoldings.forEach(function(h) {
-        const pct2   = h.profit_pct || 0;
-        const col2   = pct2 >= 0 ? 'var(--green)' : 'var(--red)';
-        const sign2  = pct2 >= 0 ? '+' : '';
-        tbl += '<tr>'
+        const pct2  = h.profit_pct || 0;
+        const col2  = pct2 >= 0 ? 'var(--green)' : 'var(--red)';
+        const sign2 = pct2 >= 0 ? '+' : '';
+        html += '<tr>'
           + '<td><strong>' + (h.name || h.ticker) + '</strong><br>'
           + '<small style="color:var(--text2)">' + h.ticker + ' · ' + (h.sector || '') + '</small></td>'
           + '<td><span class="badge badge-' + (h.market === 'US' ? 'us' : 'kr') + '">' + h.market + '</span></td>'
@@ -1511,9 +1515,10 @@ function renderByAccount() {
           + '<td style="color:' + col2 + ';font-weight:700">' + sign2 + pct2 + '%</td>'
           + '</tr>';
       });
-      tbl += '</tbody></table></div></div>';
-      html += tbl;
+      html += '</tbody></table>';
     }
+
+    html += '</div></div>'; // account-body + table-wrap 닫기
   });
 
   document.getElementById('byAccountContainer').innerHTML = html || '<div style="padding:40px;text-align:center;color:var(--text2)">데이터 없음</div>';
