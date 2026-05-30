@@ -984,11 +984,11 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <option value="custom">직접입력</option>
     </select>
     <div id="divCustomRange" style="display:none;gap:6px;align-items:center;flex-wrap:wrap">
-      <select class="form-select" id="divFromYear" style="width:80px;font-size:12px" onchange="renderDividend()"></select>
-      <select class="form-select" id="divFromMonth" style="width:65px;font-size:12px" onchange="renderDividend()"></select>
+      <select class="form-select" id="divFromYear" style="width:95px;font-size:12px" onchange="renderDividend()"></select>
+      <select class="form-select" id="divFromMonth" style="width:70px;font-size:12px" onchange="renderDividend()"></select>
       <span style="color:var(--text2);font-size:12px">~</span>
-      <select class="form-select" id="divToYear"  style="width:80px;font-size:12px" onchange="renderDividend()"></select>
-      <select class="form-select" id="divToMonth" style="width:65px;font-size:12px" onchange="renderDividend()"></select>
+      <select class="form-select" id="divToYear"  style="width:95px;font-size:12px" onchange="renderDividend()"></select>
+      <select class="form-select" id="divToMonth" style="width:70px;font-size:12px" onchange="renderDividend()"></select>
     </div>
   </div>
 
@@ -1002,7 +1002,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   <div class="table-wrap">
     <div class="table-header">
       <span class="table-title">배당 내역</span>
-      <span id="divRowCount" style="font-size:12px;color:var(--text2)"></span>
+      <span id="divRowCount" style="font-size:12px;color:var(--text2);margin-left:8px"></span>
       <span id="divRowSum" style="font-size:13px;font-weight:700;color:var(--green);margin-left:auto"></span>
     </div>
     <div id="divTableContainer">
@@ -3603,11 +3603,35 @@ function renderDivChart(rows) {
     }
   }
 
+  // 기간 필터 범위 계산 (강조 색상용)
+  const { from: chartFrom, to: chartTo } = getDivDateRange();
+
+  const barColors = labels.map(function(key) {
+    // 분기 라벨(Q) 처리
+    if (key.indexOf('Q') >= 0) return 'rgba(58,181,74,0.65)';
+    const keyFrom = key + '-01';
+    const keyTo   = key + '-31';
+    const inRange = (!chartFrom || keyTo >= chartFrom) && (!chartTo || keyFrom <= chartTo);
+    const period  = document.getElementById('divFilterPeriod')?.value || 'this_year';
+    // 전체 기간이거나 필터 범위 내면 형광 초록, 아니면 기본 초록
+    if (period === 'all') return 'rgba(58,181,74,0.65)';
+    return inRange ? 'rgba(57,255,100,0.85)' : 'rgba(58,181,74,0.45)';
+  });
+  const barBorders = labels.map(function(key) {
+    if (key.indexOf('Q') >= 0) return '#3ab54a';
+    const keyFrom = key + '-01';
+    const keyTo   = key + '-31';
+    const inRange = (!chartFrom || keyTo >= chartFrom) && (!chartTo || keyFrom <= chartTo);
+    const period  = document.getElementById('divFilterPeriod')?.value || 'this_year';
+    if (period === 'all') return '#3ab54a';
+    return inRange ? '#39ff64' : '#2a7a35';
+  });
+
   divState.chart = new Chart(canvas, {
     type: 'bar',
     data: {
       labels,
-      datasets: [{ data: amounts, backgroundColor: 'rgba(58,181,74,0.7)', borderColor:'#3ab54a', borderWidth:1, borderRadius:3 }]
+      datasets: [{ data: amounts, backgroundColor: barColors, borderColor: barBorders, borderWidth:1, borderRadius:3 }]
     },
     options: {
       responsive:true, maintainAspectRatio:false,
