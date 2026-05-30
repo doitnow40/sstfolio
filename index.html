@@ -266,6 +266,7 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
 .chart-unit-btn:first-child { border-radius: 10px 0 0 10px; }
 .chart-unit-btn:last-child  { border-radius: 0 10px 10px 0; }
 .chart-unit-btn.active { background: var(--purple); color: #fff; border-color: var(--purple); }
+.card.div-card-active { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(88,166,255,.3); }
 
 /* ── 테이블 ───────────────────────────────────────────────── */
 .table-wrap {
@@ -968,11 +969,11 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
   <!-- 집계 카드 (기간필터 무관, 전역필터만 반영) -->
   <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px" id="divSummaryCards">
-    <div class="card"><div class="card-label">이번달</div><div class="card-value" id="divSumMonth">–</div></div>
-    <div class="card"><div class="card-label">이번분기</div><div class="card-value" id="divSumQuarter">–</div></div>
-    <div class="card"><div class="card-label">올해</div><div class="card-value" id="divSumYear">–</div></div>
-    <div class="card"><div class="card-label">최근 1년</div><div class="card-value" id="divSumYear1">–</div></div>
-    <div class="card"><div class="card-label">누적 전체</div><div class="card-value" id="divSumAll">–</div></div>
+    <div class="card" id="divCard_month"   onclick="setDivPeriodByCard('this_month')"   style="cursor:pointer" title="클릭하면 기간 필터 적용"><div class="card-label">이번달</div><div class="card-value" id="divSumMonth">–</div></div>
+    <div class="card" id="divCard_quarter" onclick="setDivPeriodByCard('this_quarter')" style="cursor:pointer" title="클릭하면 기간 필터 적용"><div class="card-label">이번분기</div><div class="card-value" id="divSumQuarter">–</div></div>
+    <div class="card" id="divCard_year"    onclick="setDivPeriodByCard('this_year')"    style="cursor:pointer" title="클릭하면 기간 필터 적용"><div class="card-label">올해</div><div class="card-value" id="divSumYear">–</div></div>
+    <div class="card" id="divCard_year1"   onclick="setDivPeriodByCard('year1')"        style="cursor:pointer" title="클릭하면 기간 필터 적용"><div class="card-label">최근 1년</div><div class="card-value" id="divSumYear1">–</div></div>
+    <div class="card" id="divCard_all"     onclick="setDivPeriodByCard('all')"          style="cursor:pointer" title="클릭하면 기간 필터 적용"><div class="card-label">누적 전체</div><div class="card-value" id="divSumAll">–</div></div>
   </div>
 
   <!-- 기간 필터 (차트+테이블에만 적용) -->
@@ -3413,6 +3414,57 @@ function getDivDateRange() {
   return { from, to };
 }
 
+function setDivPeriodByCard(period) {
+  // 최근1년은 custom으로 처리
+  if (period === 'year1') {
+    const now  = new Date();
+    const toY  = now.getFullYear();
+    const toM  = String(now.getMonth()+1).padStart(2,'0');
+    const from = new Date(now); from.setFullYear(from.getFullYear()-1); from.setDate(1);
+    const frY  = from.getFullYear();
+    const frM  = String(from.getMonth()+1).padStart(2,'0');
+
+    document.getElementById('divFilterPeriod').value = 'custom';
+    document.getElementById('divCustomRange').style.display = 'flex';
+    initDivCustomSelects();
+    // 값 설정 (initDivCustomSelects 후에)
+    setTimeout(function() {
+      document.getElementById('divFromYear').value  = frY;
+      document.getElementById('divFromMonth').value = frM;
+      document.getElementById('divToYear').value    = toY;
+      document.getElementById('divToMonth').value   = toM;
+      renderDividend();
+      updateDivCardActive('year1');
+    }, 0);
+    return;
+  }
+  document.getElementById('divFilterPeriod').value = period;
+  document.getElementById('divCustomRange').style.display = 'none';
+  renderDividend();
+  updateDivCardActive(period);
+}
+
+function updateDivCardActive(period) {
+  const map = {
+    'this_month':   'divCard_month',
+    'this_quarter': 'divCard_quarter',
+    'this_year':    'divCard_year',
+    'year1':        'divCard_year1',
+    'all':          'divCard_all',
+  };
+  // 모든 카드 active 제거
+  Object.values(map).forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('div-card-active');
+  });
+  // 선택된 카드 active
+  const target = map[period];
+  if (target) {
+    const el = document.getElementById(target);
+    if (el) el.classList.add('div-card-active');
+  }
+}
+
 function onDivPeriodChange() {
   const period  = document.getElementById('divFilterPeriod').value;
   const custDiv = document.getElementById('divCustomRange');
@@ -3423,6 +3475,7 @@ function onDivPeriodChange() {
     custDiv.style.display = 'none';
   }
   renderDividend();
+  updateDivCardActive(period);
 }
 
 function initDivCustomSelects() {
