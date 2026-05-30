@@ -3669,23 +3669,17 @@ function renderDivChart(rows) {
   const { from: chartFrom, to: chartTo } = getDivDateRange();
 
   const barColors = labels.map(function(key) {
-    // 분기 라벨(Q) 처리
-    if (key.indexOf('Q') >= 0) return 'rgba(58,181,74,0.65)';
+    if (key.indexOf('Q') >= 0) return 'rgba(57,255,100,0.85)';
     const keyFrom = key + '-01';
     const keyTo   = key + '-31';
     const inRange = (!chartFrom || keyTo >= chartFrom) && (!chartTo || keyFrom <= chartTo);
-    const period  = document.getElementById('divFilterPeriod')?.value || 'this_year';
-    // 전체 기간이거나 필터 범위 내면 형광 초록, 아니면 기본 초록
-    if (period === 'all') return 'rgba(58,181,74,0.65)';
     return inRange ? 'rgba(57,255,100,0.85)' : 'rgba(58,181,74,0.45)';
   });
   const barBorders = labels.map(function(key) {
-    if (key.indexOf('Q') >= 0) return '#3ab54a';
+    if (key.indexOf('Q') >= 0) return '#39ff64';
     const keyFrom = key + '-01';
     const keyTo   = key + '-31';
     const inRange = (!chartFrom || keyTo >= chartFrom) && (!chartTo || keyFrom <= chartTo);
-    const period  = document.getElementById('divFilterPeriod')?.value || 'this_year';
-    if (period === 'all') return '#3ab54a';
     return inRange ? '#39ff64' : '#2a7a35';
   });
 
