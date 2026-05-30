@@ -1896,8 +1896,13 @@ function renderBarChart(canvasId, data, opts) {
   // 항목 수에 따라 wrapper 높이 동적 계산 (막대 18px + 간격 14px = 32px/항목 + 상하 여백)
   const isHorizDyn = !!(opts && opts.horizontal);
   if (isHorizDyn) {
-    const wrapperId = 'wrap' + canvasId.charAt(0).toUpperCase() + canvasId.slice(1);
-    const wrapper   = document.getElementById(wrapperId);
+    const wrapMap = {
+      'chartBarSector':  'wrapBarSector',
+      'chartBarTop20':   'wrapBarTop20',
+      'chartBarAccount': 'wrapBarAccount',
+      'chartBarOwner':   'wrapBarOwner',
+    };
+    const wrapper = document.getElementById(wrapMap[canvasId]);
     if (wrapper) {
       const itemH   = 32; // 막대(18) + 간격(14)
       const padding = 60; // 상하 여백
