@@ -722,9 +722,13 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <!-- ── 패널: 전체 현황 ─────────────────────────────────── -->
 <div class="panel active" id="panel-overview">
   <div class="table-wrap">
-    <div class="table-header">
+    <div class="table-header" style="flex-wrap:wrap;gap:6px">
       <span class="table-title">보유 종목 전체</span>
-      <div class="table-actions">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto">
+        <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:20px;overflow:hidden">
+          <button id="viewModeAsset" class="trend-view-btn active" onclick="setViewMode('asset')">자산평가</button>
+          <button id="viewModeChange" class="trend-view-btn"        onclick="setViewMode('change')">등락률</button>
+        </div>
         <select class="form-select" style="width:auto;padding:4px 10px;font-size:12px" id="sortSelect" onchange="renderTable()">
           <option value="profit_pct_desc">수익률 ↓</option>
           <option value="profit_pct_asc">수익률 ↑</option>
@@ -742,9 +746,13 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
 <!-- ── 패널: 계좌별 ────────────────────────────────────── -->
 <div class="panel" id="panel-byAccount">
-  <div style="display:flex;gap:8px;margin-bottom:12px">
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
     <button class="btn-refresh" onclick="collapseAllAccounts(true)">▲ 전체 접기</button>
     <button class="btn-refresh" onclick="collapseAllAccounts(false)">▼ 전체 펴기</button>
+    <div style="margin-left:auto;display:flex;gap:0;border:1px solid var(--border);border-radius:20px;overflow:hidden">
+      <button id="viewModeAsset2" class="trend-view-btn active" onclick="setViewMode('asset')">자산평가</button>
+      <button id="viewModeChange2" class="trend-view-btn"        onclick="setViewMode('change')">등락률</button>
+    </div>
   </div>
   <div id="byAccountContainer">
     <div class="loading"><div class="spinner"></div></div>
@@ -1213,6 +1221,114 @@ function renderGlobalOwnerFilter() {
 }
 
 // ── 종목 테이블 ─────────────────────────────────────────────
+// ── SVG 누운 캔들바 ───────────────────────────────────────────
+function makeCandleBar(changeRateStr, width) {
+  width = width || 80;
+  const pct = parseFloat(String(changeRateStr || '0').replace('%',''));
+  if (isNaN(pct) || pct === 0) {
+    return '<svg width="' + width + '" height="16" style="vertical-align:middle">'
+      + '<line x1="' + (width/2) + '" y1="8" x2="' + (width/2) + '" y2="8" stroke="#555" stroke-width="1"/>'
+      + '</svg>';
+  }
+  const maxPct  = 15; // 최대 ±15%를 풀 너비로
+  const half    = width / 2;
+  const barLen  = Math.min(Math.abs(pct) / maxPct * half, half);
+  const color   = pct >= 0 ? '#f85149' : '#58a6ff';
+  const x1      = pct >= 0 ? half : half - barLen;
+  const x2      = pct >= 0 ? half + barLen : half;
+
+  return '<svg width="' + width + '" height="16" style="vertical-align:middle">'
+    + '<line x1="0" y1="8" x2="' + width + '" y2="8" stroke="#30363d" stroke-width="1"/>'
+    + '<line x1="' + half + '" y1="2" x2="' + half + '" y2="14" stroke="#555" stroke-width="1"/>'
+    + '<rect x="' + x1 + '" y="4" width="' + barLen + '" height="8" fill="' + color + '" rx="1"/>'
+    + '</svg>';
+}
+
+// ── 등락률 모드 PC 테이블 ──────────────────────────────────────
+function renderTableChangePc(rows, sort) {
+  let lastGroupKey = null;
+  let html = '<table style="table-layout:fixed;width:100%">'
+    + '<colgroup>'
+    + '<col style="width:22%"><col style="width:12%">'
+    + '<col style="width:6%"><col style="width:8%">'
+    + '<col style="width:14%"><col style="width:10%">'
+    + '<col style="width:10%"><col style="width:12%"><col style="width:4%">'
+    + '</colgroup>'
+    + '<thead><tr>'
+    + '<th>종목명</th><th>계좌</th><th>수량</th>'
+    + '<th>등락률</th><th style="text-align:center">등락 차트</th>'
+    + '<th>등락액</th><th>누적수익률</th><th>평가손익</th><th></th>'
+    + '</tr></thead><tbody>';
+
+  rows.forEach(function(h) {
+    if (sort === 'account' || sort === 'sector') {
+      const gkey = sort === 'account'
+        ? h.owner + ' · ' + h.broker + ' ' + h.account_type
+        : h.sector;
+      if (gkey !== lastGroupKey) {
+        html += '<tr class="account-group-row"><td colspan="9">' + gkey + '</td></tr>';
+        lastGroupKey = gkey;
+      }
+    }
+    const cr    = h.change_rate || '0%';
+    const pct   = parseFloat(String(cr).replace('%','')) || 0;
+    const color = pct >= 0 ? 'var(--green)' : 'var(--red)';
+    const sign  = pct >= 0 ? '+' : '';
+    const pp    = h.profit_pct || 0;
+    const ppCol = pp >= 0 ? 'var(--green)' : 'var(--red)';
+    const ppSign= pp >= 0 ? '+' : '';
+    const ca    = h.change_amount || 0;
+    const caSign= ca >= 0 ? '+' : '';
+    const mktBadge = '<span class="badge badge-' + (h.market==='US'?'us':'kr') + '">' + h.market + '</span>';
+
+    html += '<tr>'
+      + '<td><strong>' + (h.name || h.ticker) + '</strong> ' + mktBadge + '<br>'
+      + '<small style="color:var(--text2)">' + h.ticker + ' · ' + h.sector + '</small></td>'
+      + '<td style="font-size:11px;color:var(--text2)">' + h.owner + '<br>' + h.broker + ' ' + h.account_type + '</td>'
+      + '<td>' + (h.quantity || 0).toLocaleString() + '</td>'
+      + '<td style="color:' + color + ';font-weight:700">' + sign + cr + '</td>'
+      + '<td style="text-align:center">' + makeCandleBar(cr, 100) + '</td>'
+      + '<td style="color:' + color + '">' + caSign + ca.toLocaleString('ko-KR') + '원</td>'
+      + '<td style="color:' + ppCol + ';font-weight:700">' + ppSign + pp + '%</td>'
+      + '<td style="color:' + ppCol + '">' + ppSign + (h.profit_amount||0).toLocaleString('ko-KR') + '원</td>'
+      + '<td><button class="btn-icon" onclick="editHolding('' + h.id + '')" title="수정">✏️</button></td>'
+      + '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('tableContainer').innerHTML = html;
+}
+
+// ── 등락률 모드 모바일 카드 ────────────────────────────────────
+function renderTableChangeMobile(rows) {
+  let html = '<div class="mobile-card-list">';
+  rows.forEach(function(h) {
+    const cr    = h.change_rate || '0%';
+    const pct   = parseFloat(String(cr).replace('%','')) || 0;
+    const color = pct >= 0 ? 'var(--green)' : 'var(--red)';
+    const sign  = pct >= 0 ? '+' : '';
+    const ca    = h.change_amount || 0;
+    const caSign= ca >= 0 ? '+' : '';
+    const badge = h.market === 'US'
+      ? '<span class="badge badge-us">US</span>'
+      : '<span class="badge badge-kr">KR</span>';
+
+    html += '<div class="mobile-card-row">'
+      + '<div class="mobile-card-left">'
+      + '<div class="mobile-card-name">' + (h.name || h.ticker) + ' ' + badge + '</div>'
+      + '<div class="mobile-card-sub">' + h.ticker + ' · ' + h.broker + ' ' + h.account_type + ' · ' + h.owner + '</div>'
+      + '<div style="margin-top:4px">' + makeCandleBar(cr, 120) + '</div>'
+      + '</div>'
+      + '<div class="mobile-card-right">'
+      + '<div class="mobile-card-pct" style="color:' + color + '">' + sign + cr + '</div>'
+      + '<div class="mobile-card-profit" style="color:' + color + '">' + caSign + ca.toLocaleString('ko-KR') + '원</div>'
+      + '</div>'
+      + '<button class="btn-icon" onclick="editHolding('' + h.id + '')" style="margin-left:4px;flex-shrink:0">✏️</button>'
+      + '</div>';
+  });
+  html += '</div>';
+  document.getElementById('tableContainer').innerHTML = html;
+}
+
 function renderTable() {
   let rows = getFilteredHoldings();
 
@@ -1225,11 +1341,13 @@ function renderTable() {
     return;
   }
 
-  // 모바일 카드형 레이아웃
+  // 뷰모드 분기
   if (window.innerWidth <= 768) {
+    if (currentViewMode === 'change') { renderTableChangeMobile(rows); return; }
     renderTableMobile(rows, sort);
     return;
   }
+  if (currentViewMode === 'change') { renderTableChangePc(rows, sort); return; }
 
   const totalEval = rows.reduce((s, x) => s + (x.eval_amount || 0), 0);
 
@@ -1338,11 +1456,8 @@ function renderTableMobile(rows, sort) {
     const marketBadge = h.market === 'US'
       ? '<span class="badge badge-us">US</span>'
       : '<span class="badge badge-kr">KR</span>';
-    const priceDisplay = h.market === 'US'
-      ? `$${(h.current_price || 0).toFixed(2)}`
-      : `${(h.current_price || 0).toLocaleString('ko-KR')}원`;
-    const profitAmt = (h.profit_amount || 0).toLocaleString('ko-KR');
-    const evalAmt   = (h.eval_amount   || 0).toLocaleString('ko-KR');
+    const evalAmtFmt = (h.eval_amount   || 0).toLocaleString('ko-KR');
+    const profitAmt  = (h.profit_amount || 0).toLocaleString('ko-KR');
 
     html += `<div class="mobile-card-row">
       <div class="mobile-card-left">
@@ -1350,7 +1465,7 @@ function renderTableMobile(rows, sort) {
         <div class="mobile-card-sub">${h.ticker} · ${h.broker} ${h.account_type} · ${h.owner}</div>
       </div>
       <div class="mobile-card-right">
-        <div class="mobile-card-price">${priceDisplay}</div>
+        <div class="mobile-card-price">${evalAmtFmt}원</div>
         <div class="mobile-card-pct" style="color:${color}">${sign}${pct}%</div>
         <div class="mobile-card-profit" style="color:${color}">${sign}${profitAmt}원</div>
       </div>
@@ -1411,6 +1526,7 @@ function toggleAccount(accId) {
 
 function renderByAccount() {
   const isMobile = window.innerWidth <= 768;
+  const isChange = currentViewMode === 'change';
   const accounts = state.accounts;
   let html = '';
 
@@ -1460,32 +1576,80 @@ function renderByAccount() {
     html += '<div class="account-body ' + isCollapsed + '" id="acc-body-' + accId + '">';
 
     if (isMobile) {
+      // ── 모바일 카드형
       html += '<div class="mobile-card-list">';
       accHoldings.forEach(function(h) {
-        const pct2   = h.profit_pct || 0;
-        const col2   = pct2 >= 0 ? 'var(--green)' : 'var(--red)';
-        const sign2  = pct2 >= 0 ? '+' : '';
         const badge2 = h.market === 'US'
           ? '<span class="badge badge-us">US</span>'
           : '<span class="badge badge-kr">KR</span>';
-        const price2 = h.market === 'US'
-          ? '$' + (h.current_price || 0).toFixed(2)
-          : (h.current_price || 0).toLocaleString('ko-KR') + '원';
-        html += '<div class="mobile-card-row">'
-          + '<div class="mobile-card-left">'
-          + '<div class="mobile-card-name">' + (h.name || h.ticker) + ' ' + badge2 + '</div>'
-          + '<div class="mobile-card-sub">' + h.ticker + ' · ' + (h.sector || '') + '</div>'
-          + '</div>'
-          + '<div class="mobile-card-right">'
-          + '<div class="mobile-card-price">' + price2 + '</div>'
-          + '<div class="mobile-card-pct" style="color:' + col2 + '">' + sign2 + pct2 + '%</div>'
-          + '<div class="mobile-card-profit" style="color:' + col2 + '">' + sign2 + (h.profit_amount || 0).toLocaleString('ko-KR') + '원</div>'
-          + '</div>'
-          + '<button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" style="margin-left:4px;flex-shrink:0">✏️</button>'
-          + '</div>';
+        if (isChange) {
+          const cr2  = h.change_rate || '0%';
+          const p2   = parseFloat(String(cr2).replace('%','')) || 0;
+          const c2   = p2 >= 0 ? 'var(--green)' : 'var(--red)';
+          const s2   = p2 >= 0 ? '+' : '';
+          const ca2  = h.change_amount || 0;
+          html += '<div class="mobile-card-row">'
+            + '<div class="mobile-card-left">'
+            + '<div class="mobile-card-name">' + (h.name || h.ticker) + ' ' + badge2 + '</div>'
+            + '<div class="mobile-card-sub">' + h.ticker + ' · ' + (h.sector || '') + '</div>'
+            + '<div style="margin-top:4px">' + makeCandleBar(cr2, 120) + '</div>'
+            + '</div>'
+            + '<div class="mobile-card-right">'
+            + '<div class="mobile-card-pct" style="color:' + c2 + '">' + s2 + cr2 + '</div>'
+            + '<div class="mobile-card-profit" style="color:' + c2 + '">' + (ca2>=0?'+':'') + ca2.toLocaleString('ko-KR') + '원</div>'
+            + '</div>'
+            + '<button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" style="margin-left:4px;flex-shrink:0">✏️</button>'
+            + '</div>';
+        } else {
+          const pct2  = h.profit_pct || 0;
+          const col2  = pct2 >= 0 ? 'var(--green)' : 'var(--red)';
+          const sign2 = pct2 >= 0 ? '+' : '';
+          html += '<div class="mobile-card-row">'
+            + '<div class="mobile-card-left">'
+            + '<div class="mobile-card-name">' + (h.name || h.ticker) + ' ' + badge2 + '</div>'
+            + '<div class="mobile-card-sub">' + h.ticker + ' · ' + (h.sector || '') + '</div>'
+            + '</div>'
+            + '<div class="mobile-card-right">'
+            + '<div class="mobile-card-price">' + (h.eval_amount||0).toLocaleString('ko-KR') + '원</div>'
+            + '<div class="mobile-card-pct" style="color:' + col2 + '">' + sign2 + pct2 + '%</div>'
+            + '<div class="mobile-card-profit" style="color:' + col2 + '">' + sign2 + (h.profit_amount||0).toLocaleString('ko-KR') + '원</div>'
+            + '</div>'
+            + '<button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" style="margin-left:4px;flex-shrink:0">✏️</button>'
+            + '</div>';
+        }
       });
       html += '</div>';
+    } else if (isChange) {
+      // ── PC 등락률 모드
+      html += '<table style="table-layout:fixed;width:100%">'
+        + '<colgroup><col style="width:26%"><col style="width:6%"><col style="width:8%">'
+        + '<col style="width:14%"><col style="width:10%"><col style="width:10%"><col style="width:12%"><col style="width:4%"></colgroup>'
+        + '<thead><tr><th>종목명</th><th>수량</th><th>등락률</th>'
+        + '<th style="text-align:center">등락 차트</th><th>등락액</th>'
+        + '<th>누적수익률</th><th>평가손익</th><th></th></tr></thead><tbody>';
+      accHoldings.forEach(function(h) {
+        const cr2  = h.change_rate || '0%';
+        const p2   = parseFloat(String(cr2).replace('%','')) || 0;
+        const c2   = p2 >= 0 ? 'var(--green)' : 'var(--red)';
+        const s2   = p2 >= 0 ? '+' : '';
+        const pp2  = h.profit_pct || 0;
+        const pc2  = pp2 >= 0 ? 'var(--green)' : 'var(--red)';
+        const ca2  = h.change_amount || 0;
+        html += '<tr>'
+          + '<td><strong>' + (h.name||h.ticker) + '</strong><br>'
+          + '<small style="color:var(--text2)">' + h.ticker + ' · ' + (h.sector||'') + '</small></td>'
+          + '<td>' + (h.quantity||0).toLocaleString() + '</td>'
+          + '<td style="color:' + c2 + ';font-weight:700">' + s2 + cr2 + '</td>'
+          + '<td style="text-align:center">' + makeCandleBar(cr2, 100) + '</td>'
+          + '<td style="color:' + c2 + '">' + (ca2>=0?'+':'') + ca2.toLocaleString('ko-KR') + '원</td>'
+          + '<td style="color:' + pc2 + ';font-weight:700">' + (pp2>=0?'+':'') + pp2 + '%</td>'
+          + '<td style="color:' + pc2 + '">' + (pp2>=0?'+':'') + (h.profit_amount||0).toLocaleString('ko-KR') + '원</td>'
+          + '<td><button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" title="수정">✏️</button></td>'
+          + '</tr>';
+      });
+      html += '</tbody></table>';
     } else {
+      // ── PC 자산평가 모드 (기존)
       html += '<table style="table-layout:fixed;width:100%">'
         + '<colgroup>'
         + '<col style="width:28%"><col style="width:6%">'
@@ -2431,6 +2595,22 @@ async function deleteHolding(id) {
 // ============================================================
 // 추이 분석 탭
 // ============================================================
+let currentViewMode = 'asset'; // 'asset' | 'change'
+
+function setViewMode(mode) {
+  currentViewMode = mode;
+  // 전체현황 버튼
+  const b1 = document.getElementById('viewModeAsset');
+  const b2 = document.getElementById('viewModeChange');
+  if (b1) { b1.classList.toggle('active', mode === 'asset'); b2.classList.toggle('active', mode === 'change'); }
+  // 계좌별 버튼
+  const b3 = document.getElementById('viewModeAsset2');
+  const b4 = document.getElementById('viewModeChange2');
+  if (b3) { b3.classList.toggle('active', mode === 'asset'); b4.classList.toggle('active', mode === 'change'); }
+  renderTable();
+  renderByAccount();
+}
+
 const trendState = {
   period:   '1M',
   mode:     'total',
