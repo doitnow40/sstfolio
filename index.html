@@ -1291,7 +1291,7 @@ function renderTableChangePc(rows, sort) {
       + '<td style="color:' + color + '">' + caSign + ca.toLocaleString('ko-KR') + '원</td>'
       + '<td style="color:' + ppCol + ';font-weight:700">' + ppSign + pp + '%</td>'
       + '<td style="color:' + ppCol + '">' + ppSign + (h.profit_amount||0).toLocaleString('ko-KR') + '원</td>'
-      + '<td><button class="btn-icon" onclick="editHolding('' + h.id + '')" title="수정">✏️</button></td>'
+      + '<td><button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" title="수정">✏️</button></td>'
       + '</tr>';
   });
   html += '</tbody></table>';
@@ -1322,7 +1322,7 @@ function renderTableChangeMobile(rows) {
       + '<div class="mobile-card-pct" style="color:' + color + '">' + sign + cr + '</div>'
       + '<div class="mobile-card-profit" style="color:' + color + '">' + caSign + ca.toLocaleString('ko-KR') + '원</div>'
       + '</div>'
-      + '<button class="btn-icon" onclick="editHolding('' + h.id + '')" style="margin-left:4px;flex-shrink:0">✏️</button>'
+      + '<button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" style="margin-left:4px;flex-shrink:0">✏️</button>'
       + '</div>';
   });
   html += '</div>';
