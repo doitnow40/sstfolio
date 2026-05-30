@@ -952,7 +952,6 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
   <!-- 요약 통계 -->
   <div id="trendSummary" style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap"></div>
-</div>
 
 <!-- ── 패널: 배당 ────────────────────────────────────────── -->
 <div class="panel" id="panel-dividend">
@@ -1004,9 +1003,8 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <div class="loading"><div class="spinner"></div><span>불러오는 중...</span></div>
     </div>
   </div>
-</div>
 
-<!-- ── 배당 입력 모달 ──────────────────────────────────────── -->
+<!-- ── 배당 입력 모달 (패널 밖) ────────────────────────────── -->
 <div class="modal-overlay" id="divModal" onclick="closeDividendModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:420px">
     <div class="modal-title">배당 입력</div>
@@ -3344,21 +3342,27 @@ const divState = {
 };
 
 function initDividendTab() {
-  // 소유자 필터 채우기
-  const ownerSel = document.getElementById('divFilterOwner');
-  const owners   = [...new Set((state.accounts||[]).map(a=>a.owner))];
-  ownerSel.innerHTML = '<option value="">소유자 전체</option>'
-    + owners.map(o=>'<option value="'+o+'">'+o+'</option>').join('');
+  try {
+    // 소유자 필터 채우기
+    const ownerSel = document.getElementById('divFilterOwner');
+    if (!ownerSel) { console.error('divFilterOwner 요소 없음'); return; }
+    const owners = [...new Set((state.accounts||[]).map(function(a){return a.owner;}))];
+    ownerSel.innerHTML = '<option value="">소유자 전체</option>'
+      + owners.map(function(o){return '<option value="'+o+'">'+o+'</option>';}).join('');
 
-  // 계좌 필터 채우기
-  renderDivAccountFilter();
+    // 계좌 필터 채우기
+    renderDivAccountFilter();
 
-  // 오늘 날짜 기본값
-  const today = new Date().toISOString().slice(0,10);
-  document.getElementById('divInputDate').value = today;
+    // 오늘 날짜 기본값
+    const today = new Date().toISOString().slice(0,10);
+    const dateEl = document.getElementById('divInputDate');
+    if (dateEl) dateEl.value = today;
 
-  if (!divState.loaded) loadDividend();
-  else renderDividend();
+    if (!divState.loaded) loadDividend();
+    else renderDividend();
+  } catch(e) {
+    console.error('initDividendTab 오류:', e);
+  }
 }
 
 function renderDivAccountFilter() {
