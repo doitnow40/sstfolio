@@ -974,7 +974,10 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <span style="color:var(--text2);font-size:12px">~</span>
       <input type="month" class="form-input" id="divTo"   style="width:130px;font-size:12px" onchange="renderDividend()">
     </div>
-    <button class="btn-primary" style="margin-left:auto;font-size:12px" onclick="openDividendModal()">+ 배당 입력</button>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button class="btn-refresh" style="font-size:12px" onclick="reloadDividend()">↻ 새로 읽기</button>
+      <button class="btn-primary" style="font-size:12px" onclick="openDividendModal()">+ 배당 입력</button>
+    </div>
   </div>
 
   <!-- 집계 카드 -->
@@ -3357,6 +3360,12 @@ function initDividendTab() {
 
 function renderDivAccountFilter() {
   // 전역 필터로 대체됨 - 빈 함수 유지
+}
+
+async function reloadDividend() {
+  divState.loaded = false;
+  divState.rows   = [];
+  await loadDividend();
 }
 
 async function loadDividend() {
