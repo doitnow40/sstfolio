@@ -822,25 +822,25 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <!-- 섹터별 수익률 -->
     <div class="chart-card" id="card-bar-sector" style="width:100%">
       <div class="chart-title">섹터별 수익률 (%)</div>
-      <div style="position:relative;height:480px"><canvas id="chartBarSector"></canvas></div>
+      <div id="wrapBarSector" style="position:relative;height:300px"><canvas id="chartBarSector"></canvas></div>
     </div>
 
     <!-- 종목별 수익률 Top20 -->
     <div class="chart-card" id="card-bar-top20" style="width:100%">
       <div class="chart-title">종목별 수익률 Top 20</div>
-      <div style="position:relative;height:420px"><canvas id="chartBarTop20"></canvas></div>
+      <div id="wrapBarTop20" style="position:relative;height:300px"><canvas id="chartBarTop20"></canvas></div>
     </div>
 
     <!-- 계좌별 수익률 — 전체 선택 시만 표시 -->
     <div class="chart-card" id="card-bar-account" style="width:100%">
       <div class="chart-title">계좌별 수익률 (%)</div>
-      <div style="position:relative;height:480px"><canvas id="chartBarAccount"></canvas></div>
+      <div id="wrapBarAccount" style="position:relative;height:300px"><canvas id="chartBarAccount"></canvas></div>
     </div>
 
     <!-- 소유자별 수익률 — 전체 선택 시만 표시 -->
     <div class="chart-card" id="card-bar-owner" style="width:100%">
       <div class="chart-title">소유자별 수익률 (%)</div>
-      <div style="position:relative;height:260px"><canvas id="chartBarOwner"></canvas></div>
+      <div id="wrapBarOwner" style="position:relative;height:300px"><canvas id="chartBarOwner"></canvas></div>
     </div>
 
   </div>
@@ -1892,6 +1892,18 @@ function renderBarChart(canvasId, data, opts) {
   if (!canvas) return;
   if (state.charts[canvasId]) { state.charts[canvasId].destroy(); }
   if (!data || data.length === 0) return;
+
+  // 항목 수에 따라 wrapper 높이 동적 계산 (막대 18px + 간격 14px = 32px/항목 + 상하 여백)
+  const isHorizDyn = !!(opts && opts.horizontal);
+  if (isHorizDyn) {
+    const wrapperId = 'wrap' + canvasId.charAt(0).toUpperCase() + canvasId.slice(1);
+    const wrapper   = document.getElementById(wrapperId);
+    if (wrapper) {
+      const itemH   = 32; // 막대(18) + 간격(14)
+      const padding = 60; // 상하 여백
+      wrapper.style.height = (data.length * itemH + padding) + 'px';
+    }
+  }
 
   const labels = data.map(d => d.label);
   const values = data.map(d => d.pct);
