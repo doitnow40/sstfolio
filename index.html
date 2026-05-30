@@ -177,10 +177,10 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
     background: var(--bg2); gap: 8px;
   }
   .mobile-card-row:last-child { border-bottom: none; }
-  .mobile-card-left { flex: 1; min-width: 0; }
+  .mobile-card-left { flex: 1; min-width: 0; overflow: hidden; }
   .mobile-card-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mobile-card-sub  { font-size: 10px; color: var(--text2); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mobile-card-right { text-align: right; flex-shrink: 0; }
+  .mobile-card-right { text-align: right; flex-shrink: 0; width: 120px; }
   .mobile-card-price { font-size: 12px; color: var(--text2); }
   .mobile-card-pct   { font-size: 14px; font-weight: 700; }
   .mobile-card-profit { font-size: 10px; margin-top: 1px; }
@@ -1319,7 +1319,7 @@ function renderTableChangeMobile(rows) {
       + '</div>'
       + '<div class="mobile-card-right">'
       + '<div class="mobile-card-pct" style="color:' + color + '">' + cr + '</div>'
-      + '<div style="margin:2px 0">' + makeCandleBar(cr, 110) + '</div>'
+      + '<div style="margin:2px 0">' + makeCandleBar(cr, 100) + '</div>'
       + '<div class="mobile-card-profit" style="color:' + color + '">' + caSign + ca.toLocaleString('ko-KR') + '원</div>'
       + '</div>'
       + '<button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" style="margin-left:4px;flex-shrink:0">✏️</button>'
@@ -1595,7 +1595,7 @@ function renderByAccount() {
             + '</div>'
             + '<div class="mobile-card-right">'
             + '<div class="mobile-card-pct" style="color:' + c2 + '">' + cr2 + '</div>'
-            + '<div style="margin:2px 0">' + makeCandleBar(cr2, 110) + '</div>'
+            + '<div style="margin:2px 0">' + makeCandleBar(cr2, 100) + '</div>'
             + '<div class="mobile-card-profit" style="color:' + c2 + '">' + (ca2>=0?'+':'') + ca2.toLocaleString('ko-KR') + '원</div>'
             + '</div>'
             + '<button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" style="margin-left:4px;flex-shrink:0">✏️</button>'
