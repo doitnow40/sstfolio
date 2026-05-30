@@ -967,10 +967,11 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   </div>
 
   <!-- 집계 카드 (기간필터 무관, 전역필터만 반영) -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px" id="divSummaryCards">
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px" id="divSummaryCards">
     <div class="card"><div class="card-label">이번달</div><div class="card-value" id="divSumMonth">–</div></div>
     <div class="card"><div class="card-label">이번분기</div><div class="card-value" id="divSumQuarter">–</div></div>
     <div class="card"><div class="card-label">올해</div><div class="card-value" id="divSumYear">–</div></div>
+    <div class="card"><div class="card-label">최근 1년</div><div class="card-value" id="divSumYear1">–</div></div>
     <div class="card"><div class="card-label">누적 전체</div><div class="card-value" id="divSumAll">–</div></div>
   </div>
 
@@ -3505,9 +3506,17 @@ function renderDividend() {
   const quarterRows = allRows.filter(r=>{if(!r.date)return false;const m2=parseInt(r.date.slice(5,7));return r.date.startsWith(String(y))&&m2>=qStart&&m2<qStart+3;});
   const yearRows    = allRows.filter(r=>r.date&&r.date.startsWith(String(y)));
 
+  // 최근 1년 (오늘 기준 12개월)
+  const year1From = (function() {
+    const d = new Date(); d.setFullYear(d.getFullYear() - 1);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  })();
+  const year1Rows = allRows.filter(function(r){ return r.date && r.date >= year1From; });
+
   document.getElementById('divSumMonth').textContent   = fmt(sumRows(monthRows));
   document.getElementById('divSumQuarter').textContent = fmt(sumRows(quarterRows));
   document.getElementById('divSumYear').textContent    = fmt(sumRows(yearRows));
+  document.getElementById('divSumYear1').textContent   = fmt(sumRows(year1Rows));
   document.getElementById('divSumAll').textContent     = fmt(sumRows(allRows));
 
   // 월별 차트 (최근 12개월)
