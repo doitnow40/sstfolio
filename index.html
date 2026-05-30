@@ -3555,7 +3555,7 @@ async function onDivSearch(q) {
     const url  = WORKER_URL ? WORKER_URL+'/api/search?q='+encodeURIComponent(q) : GAS_URL+'?action=search_ticker&q='+encodeURIComponent(q);
     const res  = await fetch(url);
     const data = await res.json();
-    divState.acSearch.results  = data.results || [];
+    divState.acSearch.results  = data || [];
     divState.acSearch.selected = -1;
     renderDivAcList();
   } catch(e) {}
