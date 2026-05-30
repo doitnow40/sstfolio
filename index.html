@@ -960,8 +960,22 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <!-- ── 패널: 배당 ────────────────────────────────────────── -->
 <div class="panel" id="panel-dividend">
 
-  <!-- 기간 필터 (소유자/계좌는 상단 전역필터 사용) -->
-  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+  <!-- 상단: 버튼만 -->
+  <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">
+    <button class="btn-refresh" style="font-size:12px" onclick="reloadDividend()">↻ 새로 읽기</button>
+    <button class="btn-primary" style="font-size:12px" onclick="openDividendModal()">+ 배당 입력</button>
+  </div>
+
+  <!-- 집계 카드 (기간필터 무관, 전역필터만 반영) -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px" id="divSummaryCards">
+    <div class="card"><div class="card-label">이번달</div><div class="card-value" id="divSumMonth">–</div></div>
+    <div class="card"><div class="card-label">이번분기</div><div class="card-value" id="divSumQuarter">–</div></div>
+    <div class="card"><div class="card-label">올해</div><div class="card-value" id="divSumYear">–</div></div>
+    <div class="card"><div class="card-label">누적 전체</div><div class="card-value" id="divSumAll">–</div></div>
+  </div>
+
+  <!-- 기간 필터 (차트+테이블에만 적용) -->
+  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
     <select class="form-select" id="divFilterPeriod" style="width:auto;font-size:12px" onchange="onDivPeriodChange()">
       <option value="this_month">이번달</option>
       <option value="this_quarter">이번분기</option>
@@ -969,23 +983,13 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <option value="all">전체</option>
       <option value="custom">직접입력</option>
     </select>
-    <div id="divCustomRange" style="display:none;gap:4px;align-items:center">
-      <input type="month" class="form-input" id="divFrom" style="width:130px;font-size:12px" onchange="renderDividend()">
+    <div id="divCustomRange" style="display:none;gap:6px;align-items:center;flex-wrap:wrap">
+      <select class="form-select" id="divFromYear" style="width:80px;font-size:12px" onchange="renderDividend()"></select>
+      <select class="form-select" id="divFromMonth" style="width:65px;font-size:12px" onchange="renderDividend()"></select>
       <span style="color:var(--text2);font-size:12px">~</span>
-      <input type="month" class="form-input" id="divTo"   style="width:130px;font-size:12px" onchange="renderDividend()">
+      <select class="form-select" id="divToYear"  style="width:80px;font-size:12px" onchange="renderDividend()"></select>
+      <select class="form-select" id="divToMonth" style="width:65px;font-size:12px" onchange="renderDividend()"></select>
     </div>
-    <div style="margin-left:auto;display:flex;gap:6px">
-      <button class="btn-refresh" style="font-size:12px" onclick="reloadDividend()">↻ 새로 읽기</button>
-      <button class="btn-primary" style="font-size:12px" onclick="openDividendModal()">+ 배당 입력</button>
-    </div>
-  </div>
-
-  <!-- 집계 카드 -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px" id="divSummaryCards">
-    <div class="card"><div class="card-label">이번달</div><div class="card-value" id="divSumMonth">–</div></div>
-    <div class="card"><div class="card-label">이번분기</div><div class="card-value" id="divSumQuarter">–</div></div>
-    <div class="card"><div class="card-label">올해</div><div class="card-value" id="divSumYear">–</div></div>
-    <div class="card"><div class="card-label">누적 전체</div><div class="card-value" id="divSumAll">–</div></div>
   </div>
 
   <!-- 월별 차트 -->
@@ -999,6 +1003,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <div class="table-header">
       <span class="table-title">배당 내역</span>
       <span id="divRowCount" style="font-size:12px;color:var(--text2)"></span>
+      <span id="divRowSum" style="font-size:13px;font-weight:700;color:var(--green);margin-left:auto"></span>
     </div>
     <div id="divTableContainer">
       <div class="loading"><div class="spinner"></div><span>불러오는 중...</span></div>
@@ -3397,10 +3402,12 @@ function getDivDateRange() {
   } else if (period === 'this_year') {
     from = y+'-01-01'; to = y+'-12-31';
   } else if (period === 'custom') {
-    const f = document.getElementById('divFrom').value;
-    const t = document.getElementById('divTo').value;
-    from = f ? f+'-01' : '';
-    to   = t ? t+'-31' : '';
+    const fy = document.getElementById('divFromYear').value;
+    const fm = document.getElementById('divFromMonth').value;
+    const ty = document.getElementById('divToYear').value;
+    const tm = document.getElementById('divToMonth').value;
+    from = (fy && fm) ? fy+'-'+fm+'-01' : '';
+    to   = (ty && tm) ? ty+'-'+tm+'-31' : '';
   }
   return { from, to };
 }
@@ -3408,8 +3415,56 @@ function getDivDateRange() {
 function onDivPeriodChange() {
   const period  = document.getElementById('divFilterPeriod').value;
   const custDiv = document.getElementById('divCustomRange');
-  custDiv.style.display = period === 'custom' ? 'flex' : 'none';
+  if (period === 'custom') {
+    custDiv.style.display = 'flex';
+    initDivCustomSelects();
+  } else {
+    custDiv.style.display = 'none';
+  }
   renderDividend();
+}
+
+function initDivCustomSelects() {
+  // 데이터에서 연도 범위 감지
+  const years = divState.rows
+    .map(function(r){ return r.date ? parseInt(r.date.slice(0,4)) : 0; })
+    .filter(function(y){ return y > 0; });
+  const minYear = years.length ? Math.min.apply(null, years) : new Date().getFullYear();
+  const maxYear = new Date().getFullYear();
+
+  const yearOpts = [];
+  for (var y = minYear; y <= maxYear; y++) yearOpts.push(y);
+
+  const monthOpts = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+  const monthLabels = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+  function fillYear(id, selected) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value || selected;
+    sel.innerHTML = yearOpts.map(function(y){
+      return '<option value="'+y+'"'+(String(y)===String(cur)?' selected':'')+'>'+y+'년</option>';
+    }).join('');
+    if (!sel.value) sel.value = selected;
+  }
+  function fillMonth(id, selected) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value || selected;
+    sel.innerHTML = monthOpts.map(function(m,i){
+      return '<option value="'+m+'"'+(m===cur?' selected':'')+'>'+monthLabels[i]+'</option>';
+    }).join('');
+    if (!sel.value) sel.value = selected;
+  }
+
+  const now = new Date();
+  const curY = String(now.getFullYear());
+  const curM = String(now.getMonth()+1).padStart(2,'0');
+
+  fillYear('divFromYear', String(minYear));
+  fillMonth('divFromMonth', '01');
+  fillYear('divToYear', curY);
+  fillMonth('divToMonth', curM);
 }
 
 function renderDividend() {
@@ -3460,6 +3515,9 @@ function renderDividend() {
 
   // 테이블
   document.getElementById('divRowCount').textContent = rows.length+'건';
+  const filteredSum = rows.reduce(function(s,r){return s+Number(r.amount||0);},0);
+  const sumEl = document.getElementById('divRowSum');
+  if (sumEl) sumEl.textContent = filteredSum > 0 ? '합계: +'+Math.round(filteredSum).toLocaleString('ko-KR')+'원' : '';
   if (rows.length === 0) {
     document.getElementById('divTableContainer').innerHTML =
       '<div style="padding:40px;text-align:center;color:var(--text2)">배당 내역이 없습니다</div>';
@@ -3490,20 +3548,59 @@ function renderDivChart(rows) {
   if (!canvas) return;
   if (divState.chart) { divState.chart.destroy(); divState.chart = null; }
 
-  // 최근 12개월 라벨 (말일 버그 방지: 항상 1일 기준으로 계산)
+  const period = document.getElementById('divFilterPeriod')?.value || 'this_year';
   const labels = [], amounts = [];
-  const now = new Date();
-  const baseYear  = now.getFullYear();
-  const baseMonth = now.getMonth(); // 0-based
-  for (var i = 11; i >= 0; i--) {
-    var y = baseYear, m = baseMonth - i;
-    while (m < 0)  { m += 12; y--; }
-    while (m > 11) { m -= 12; y++; }
-    const key = y + '-' + String(m + 1).padStart(2, '0');
-    labels.push(key);
-    const sum = rows.filter(function(r){return r.date&&r.date.startsWith(key);})
-                    .reduce(function(s,r){return s+Number(r.amount||0);},0);
-    amounts.push(sum);
+
+  if ((period === 'all' || period === 'custom') && divState.rows.length > 0) {
+    // 전체/직접입력: 데이터 전체 기간을 월별로 표시
+    const allDates = divState.rows
+      .filter(function(r){return r.date;})
+      .map(function(r){return r.date.slice(0,7);});
+    if (allDates.length === 0) return;
+    const minKey = allDates.reduce(function(a,b){return a<b?a:b;});
+    const maxKey = allDates.reduce(function(a,b){return a>b?a:b;});
+    var cy = parseInt(minKey.slice(0,4)), cm = parseInt(minKey.slice(5,7))-1;
+    const ey = parseInt(maxKey.slice(0,4)), em = parseInt(maxKey.slice(5,7))-1;
+    const months = [];
+    while (cy < ey || (cy === ey && cm <= em)) {
+      months.push(cy+'-'+String(cm+1).padStart(2,'0'));
+      cm++; if (cm > 11) { cm = 0; cy++; }
+    }
+    // 24개월 초과시 분기별 집계
+    if (months.length > 24) {
+      const quarters = {};
+      rows.forEach(function(r){
+        if (!r.date) return;
+        const y2 = r.date.slice(0,4);
+        const q  = Math.ceil(parseInt(r.date.slice(5,7))/3);
+        const qk = y2+'-Q'+q;
+        quarters[qk] = (quarters[qk]||0) + Number(r.amount||0);
+      });
+      Object.keys(quarters).sort().forEach(function(k){
+        labels.push(k); amounts.push(quarters[k]);
+      });
+    } else {
+      months.forEach(function(key){
+        labels.push(key);
+        const sum = rows.filter(function(r){return r.date&&r.date.startsWith(key);})
+                        .reduce(function(s,r){return s+Number(r.amount||0);},0);
+        amounts.push(sum);
+      });
+    }
+  } else {
+    // 이번달/분기/올해: 최근 12개월 고정
+    const now = new Date();
+    const baseYear = now.getFullYear(), baseMonth = now.getMonth();
+    for (var i = 11; i >= 0; i--) {
+      var y = baseYear, m = baseMonth - i;
+      while (m < 0)  { m += 12; y--; }
+      while (m > 11) { m -= 12; y++; }
+      const key = y+'-'+String(m+1).padStart(2,'0');
+      labels.push(key);
+      const sum = rows.filter(function(r){return r.date&&r.date.startsWith(key);})
+                      .reduce(function(s,r){return s+Number(r.amount||0);},0);
+      amounts.push(sum);
+    }
   }
 
   divState.chart = new Chart(canvas, {
