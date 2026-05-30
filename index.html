@@ -258,6 +258,14 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
   color: var(--blue);
   background: #1f2d3d;
 }
+.chart-unit-btn {
+  padding: 2px 8px; font-size: 11px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg3); color: var(--text2);
+  transition: all .2s;
+}
+.chart-unit-btn:first-child { border-radius: 10px 0 0 10px; }
+.chart-unit-btn:last-child  { border-radius: 0 10px 10px 0; }
+.chart-unit-btn.active { background: var(--purple); color: #fff; border-color: var(--purple); }
 
 /* ── 테이블 ───────────────────────────────────────────────── */
 .table-wrap {
@@ -763,13 +771,28 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <!-- ── 패널: 차트 분석 ─────────────────────────────────── -->
 <div class="panel" id="panel-charts">
 
+  <!-- 전체 표시 단위 토글 -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+    <span style="font-size:12px;color:var(--text2)">전체 표시:</span>
+    <div style="display:flex">
+      <button class="chart-unit-btn active" id="unitBtnPctAll"  onclick="setAllChartUnit('pct')">비중%</button>
+      <button class="chart-unit-btn"        id="unitBtnAmtAll"  onclick="setAllChartUnit('amount')">금액</button>
+    </div>
+  </div>
+
   <div class="chart-grid">
     <div class="chart-card" id="card-sector">
       <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>섹터별 비중</span>
-        <div class="chart-view-toggle">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="display:flex">
+            <button class="chart-unit-btn active" id="unitBtn_sector_pct"    onclick="setChartUnit('sector','pct',this)">%</button>
+            <button class="chart-unit-btn"        id="unitBtn_sector_amount" onclick="setChartUnit('sector','amount',this)">금액</button>
+          </div>
+          <div class="chart-view-toggle">
           <button class="chart-view-btn"        onclick="switchChartView('sector','donut',this)">도넛</button>
           <button class="chart-view-btn active" onclick="switchChartView('sector','treemap',this)">맵</button>
+          </div>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chartSector"></canvas></div>
@@ -777,9 +800,15 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <div class="chart-card" id="card-account">
       <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>계좌별 비중</span>
-        <div class="chart-view-toggle">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="display:flex">
+            <button class="chart-unit-btn active" id="unitBtn_account_pct"    onclick="setChartUnit('account','pct',this)">%</button>
+            <button class="chart-unit-btn"        id="unitBtn_account_amount" onclick="setChartUnit('account','amount',this)">금액</button>
+          </div>
+          <div class="chart-view-toggle">
           <button class="chart-view-btn"        onclick="switchChartView('account','donut',this)">도넛</button>
           <button class="chart-view-btn active" onclick="switchChartView('account','treemap',this)">맵</button>
+          </div>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chartAccount"></canvas></div>
@@ -787,7 +816,12 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <div class="chart-card" id="card-market">
       <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>거래통화별 비중 (market)</span>
-        <div class="chart-view-toggle">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="display:flex">
+            <button class="chart-unit-btn active" id="unitBtn_market_pct"    onclick="setChartUnit('market','pct',this)">%</button>
+            <button class="chart-unit-btn"        id="unitBtn_market_amount" onclick="setChartUnit('market','amount',this)">금액</button>
+          </div>
+          <div class="chart-view-toggle">
           <button class="chart-view-btn active" onclick="switchChartView('market','donut',this)">도넛</button>
           <button class="chart-view-btn"        onclick="switchChartView('market','treemap',this)">맵</button>
         </div>
@@ -797,7 +831,12 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <div class="chart-card" id="card-asset">
       <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>자산소재지별 비중 (asset_region)</span>
-        <div class="chart-view-toggle">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="display:flex">
+            <button class="chart-unit-btn active" id="unitBtn_asset_pct"    onclick="setChartUnit('asset','pct',this)">%</button>
+            <button class="chart-unit-btn"        id="unitBtn_asset_amount" onclick="setChartUnit('asset','amount',this)">금액</button>
+          </div>
+          <div class="chart-view-toggle">
           <button class="chart-view-btn active" onclick="switchChartView('asset','donut',this)">도넛</button>
           <button class="chart-view-btn"        onclick="switchChartView('asset','treemap',this)">맵</button>
         </div>
@@ -807,7 +846,12 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <div class="chart-card" id="card-owner">
       <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>소유자별 비중</span>
-        <div class="chart-view-toggle">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="display:flex">
+            <button class="chart-unit-btn active" id="unitBtn_owner_pct"    onclick="setChartUnit('owner','pct',this)">%</button>
+            <button class="chart-unit-btn"        id="unitBtn_owner_amount" onclick="setChartUnit('owner','amount',this)">금액</button>
+          </div>
+          <div class="chart-view-toggle">
           <button class="chart-view-btn active" onclick="switchChartView('owner','donut',this)">도넛</button>
           <button class="chart-view-btn"        onclick="switchChartView('owner','treemap',this)">맵</button>
         </div>
@@ -2074,6 +2118,44 @@ function debugChartData() {
 }
 
 // 뷰 전환 버튼 핸들러
+// ── 차트 표시 단위 (% / 금액) ────────────────────────────────
+const chartUnitState = { sector:'pct', account:'pct', market:'pct', asset:'pct', owner:'pct' };
+
+function fmtChartAmt(v) {
+  if (v >= 100000000) return (v/100000000).toFixed(1) + '억';
+  if (v >= 10000)     return Math.round(v/10000) + '만';
+  return Math.round(v).toLocaleString('ko-KR') + '원';
+}
+
+function setChartUnit(chartKey, unit, btn) {
+  chartUnitState[chartKey] = unit;
+  // 해당 차트 버튼 활성화
+  const btns = document.querySelectorAll('[id^="unitBtn_' + chartKey + '_"]');
+  btns.forEach(function(b) { b.classList.toggle('active', b.id.endsWith('_' + unit)); });
+  // 차트 재렌더링
+  const canvasIdMap = { sector:'chartSector', account:'chartAccount', market:'chartMarket', asset:'chartAsset', owner:'chartOwner' };
+  const canvasId = canvasIdMap[chartKey];
+  if (canvasId && chartDataCache[chartKey]) renderChart(chartKey, canvasId, chartDataCache[chartKey]);
+}
+
+function setAllChartUnit(unit) {
+  // 전체 버튼 토글
+  document.getElementById('unitBtnPctAll').classList.toggle('active', unit === 'pct');
+  document.getElementById('unitBtnAmtAll').classList.toggle('active', unit === 'amount');
+  // 모든 차트 단위 변경
+  Object.keys(chartUnitState).forEach(function(key) {
+    chartUnitState[key] = unit;
+    const btns = document.querySelectorAll('[id^="unitBtn_' + key + '_"]');
+    btns.forEach(function(b) { b.classList.toggle('active', b.id.endsWith('_' + unit)); });
+  });
+  // 모든 차트 재렌더링
+  const canvasIdMap = { sector:'chartSector', account:'chartAccount', market:'chartMarket', asset:'chartAsset', owner:'chartOwner' };
+  Object.keys(chartUnitState).forEach(function(key) {
+    const canvasId = canvasIdMap[key];
+    if (canvasId && chartDataCache[key]) renderChart(key, canvasId, chartDataCache[key]);
+  });
+}
+
 function switchChartView(chartKey, viewType, btn) {
   // 버튼 활성화 상태 변경
   const toggleBtns = btn.closest('.chart-view-toggle').querySelectorAll('.chart-view-btn');
@@ -2096,14 +2178,14 @@ function renderChart(chartKey, canvasId, dataMap) {
   const viewType = chartViewState[chartKey] || 'donut';
 
   if (viewType === 'treemap') {
-    renderTreemap(canvasId, canvas, dataMap);
+    renderTreemap(chartKey, canvasId, canvas, dataMap);
   } else {
-    renderDonut(canvasId, canvas, dataMap);
+    renderDonut(chartKey, canvasId, canvas, dataMap);
   }
 }
 
 // ── 도넛 차트 ────────────────────────────────────────────────
-function renderDonut(canvasId, canvas, dataMap) {
+function renderDonut(chartKey, canvasId, canvas, dataMap) {
   const total = Object.values(dataMap).reduce((s, v) => s + v, 0);
 
   // 1% 미만 항목은 '기타'로 묶기
@@ -2148,11 +2230,13 @@ function renderDonut(canvasId, canvas, dataMap) {
             useBorderRadius: true,
             borderRadius: 3,
             generateLabels(chart) {
-              const ds = chart.data.datasets[0];
+              const ds   = chart.data.datasets[0];
+              const unit = chartUnitState[chartKey] || 'pct';
               return chart.data.labels.map((label, i) => {
-                const pct = tot2 > 0 ? ((ds.data[i] / tot2) * 100).toFixed(1) : '0.0';
+                const pct  = tot2 > 0 ? ((ds.data[i] / tot2) * 100).toFixed(1) : '0.0';
+                const disp = unit === 'amount' ? fmtChartAmt(ds.data[i]) : pct + '%';
                 return {
-                  text: label + '  ' + pct + '%',
+                  text: label + '  ' + disp,
                   fillStyle: ds.backgroundColor[i],
                   strokeStyle: ds.backgroundColor[i],
                   fontColor: '#ffffff',
@@ -2177,7 +2261,7 @@ function renderDonut(canvasId, canvas, dataMap) {
 }
 
 // ── 트리맵 차트 ──────────────────────────────────────────────
-function renderTreemap(canvasId, canvas, dataMap) {
+function renderTreemap(chartKey, canvasId, canvas, dataMap) {
   const total = Object.values(dataMap).reduce((s, v) => s + v, 0);
 
   const treeData = Object.entries(dataMap)
@@ -2201,8 +2285,10 @@ function renderTreemap(canvasId, canvas, dataMap) {
           display: true,
           formatter: ctx => {
             if (!ctx.raw || !ctx.raw._data) return '';
-            const d = ctx.raw._data;
-            return [d.label, d.pct + '%'];
+            const d    = ctx.raw._data;
+            const unit = chartUnitState[chartKey] || 'pct';
+            const disp = unit === 'amount' ? fmtChartAmt(d.value) : d.pct + '%';
+            return [d.label, disp];
           },
           color: '#ffffff',
           font: [{ size: 13, weight: 'bold' }, { size: 11 }],
