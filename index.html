@@ -178,10 +178,10 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
     background: var(--bg2); gap: 8px;
   }
   .mobile-card-row:last-child { border-bottom: none; }
-  .mobile-card-left { flex: 1; min-width: 0; max-width: calc(100% - 140px); overflow: hidden; }
+  .mobile-card-left { flex: 1; min-width: 0; overflow: hidden; }
   .mobile-card-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mobile-card-sub  { font-size: 10px; color: var(--text2); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mobile-card-right { text-align: right; flex-shrink: 0; width: 120px; min-width: 120px; }
+  .mobile-card-right { text-align: right; flex-shrink: 0; width: 110px; min-width: 110px; }
   .mobile-card-price { font-size: 12px; color: var(--text2); }
   .mobile-card-pct   { font-size: 14px; font-weight: 700; }
   .mobile-card-profit { font-size: 10px; margin-top: 1px; }
@@ -1238,7 +1238,7 @@ function makeCandleBar(changeRateStr, width) {
   const x1      = pct >= 0 ? half : half - barLen;
   const x2      = pct >= 0 ? half + barLen : half;
 
-  return '<svg width="' + width + '" height="16" style="vertical-align:middle;display:block;max-width:100%">'
+  return '<svg viewBox="0 0 ' + width + ' 16" width="' + width + '" height="16" style="display:block;max-width:100%">'
     + '<line x1="0" y1="8" x2="' + width + '" y2="8" stroke="#30363d" stroke-width="1"/>'
     + '<line x1="' + half + '" y1="2" x2="' + half + '" y2="14" stroke="#555" stroke-width="1"/>'
     + '<rect x="' + x1 + '" y="4" width="' + barLen + '" height="8" fill="' + color + '" rx="1"/>'
@@ -1318,9 +1318,9 @@ function renderTableChangeMobile(rows) {
       + '<div class="mobile-card-name">' + (h.name || h.ticker) + ' ' + badge + '</div>'
       + '<div class="mobile-card-sub">' + h.ticker + ' · ' + h.broker + ' ' + h.account_type + ' · ' + h.owner + '</div>'
       + '</div>'
-      + '<div class="mobile-card-right">'
+      + '<div class="mobile-card-right" style="display:flex;flex-direction:column;align-items:flex-end">'
       + '<div class="mobile-card-pct" style="color:' + color + '">' + cr + '</div>'
-      + '<div style="margin:2px 0">' + makeCandleBar(cr, 100) + '</div>'
+      + makeCandleBar(cr, 100)
       + '<div class="mobile-card-profit" style="color:' + color + '">' + caSign + ca.toLocaleString('ko-KR') + '원</div>'
       + '</div>'
       + '<button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" style="margin-left:4px;flex-shrink:0">✏️</button>'
@@ -1594,9 +1594,9 @@ function renderByAccount() {
             + '<div class="mobile-card-name">' + (h.name || h.ticker) + ' ' + badge2 + '</div>'
             + '<div class="mobile-card-sub">' + h.ticker + ' · ' + (h.sector || '') + '</div>'
             + '</div>'
-            + '<div class="mobile-card-right">'
+            + '<div class="mobile-card-right" style="display:flex;flex-direction:column;align-items:flex-end">'
             + '<div class="mobile-card-pct" style="color:' + c2 + '">' + cr2 + '</div>'
-            + '<div style="margin:2px 0">' + makeCandleBar(cr2, 100) + '</div>'
+            + makeCandleBar(cr2, 100)
             + '<div class="mobile-card-profit" style="color:' + c2 + '">' + (ca2>=0?'+':'') + ca2.toLocaleString('ko-KR') + '원</div>'
             + '</div>'
             + '<button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" style="margin-left:4px;flex-shrink:0">✏️</button>'
