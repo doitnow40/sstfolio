@@ -968,12 +968,12 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   </div>
 
   <!-- 집계 카드 (기간필터 무관, 전역필터만 반영) -->
-  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px" id="divSummaryCards">
-    <div class="card" id="divCard_month"   onclick="setDivPeriodByCard('this_month')"   style="cursor:pointer" title="클릭하면 기간 필터 적용"><div class="card-label">이번달</div><div class="card-value" id="divSumMonth">–</div></div>
-    <div class="card" id="divCard_quarter" onclick="setDivPeriodByCard('this_quarter')" style="cursor:pointer" title="클릭하면 기간 필터 적용"><div class="card-label">이번분기</div><div class="card-value" id="divSumQuarter">–</div></div>
-    <div class="card" id="divCard_year"    onclick="setDivPeriodByCard('this_year')"    style="cursor:pointer" title="클릭하면 기간 필터 적용"><div class="card-label">올해</div><div class="card-value" id="divSumYear">–</div></div>
-    <div class="card" id="divCard_year1"   onclick="setDivPeriodByCard('year1')"        style="cursor:pointer" title="클릭하면 기간 필터 적용"><div class="card-label">최근 1년</div><div class="card-value" id="divSumYear1">–</div></div>
-    <div class="card" id="divCard_all"     onclick="setDivPeriodByCard('all')"          style="cursor:pointer" title="클릭하면 기간 필터 적용"><div class="card-label">누적 전체</div><div class="card-value" id="divSumAll">–</div></div>
+  <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px" id="divSummaryCards">
+    <div class="card" id="divCard_month"   onclick="setDivPeriodByCard('this_month')"   style="cursor:pointer;flex:0 0 auto;min-width:130px" title="클릭하면 기간 필터 적용"><div class="card-label">이번달</div><div class="card-value" id="divSumMonth">–</div></div>
+    <div class="card" id="divCard_quarter" onclick="setDivPeriodByCard('this_quarter')" style="cursor:pointer;flex:0 0 auto;min-width:130px" title="클릭하면 기간 필터 적용"><div class="card-label">이번분기</div><div class="card-value" id="divSumQuarter">–</div></div>
+    <div class="card" id="divCard_year"    onclick="setDivPeriodByCard('this_year')"    style="cursor:pointer;flex:0 0 auto;min-width:130px" title="클릭하면 기간 필터 적용"><div class="card-label">올해</div><div class="card-value" id="divSumYear">–</div></div>
+    <div class="card" id="divCard_year1"   onclick="setDivPeriodByCard('year1')"        style="cursor:pointer;flex:0 0 auto;min-width:130px" title="클릭하면 기간 필터 적용"><div class="card-label">최근 1년</div><div class="card-value" id="divSumYear1">–</div></div>
+    <div class="card" id="divCard_all"     onclick="setDivPeriodByCard('all')"          style="cursor:pointer;flex:0 0 auto;min-width:130px" title="클릭하면 기간 필터 적용"><div class="card-label">누적 전체</div><div class="card-value" id="divSumAll">–</div></div>
   </div>
 
   <!-- 기간 필터 (차트+테이블에만 적용) -->
