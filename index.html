@@ -960,14 +960,8 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <!-- ── 패널: 배당 ────────────────────────────────────────── -->
 <div class="panel" id="panel-dividend">
 
-  <!-- 필터 행 -->
+  <!-- 기간 필터 (소유자/계좌는 상단 전역필터 사용) -->
   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
-    <select class="form-select" id="divFilterOwner" style="width:auto;font-size:12px" onchange="renderDividend()">
-      <option value="">소유자 전체</option>
-    </select>
-    <select class="form-select" id="divFilterAccount" style="width:auto;font-size:12px" onchange="renderDividend()">
-      <option value="">계좌 전체</option>
-    </select>
     <select class="form-select" id="divFilterPeriod" style="width:auto;font-size:12px" onchange="onDivPeriodChange()">
       <option value="this_month">이번달</option>
       <option value="this_quarter">이번분기</option>
@@ -975,7 +969,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <option value="all">전체</option>
       <option value="custom">직접입력</option>
     </select>
-    <div id="divCustomRange" style="display:none;gap:4px;align-items:center;display:none">
+    <div id="divCustomRange" style="display:none;gap:4px;align-items:center">
       <input type="month" class="form-input" id="divFrom" style="width:130px;font-size:12px" onchange="renderDividend()">
       <span style="color:var(--text2);font-size:12px">~</span>
       <input type="month" class="form-input" id="divTo"   style="width:130px;font-size:12px" onchange="renderDividend()">
@@ -1285,7 +1279,8 @@ function renderAll() {
   renderAccountList();
   renderAccountGroupList();
   renderGroupAccountChecks();
-  if (state.activeTab === 'trend' && trendState.loaded) renderTrendChart();
+  if (state.activeTab === 'trend'   && trendState.loaded) renderTrendChart();
+  if (state.activeTab === 'dividend' && divState.loaded)  renderDividend();
 }
 
 // ── 요약 카드 ────────────────────────────────────────────────
@@ -3348,16 +3343,6 @@ const divState = {
 
 function initDividendTab() {
   try {
-    // 소유자 필터 채우기
-    const ownerSel = document.getElementById('divFilterOwner');
-    if (!ownerSel) { console.error('divFilterOwner 요소 없음'); return; }
-    const owners = [...new Set((state.accounts||[]).map(function(a){return a.owner;}))];
-    ownerSel.innerHTML = '<option value="">소유자 전체</option>'
-      + owners.map(function(o){return '<option value="'+o+'">'+o+'</option>';}).join('');
-
-    // 계좌 필터 채우기
-    renderDivAccountFilter();
-
     // 오늘 날짜 기본값
     const today = new Date().toISOString().slice(0,10);
     const dateEl = document.getElementById('divInputDate');
@@ -3371,11 +3356,7 @@ function initDividendTab() {
 }
 
 function renderDivAccountFilter() {
-  const owner   = document.getElementById('divFilterOwner').value;
-  const accts   = (state.accounts||[]).filter(a=>!owner||a.owner===owner);
-  const acctSel = document.getElementById('divFilterAccount');
-  acctSel.innerHTML = '<option value="">계좌 전체</option>'
-    + accts.map(a=>'<option value="'+a.account_id+'">'+a.owner+' · '+a.broker+' '+a.account_type+'</option>').join('');
+  // 전역 필터로 대체됨 - 빈 함수 유지
 }
 
 async function loadDividend() {
@@ -3423,17 +3404,20 @@ function onDivPeriodChange() {
 }
 
 function renderDividend() {
-  renderDivAccountFilter();
-  const owner   = document.getElementById('divFilterOwner').value;
-  const acctId  = document.getElementById('divFilterAccount').value;
   const { from, to } = getDivDateRange();
 
-  // 필터링
+  // 필터링 (전역 필터 + 기간 필터)
   let rows = divState.rows.filter(function(r) {
-    if (owner  && r.account_name && !r.account_name.includes(owner)) return false;
-    if (acctId && String(r.account_id) !== acctId) return false;
-    if (from   && r.date < from) return false;
-    if (to     && r.date > to)   return false;
+    // 전역 소유자 필터
+    if (selectedOwners.size > 0) {
+      const rowOwner = r.owner || (r.account_name || '').split(' · ')[0];
+      if (!selectedOwners.has(rowOwner)) return false;
+    }
+    // 전역 계좌 필터
+    if (selectedAccounts.size > 0 && !selectedAccounts.has(String(r.account_id))) return false;
+    // 기간 필터
+    if (from && r.date < from) return false;
+    if (to   && r.date > to)   return false;
     return true;
   });
 
@@ -3446,8 +3430,11 @@ function renderDividend() {
   function fmt(v) { return Math.round(v).toLocaleString('ko-KR')+'원'; }
 
   const allRows = divState.rows.filter(function(r){
-    if(owner  && r.account_name && !r.account_name.includes(owner)) return false;
-    if(acctId && String(r.account_id)!==acctId) return false;
+    if (selectedOwners.size > 0) {
+      const rowOwner = r.owner || (r.account_name || '').split(' · ')[0];
+      if (!selectedOwners.has(rowOwner)) return false;
+    }
+    if (selectedAccounts.size > 0 && !selectedAccounts.has(String(r.account_id))) return false;
     return true;
   });
   const monthRows   = allRows.filter(r=>r.date&&r.date.startsWith(y+'-'+String(mo).padStart(2,'0')));
@@ -3471,15 +3458,17 @@ function renderDividend() {
   }
   const sorted = [...rows].sort(function(a,b){return b.date.localeCompare(a.date);});
   let html = '<table style="table-layout:fixed;width:100%">'
-    +'<colgroup><col style="width:100px"><col style="width:160px"><col style="width:auto"><col style="width:110px"><col style="width:120px"><col style="width:36px"></colgroup>'
-    +'<thead><tr><th>지급일</th><th>계좌</th><th>종목명</th><th style="text-align:right">배당금</th><th>메모</th><th></th></tr></thead><tbody>';
+    +'<colgroup><col style="width:100px"><col style="width:80px"><col style="width:120px"><col style="width:auto"><col style="width:110px"><col style="width:36px"></colgroup>'
+    +'<thead><tr><th>지급일</th><th>소유자</th><th>계좌</th><th>종목명</th><th style="text-align:right">배당금</th><th></th></tr></thead><tbody>';
   sorted.forEach(function(r) {
+    const rowOwner   = r.owner || (r.account_name||'').split(' · ')[0];
+    const rowAcct    = r.owner ? r.account_name : (r.account_name||'').split(' · ').slice(1).join(' · ');
     html += '<tr>'
       +'<td style="font-size:12px">'+r.date+'</td>'
-      +'<td style="font-size:11px;color:var(--text2)">'+r.account_name+'</td>'
+      +'<td style="font-size:11px;color:var(--text2)">'+rowOwner+'</td>'
+      +'<td style="font-size:11px;color:var(--text2)">'+rowAcct+'</td>'
       +'<td><strong>'+r.name+'</strong><br><small style="color:var(--text2)">'+r.ticker+'</small></td>'
       +'<td style="text-align:right;color:var(--green);font-weight:700">+'+Number(r.amount||0).toLocaleString('ko-KR')+'원</td>'
-      +'<td style="font-size:11px;color:var(--text2)">'+( r.memo||'')+'</td>'
       +'<td><button class="btn-icon" onclick="deleteDividendRow(\'' + r.id + '\')" title="삭제">🗑️</button></td>'
       +'</tr>';
   });
@@ -3595,12 +3584,16 @@ async function saveDividend() {
   if (!amount) { alert('배당금을 입력하세요'); return; }
 
   const [acctId, acctName] = acctVal.split('|');
+  // account_name에서 owner 분리: "어머니 · 키움 일반" → owner="어머니", account_name="키움 일반"
+  const parts      = acctName.split(' · ');
+  const owner      = parts[0] || '';
+  const acctNameOnly = parts.slice(1).join(' · ') || acctName;
   const postUrl = WORKER_URL ? WORKER_URL+'/api/dividend' : GAS_URL;
 
   try {
     const res  = await fetch(postUrl, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'add_dividend', date, account_id:acctId, account_name:acctName, ticker, name, amount:Number(amount), memo }),
+      body: JSON.stringify({ action:'add_dividend', date, account_id:acctId, owner, account_name:acctNameOnly, ticker, name, amount:Number(amount), memo }),
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
