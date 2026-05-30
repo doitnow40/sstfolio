@@ -127,6 +127,7 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
   margin-bottom: 24px;
 }
 @media (max-width:900px) { .chart-grid { grid-template-columns:1fr; } }
+@media (max-width:768px) { .chart-grid { gap:10px; margin-bottom:12px; } }
 
 /* ══════════════════════════════════════════════════════════
    모바일 반응형 (768px 이하)
@@ -205,6 +206,8 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
 
   /* 패널 패딩 */
   .panel { padding-top: 8px; }
+  .chart-card { padding: 12px; }
+  .chart-wrap { height: 220px; }
 
   /* 차트 x축 레이블 */
   .chart-section { margin-bottom: 12px; }
@@ -234,9 +237,14 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
+  overflow: hidden;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .chart-title { font-size:14px; font-weight:600; margin-bottom:16px; color:var(--text2); }
 .chart-wrap  { position:relative; height:280px; }
+.chart-wrap canvas { max-width:100% !important; }
 
 /* ── 차트 뷰 토글 ────────────────────────────────────────── */
 .chart-view-toggle {
@@ -771,7 +779,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 </div>
 
 <!-- ── 패널: 차트 분석 ─────────────────────────────────── -->
-<div class="panel" id="panel-charts">
+<div class="panel" id="panel-charts" style="overflow-x:hidden;max-width:100%">
 
   <!-- 전체 표시 단위 토글 -->
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
