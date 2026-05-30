@@ -396,7 +396,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   background: var(--bg3);
   border: 1px solid var(--blue);
   border-radius: var(--radius);
-  z-index: 300;
+  z-index: 500;
   max-height: 220px;
   overflow-y: auto;
   box-shadow: 0 8px 24px rgba(0,0,0,.5);
@@ -1010,7 +1010,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
 <!-- ── 배당 입력 모달 (패널 밖) ────────────────────────────── -->
 <div class="modal-overlay" id="divModal" onclick="closeDividendModal()">
-  <div class="modal" onclick="event.stopPropagation()" style="max-width:420px">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:420px;overflow:visible">
     <div class="modal-title">배당 입력</div>
     <div class="form-group">
       <label class="form-label">지급일</label>
@@ -1022,7 +1022,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     </div>
     <div class="form-group">
       <label class="form-label">종목</label>
-      <div style="position:relative">
+      <div class="autocomplete-wrap">
         <input class="form-input" id="divInputSearch" placeholder="종목명 또는 초성 검색..." autocomplete="off" oninput="onDivSearch(this.value)">
         <div class="autocomplete-list" id="divAcList"></div>
       </div>
