@@ -1327,7 +1327,7 @@ function renderTableChangePc(rows, sort) {
     const mktBadge = '<span class="badge badge-' + (h.market==='US'?'us':'kr') + '">' + h.market + '</span>';
 
     html += '<tr>'
-      + '<td><strong>' + (h.name || h.ticker) + '</strong> ' + mktBadge + '<br>'
+      + '<td><strong>' + makeStockNameHtml(h, h.name || h.ticker) + '</strong> ' + mktBadge + '<br>'
       + '<small style="color:var(--text2)">' + h.ticker + ' · ' + h.sector + '</small></td>'
       + '<td style="font-size:11px;color:var(--text2)">' + h.owner + '<br>' + h.broker + ' ' + h.account_type + '</td>'
       + '<td>' + (h.quantity || 0).toLocaleString() + '</td>'
@@ -1359,7 +1359,7 @@ function renderTableChangeMobile(rows) {
 
     html += '<div class="mobile-card-row">'
       + '<div class="mobile-card-left">'
-      + '<div class="mobile-card-name">' + (h.name || h.ticker) + ' ' + badge + '</div>'
+      + '<div class="mobile-card-name">' + makeStockNameHtml(h, h.name || h.ticker) + ' ' + badge + '</div>'
       + '<div class="mobile-card-sub">' + h.ticker + ' · ' + h.broker + ' ' + h.account_type + ' · ' + h.owner + '</div>'
       + '</div>'
       + '<div class="mobile-card-right" style="display:flex;flex-direction:column;align-items:flex-end">'
@@ -1455,7 +1455,7 @@ function renderTable() {
       : (h.avg_price || 0).toLocaleString('ko-KR') + '원';
 
     html += `<tr>
-      <td><strong>${h.name || h.ticker}</strong> ${marketBadge}<br>
+      <td><strong>${makeStockNameHtml(h, h.name || h.ticker)}</strong> ${marketBadge}<br>
           <small style="color:var(--text2)">${h.ticker} · ${h.sector || ''}</small></td>
       <td>${h.broker || ''} ${acctBadge}<br>
           <small style="color:var(--text2)">${h.account_type || ''} · ${h.owner || ''}</small></td>
@@ -1506,7 +1506,7 @@ function renderTableMobile(rows, sort) {
 
     html += `<div class="mobile-card-row">
       <div class="mobile-card-left">
-        <div class="mobile-card-name">${h.name || h.ticker} ${marketBadge}</div>
+        <div class="mobile-card-name">${makeStockNameHtml(h, h.name || h.ticker)} ${marketBadge}</div>
         <div class="mobile-card-sub">${h.ticker} · ${h.broker} ${h.account_type} · ${h.owner}</div>
       </div>
       <div class="mobile-card-right">
@@ -1635,7 +1635,7 @@ function renderByAccount() {
           const ca2  = h.change_amount || 0;
           html += '<div class="mobile-card-row">'
             + '<div class="mobile-card-left">'
-            + '<div class="mobile-card-name">' + (h.name || h.ticker) + ' ' + badge2 + '</div>'
+            + '<div class="mobile-card-name">' + makeStockNameHtml(h, h.name || h.ticker) + ' ' + badge2 + '</div>'
             + '<div class="mobile-card-sub">' + h.ticker + ' · ' + (h.sector || '') + '</div>'
             + '</div>'
             + '<div class="mobile-card-right" style="display:flex;flex-direction:column;align-items:flex-end">'
@@ -1651,7 +1651,7 @@ function renderByAccount() {
           const sign2 = pct2 >= 0 ? '+' : '';
           html += '<div class="mobile-card-row">'
             + '<div class="mobile-card-left">'
-            + '<div class="mobile-card-name">' + (h.name || h.ticker) + ' ' + badge2 + '</div>'
+            + '<div class="mobile-card-name">' + makeStockNameHtml(h, h.name || h.ticker) + ' ' + badge2 + '</div>'
             + '<div class="mobile-card-sub">' + h.ticker + ' · ' + (h.sector || '') + '</div>'
             + '</div>'
             + '<div class="mobile-card-right">'
@@ -1681,7 +1681,7 @@ function renderByAccount() {
         const pc2  = pp2 >= 0 ? 'var(--green)' : 'var(--red)';
         const ca2  = h.change_amount || 0;
         html += '<tr>'
-          + '<td><strong>' + (h.name||h.ticker) + '</strong><br>'
+          + '<td><strong>' + makeStockNameHtml(h, h.name||h.ticker) + '</strong><br>'
           + '<small style="color:var(--text2)">' + h.ticker + ' · ' + (h.sector||'') + '</small></td>'
           + '<td>' + (h.quantity||0).toLocaleString() + '</td>'
           + '<td style="color:' + c2 + ';font-weight:700">' + cr2 + '</td>'
@@ -1712,7 +1712,7 @@ function renderByAccount() {
         const col2  = pct2 >= 0 ? 'var(--green)' : 'var(--red)';
         const sign2 = pct2 >= 0 ? '+' : '';
         html += '<tr>'
-          + '<td><strong>' + (h.name || h.ticker) + '</strong><br>'
+          + '<td><strong>' + makeStockNameHtml(h, h.name || h.ticker) + '</strong><br>'
           + '<small style="color:var(--text2)">' + h.ticker + ' · ' + (h.sector || '') + '</small></td>'
           + '<td><span class="badge badge-' + (h.market === 'US' ? 'us' : 'kr') + '">' + h.market + '</span></td>'
           + '<td>' + (h.quantity || 0).toLocaleString() + '</td>'
@@ -2701,6 +2701,62 @@ async function deleteHolding(id) {
 // 추이 분석 탭
 // ============================================================
 let currentViewMode = 'asset'; // 'asset' | 'change'
+
+// ============================================================
+// 종목 링크 (네이버 / TradingView / Yahoo Finance)
+// ============================================================
+function _naverStockUrl(ticker) {
+  // KR 종목: 숫자 코드만 추출
+  const numCode = ticker.replace(/[^0-9]/g, '');
+  if (!numCode) return null;
+  return 'https://stock.naver.com/domestic/stock/' + numCode + '/price';
+}
+
+function _tradingViewUrl(ticker, exchange) {
+  // US 종목: TradingView
+  const exMap = { 'NASDAQ':'NASDAQ', 'NYSE':'NYSE', 'NYSEARCA':'AMEX', 'NYSEAMERICAN':'AMEX' };
+  const tv = exMap[String(exchange || '').toUpperCase()] || 'NASDAQ';
+  return 'https://kr.tradingview.com/symbols/' + tv + '-' + ticker;
+}
+
+function _yahooUrl(ticker) {
+  return 'https://finance.yahoo.com/quote/' + ticker;
+}
+
+function openStockLink(ticker, market, exchange, event) {
+  if (event) { event.stopPropagation(); }
+  if (!ticker || ticker === 'CASH_KR' || ticker === 'CASH_US') return;
+  if (market === 'US') {
+    window.open(_tradingViewUrl(ticker, exchange), '_blank', 'noopener');
+  } else {
+    const url = _naverStockUrl(ticker);
+    if (url) window.open(url, '_blank', 'noopener');
+  }
+}
+
+function openYahoo(ticker, event) {
+  if (event) { event.stopPropagation(); }
+  window.open(_yahooUrl(ticker), '_blank', 'noopener');
+}
+
+// 종목명 HTML 생성 헬퍼
+function makeStockNameHtml(h, nameText) {
+  const ticker   = h.ticker || '';
+  const market   = h.market || 'KR';
+  const exchange = h.exchange || (market === 'US' ? 'NASDAQ' : 'KR');
+  const isCash   = h.is_cash || ticker === 'CASH_KR' || ticker === 'CASH_US';
+  if (isCash) return nameText || ticker;
+
+  const nameStyle = 'cursor:pointer;text-decoration:underline dotted rgba(255,255,255,.4)';
+  const nameClick = "openStockLink('" + ticker.replace(/'/g,"\'") + "','" + market + "','" + exchange + "',event)";
+  let html = '<span onclick="' + nameClick + '" style="' + nameStyle + '" title="' + (market==='US'?'TradingView':'네이버 증권') + '">' + (nameText || ticker) + '</span>';
+
+  if (market === 'US') {
+    const yClick = "openYahoo('" + ticker.replace(/'/g,"\'") + "',event)";
+    html += ' <span onclick="' + yClick + '" title="Yahoo Finance" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;background:rgba(100,181,246,.2);color:#64b5f6;font-size:8px;font-weight:900;cursor:pointer;flex-shrink:0;border:1px solid rgba(100,181,246,.35);user-select:none;vertical-align:middle">Y</span>';
+  }
+  return html;
+}
 
 function setViewMode(mode) {
   currentViewMode = mode;
