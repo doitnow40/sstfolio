@@ -238,13 +238,12 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
-  overflow: hidden;
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
 }
 .chart-title { font-size:14px; font-weight:600; margin-bottom:16px; color:var(--text2); }
-.chart-wrap  { position:relative; height:280px; }
+.chart-wrap  { position:relative; height:280px; overflow:hidden; }
 .chart-wrap canvas { max-width:100% !important; }
 
 /* ── 차트 뷰 토글 ────────────────────────────────────────── */
