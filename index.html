@@ -207,8 +207,8 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
   /* 패널 패딩 */
   .panel { padding-top: 8px; }
   .chart-card { padding: 12px; }
-  .chart-wrap { height: 220px !important; min-height: 220px !important; }
-  .chart-wrap canvas { display: block !important; }
+  .chart-wrap { height: 220px !important; min-height: 220px !important; display: block !important; }
+  .chart-wrap canvas { display: block !important; width: 100% !important; }
 
   /* 차트 x축 레이블 */
   .chart-section { margin-bottom: 12px; }
@@ -825,7 +825,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <div class="chart-wrap"><canvas id="chartAccount"></canvas></div>
     </div>
     <div class="chart-card" id="card-market">
-      <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center">
+      <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
         <span>거래통화별 비중 (market)</span>
         <div style="display:flex;align-items:center;gap:6px">
           <div style="display:flex">
@@ -833,14 +833,15 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
             <button class="chart-unit-btn"        id="unitBtn_market_amount" onclick="setChartUnit('market','amount',this)">금액</button>
           </div>
           <div class="chart-view-toggle">
-          <button class="chart-view-btn active" onclick="switchChartView('market','donut',this)">도넛</button>
-          <button class="chart-view-btn"        onclick="switchChartView('market','treemap',this)">맵</button>
+            <button class="chart-view-btn active" onclick="switchChartView('market','donut',this)">도넛</button>
+            <button class="chart-view-btn"        onclick="switchChartView('market','treemap',this)">맵</button>
+          </div>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chartMarket"></canvas></div>
     </div>
     <div class="chart-card" id="card-asset">
-      <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center">
+      <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
         <span>자산소재지별 비중 (asset_region)</span>
         <div style="display:flex;align-items:center;gap:6px">
           <div style="display:flex">
@@ -848,8 +849,9 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
             <button class="chart-unit-btn"        id="unitBtn_asset_amount" onclick="setChartUnit('asset','amount',this)">금액</button>
           </div>
           <div class="chart-view-toggle">
-          <button class="chart-view-btn active" onclick="switchChartView('asset','donut',this)">도넛</button>
-          <button class="chart-view-btn"        onclick="switchChartView('asset','treemap',this)">맵</button>
+            <button class="chart-view-btn active" onclick="switchChartView('asset','donut',this)">도넛</button>
+            <button class="chart-view-btn"        onclick="switchChartView('asset','treemap',this)">맵</button>
+          </div>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chartAsset"></canvas></div>
@@ -863,8 +865,9 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
             <button class="chart-unit-btn"        id="unitBtn_owner_amount" onclick="setChartUnit('owner','amount',this)">금액</button>
           </div>
           <div class="chart-view-toggle">
-          <button class="chart-view-btn active" onclick="switchChartView('owner','donut',this)">도넛</button>
-          <button class="chart-view-btn"        onclick="switchChartView('owner','treemap',this)">맵</button>
+            <button class="chart-view-btn active" onclick="switchChartView('owner','donut',this)">도넛</button>
+            <button class="chart-view-btn"        onclick="switchChartView('owner','treemap',this)">맵</button>
+          </div>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chartOwner"></canvas></div>
@@ -2572,7 +2575,7 @@ function switchTab(tab) {
     el.classList.toggle('active', el.id === 'panel-' + tab);
   });
 
-  if (tab === 'charts') renderCharts();
+  if (tab === 'charts') requestAnimationFrame(function(){ requestAnimationFrame(renderCharts); });
   if (tab === 'trend')    initTrendTab();
   if (tab === 'dividend') initDividendTab();
 }
