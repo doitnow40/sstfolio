@@ -1043,191 +1043,6 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   </div>
 
 
-<!-- ── 도움말 모달 ─────────────────────────────────────────── -->
-<div class="modal-overlay" id="helpModal" onclick="closeHelp()">
-  <div class="modal" onclick="event.stopPropagation()" style="max-width:700px;max-height:85vh;overflow-y:auto">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <div class="modal-title" style="margin:0">📖 SSTfolio 도움말</div>
-      <button onclick="closeHelp()" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer">✕</button>
-    </div>
-
-    <!-- 도움말 탭 -->
-    <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:20px;overflow:hidden;margin-bottom:20px">
-      <button class="help-tab-btn active" onclick="switchHelpTab(0)">🔄 데이터 흐름</button>
-      <button class="help-tab-btn" onclick="switchHelpTab(1)">🌐 웹에서 수정</button>
-      <button class="help-tab-btn" onclick="switchHelpTab(2)">📊 시트에서 수정</button>
-      <button class="help-tab-btn" onclick="switchHelpTab(3)">🔘 버튼 사전</button>
-    </div>
-
-    <!-- 탭 0: 데이터 흐름 -->
-    <div class="help-tab-content active" id="helpTab0">
-      <div style="background:var(--bg3);border-radius:8px;padding:16px;margin-bottom:16px;font-size:13px;line-height:1.8">
-        <div style="text-align:center;margin-bottom:12px;font-weight:700;font-size:14px;color:var(--blue)">전체 데이터 흐름</div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;font-size:12px">
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center">
-            📊<br><strong>Google Sheets</strong><br><span style="color:var(--text2);font-size:10px">실제 데이터 저장소</span>
-          </div>
-          <div style="color:var(--text2)">→</div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center">
-            ⚙️<br><strong>GAS</strong><br><span style="color:var(--text2);font-size:10px">데이터 처리/API</span>
-          </div>
-          <div style="color:var(--text2)">→</div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center">
-            ☁️<br><strong>Cloudflare KV</strong><br><span style="color:var(--text2);font-size:10px">캐시 (최대 1시간)</span>
-          </div>
-          <div style="color:var(--text2)">→</div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center">
-            🌐<br><strong>SSTfolio 웹</strong><br><span style="color:var(--text2);font-size:10px">화면 표시</span>
-          </div>
-        </div>
-      </div>
-      <div style="background:#2d1b1b;border:1px solid #f85149;border-radius:8px;padding:14px;font-size:13px">
-        <div style="color:#f85149;font-weight:700;margin-bottom:8px">⚠️ 황금 규칙</div>
-        <div style="line-height:1.8">
-          <strong>Sheets 직접 수정</strong> → <strong>GAS 메뉴에서 갱신</strong> → <strong>웹 새로고침</strong><br>
-          <span style="color:var(--text2);font-size:12px">이 순서를 지키지 않으면 KV 캐시와 실제 데이터가 달라져 화면이 꼬일 수 있습니다.</span>
-        </div>
-      </div>
-      <div style="margin-top:14px;font-size:12px;color:var(--text2);line-height:1.8">
-        <div style="font-weight:600;color:var(--text1);margin-bottom:6px">📌 캐시 만료 시간</div>
-        <div>• 포트폴리오 (portfolio_data): 최대 <strong>1시간</strong> — GAS 10분 트리거로 자동 갱신</div>
-        <div>• 스냅샷 (snapshot_data): 최대 <strong>1시간</strong> — 스냅샷 저장 시 갱신</div>
-        <div>• 배당: 캐시 없음 — 항상 Sheets에서 직접 조회</div>
-      </div>
-    </div>
-
-    <!-- 탭 1: 웹에서 수정 -->
-    <div class="help-tab-content" id="helpTab1">
-      <div style="font-size:13px;line-height:1.9">
-        <div style="font-weight:700;color:var(--blue);margin-bottom:10px">웹사이트에서 작업 시 → 대부분 자동 반영</div>
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead>
-            <tr style="background:var(--bg3)">
-              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">작업</th>
-              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">이후 할 일</th>
-              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">반영 시점</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">➕ 종목 추가</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">✏️ 종목 수정</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">🗑️ 종목 삭제</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">💰 배당 입력/삭제</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">📁 계좌 그룹 설정</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
-            <tr><td style="padding:8px">💾 스냅샷 저장</td><td style="padding:8px"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px">즉시</td></tr>
-          </tbody>
-        </table>
-        <div style="margin-top:12px;background:var(--bg3);border-radius:8px;padding:12px;font-size:12px;color:var(--text2)">
-          💡 웹에서 작업한 내용은 GAS를 통해 Sheets에 즉시 저장되고 KV도 자동으로 갱신됩니다.
-        </div>
-      </div>
-    </div>
-
-    <!-- 탭 2: 시트에서 수정 -->
-    <div class="help-tab-content" id="helpTab2">
-      <div style="font-size:13px;line-height:1.9">
-        <div style="font-weight:700;color:var(--red,#f85149);margin-bottom:10px">⚠️ Sheets 직접 수정 시 → 반드시 수동 갱신 필요</div>
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead>
-            <tr style="background:var(--bg3)">
-              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">수정한 시트</th>
-              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">해야 할 일</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="background:#1a2a1a">
-              <td style="padding:8px;border-bottom:1px solid var(--border)">📋 투자현황</td>
-              <td style="padding:8px;border-bottom:1px solid var(--border)">
-                ① GAS메뉴 → <strong>지금 즉시 현재가 갱신</strong> (30초 대기)<br>
-                ② 웹 → <strong>새로고침</strong> 버튼
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:8px;border-bottom:1px solid var(--border)">📈 스냅샷</td>
-              <td style="padding:8px;border-bottom:1px solid var(--border)">
-                웹 → 추이분석 탭 → <strong>↻ 스냅샷 새로 읽기</strong> 버튼
-              </td>
-            </tr>
-            <tr style="background:#1a2a1a">
-              <td style="padding:8px;border-bottom:1px solid var(--border)">💰 배당내역</td>
-              <td style="padding:8px;border-bottom:1px solid var(--border)">
-                웹 → 배당 탭 → <strong>↻ 새로 읽기</strong> 버튼
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:8px;border-bottom:1px solid var(--border)">🏦 계좌</td>
-              <td style="padding:8px;border-bottom:1px solid var(--border)">
-                ① GAS메뉴 → <strong>지금 즉시 현재가 갱신</strong><br>
-                ② 웹 → <strong>새로고침</strong> 버튼
-              </td>
-            </tr>
-            <tr style="background:#1a2a1a">
-              <td style="padding:8px;border-bottom:1px solid var(--border)">⚙️ config</td>
-              <td style="padding:8px;border-bottom:1px solid var(--border)">
-                ① GAS메뉴 → <strong>지금 즉시 현재가 갱신</strong><br>
-                ② 웹 → <strong>새로고침</strong> 버튼
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:8px">🔤 종목코드</td>
-              <td style="padding:8px">
-                GAS메뉴 → <strong>지금 즉시 현재가 갱신</strong> (자동 반영)
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div style="margin-top:12px;background:#2d1b1b;border:1px solid #f85149;border-radius:8px;padding:12px;font-size:12px">
-          🚨 <strong>주의:</strong> Sheets 수정 후 갱신 없이 웹에서 종목을 추가/수정하면 <strong>구버전 캐시 위에 새 데이터가 덮어써져</strong> 데이터가 꼬일 수 있습니다.
-        </div>
-      </div>
-    </div>
-
-    <!-- 탭 3: 버튼 사전 -->
-    <div class="help-tab-content" id="helpTab3">
-      <div style="font-size:12px;line-height:1.9">
-        <div style="font-weight:700;color:var(--blue);margin-bottom:10px;font-size:13px">각 버튼의 역할</div>
-
-        <div style="margin-bottom:12px">
-          <div style="font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;margin-bottom:6px">🌐 웹사이트 헤더</div>
-          <table style="width:100%;border-collapse:collapse">
-            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border);width:35%"><strong>↺ 새로고침</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">Cloudflare KV에서 최신 포트폴리오 데이터를 다시 불러와 화면 갱신. 현재가는 크롤링하지 않음.</td></tr>
-            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)"><strong>+ 종목 추가</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">새 종목을 Sheets에 추가하고 KV 캐시도 즉시 갱신.</td></tr>
-          </table>
-        </div>
-
-        <div style="margin-bottom:12px">
-          <div style="font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;margin-bottom:6px">📈 추이분석 탭</div>
-          <table style="width:100%;border-collapse:collapse">
-            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border);width:35%"><strong>↻ 스냅샷 새로 읽기</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">KV의 snapshot_data 캐시를 삭제하고 Sheets에서 최신 스냅샷을 재로드. Sheets 직접 수정 후 사용.</td></tr>
-            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)"><strong>💾 스냅샷 저장</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">현재 포트폴리오 상태를 Sheets 스냅샷 시트에 즉시 저장. 매일 오후 4~5시 자동저장 외 수동 저장.</td></tr>
-          </table>
-        </div>
-
-        <div style="margin-bottom:12px">
-          <div style="font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;margin-bottom:6px">💰 배당 탭</div>
-          <table style="width:100%;border-collapse:collapse">
-            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border);width:35%"><strong>↻ 새로 읽기</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">배당내역 시트를 다시 조회. Sheets에서 배당 데이터 직접 수정 후 사용.</td></tr>
-            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)"><strong>+ 배당 입력</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">새 배당 내역을 Sheets에 추가.</td></tr>
-          </table>
-        </div>
-
-        <div>
-          <div style="font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;margin-bottom:6px">⚙️ GAS 메뉴 (Google Sheets)</div>
-          <table style="width:100%;border-collapse:collapse">
-            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border);width:35%"><strong>지금 즉시 현재가 갱신</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">환율+현재가 크롤링 → Sheets 업데이트 → KV 캐시 갱신. 약 30초 소요. Sheets 수정 후 반드시 실행.</td></tr>
-            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)"><strong>배당내역 owner 마이그레이션</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">배당내역 시트에 owner 컬럼을 자동 추가/분리. 최초 1회만 실행.</td></tr>
-            <tr><td style="padding:7px 10px"><strong>추이 스냅샷 지금 저장</strong></td><td style="padding:7px 10px">GAS에서 직접 스냅샷을 저장. 웹의 💾 스냅샷 저장과 동일.</td></tr>
-          </table>
-        </div>
-
-        <div style="margin-top:12px;background:var(--bg3);border-radius:8px;padding:12px;font-size:11px;color:var(--text2)">
-          ⏰ <strong>자동 실행 주기:</strong> 현재가 갱신 10분마다 · KRX 종목코드 갱신 매일 오전 6시 · 스냅샷 자동저장 매일 오후 4~5시
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ── 배당 입력 모달 (패널 밖) ────────────────────────────── -->
 <div class="modal-overlay" id="divModal" onclick="closeDividendModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:420px;overflow:visible">
@@ -4095,5 +3910,191 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.autocomplete-wrap')) closeAcList();
 });
 </script>
+
+<!-- ── 도움말 모달 ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="helpModal" onclick="closeHelp()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:700px;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div class="modal-title" style="margin:0">📖 SSTfolio 도움말</div>
+      <button onclick="closeHelp()" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer">✕</button>
+    </div>
+
+    <!-- 도움말 탭 -->
+    <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:20px;overflow:hidden;margin-bottom:20px">
+      <button class="help-tab-btn active" onclick="switchHelpTab(0)">🔄 데이터 흐름</button>
+      <button class="help-tab-btn" onclick="switchHelpTab(1)">🌐 웹에서 수정</button>
+      <button class="help-tab-btn" onclick="switchHelpTab(2)">📊 시트에서 수정</button>
+      <button class="help-tab-btn" onclick="switchHelpTab(3)">🔘 버튼 사전</button>
+    </div>
+
+    <!-- 탭 0: 데이터 흐름 -->
+    <div class="help-tab-content active" id="helpTab0">
+      <div style="background:var(--bg3);border-radius:8px;padding:16px;margin-bottom:16px;font-size:13px;line-height:1.8">
+        <div style="text-align:center;margin-bottom:12px;font-weight:700;font-size:14px;color:var(--blue)">전체 데이터 흐름</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;font-size:12px">
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center">
+            📊<br><strong>Google Sheets</strong><br><span style="color:var(--text2);font-size:10px">실제 데이터 저장소</span>
+          </div>
+          <div style="color:var(--text2)">→</div>
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center">
+            ⚙️<br><strong>GAS</strong><br><span style="color:var(--text2);font-size:10px">데이터 처리/API</span>
+          </div>
+          <div style="color:var(--text2)">→</div>
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center">
+            ☁️<br><strong>Cloudflare KV</strong><br><span style="color:var(--text2);font-size:10px">캐시 (최대 1시간)</span>
+          </div>
+          <div style="color:var(--text2)">→</div>
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center">
+            🌐<br><strong>SSTfolio 웹</strong><br><span style="color:var(--text2);font-size:10px">화면 표시</span>
+          </div>
+        </div>
+      </div>
+      <div style="background:#2d1b1b;border:1px solid #f85149;border-radius:8px;padding:14px;font-size:13px">
+        <div style="color:#f85149;font-weight:700;margin-bottom:8px">⚠️ 황금 규칙</div>
+        <div style="line-height:1.8">
+          <strong>Sheets 직접 수정</strong> → <strong>GAS 메뉴에서 갱신</strong> → <strong>웹 새로고침</strong><br>
+          <span style="color:var(--text2);font-size:12px">이 순서를 지키지 않으면 KV 캐시와 실제 데이터가 달라져 화면이 꼬일 수 있습니다.</span>
+        </div>
+      </div>
+      <div style="margin-top:14px;font-size:12px;color:var(--text2);line-height:1.8">
+        <div style="font-weight:600;color:var(--text1);margin-bottom:6px">📌 캐시 만료 시간</div>
+        <div>• 포트폴리오 (portfolio_data): 최대 <strong>1시간</strong> — GAS 10분 트리거로 자동 갱신</div>
+        <div>• 스냅샷 (snapshot_data): 최대 <strong>1시간</strong> — 스냅샷 저장 시 갱신</div>
+        <div>• 배당: 캐시 없음 — 항상 Sheets에서 직접 조회</div>
+      </div>
+    </div>
+
+    <!-- 탭 1: 웹에서 수정 -->
+    <div class="help-tab-content" id="helpTab1">
+      <div style="font-size:13px;line-height:1.9">
+        <div style="font-weight:700;color:var(--blue);margin-bottom:10px">웹사이트에서 작업 시 → 대부분 자동 반영</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:var(--bg3)">
+              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">작업</th>
+              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">이후 할 일</th>
+              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">반영 시점</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">➕ 종목 추가</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">✏️ 종목 수정</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">🗑️ 종목 삭제</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">💰 배당 입력/삭제</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">📁 계좌 그룹 설정</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
+            <tr><td style="padding:8px">💾 스냅샷 저장</td><td style="padding:8px"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px">즉시</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:12px;background:var(--bg3);border-radius:8px;padding:12px;font-size:12px;color:var(--text2)">
+          💡 웹에서 작업한 내용은 GAS를 통해 Sheets에 즉시 저장되고 KV도 자동으로 갱신됩니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- 탭 2: 시트에서 수정 -->
+    <div class="help-tab-content" id="helpTab2">
+      <div style="font-size:13px;line-height:1.9">
+        <div style="font-weight:700;color:var(--red,#f85149);margin-bottom:10px">⚠️ Sheets 직접 수정 시 → 반드시 수동 갱신 필요</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:var(--bg3)">
+              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">수정한 시트</th>
+              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">해야 할 일</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:#1a2a1a">
+              <td style="padding:8px;border-bottom:1px solid var(--border)">📋 투자현황</td>
+              <td style="padding:8px;border-bottom:1px solid var(--border)">
+                ① GAS메뉴 → <strong>지금 즉시 현재가 갱신</strong> (30초 대기)<br>
+                ② 웹 → <strong>새로고침</strong> 버튼
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid var(--border)">📈 스냅샷</td>
+              <td style="padding:8px;border-bottom:1px solid var(--border)">
+                웹 → 추이분석 탭 → <strong>↻ 스냅샷 새로 읽기</strong> 버튼
+              </td>
+            </tr>
+            <tr style="background:#1a2a1a">
+              <td style="padding:8px;border-bottom:1px solid var(--border)">💰 배당내역</td>
+              <td style="padding:8px;border-bottom:1px solid var(--border)">
+                웹 → 배당 탭 → <strong>↻ 새로 읽기</strong> 버튼
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid var(--border)">🏦 계좌</td>
+              <td style="padding:8px;border-bottom:1px solid var(--border)">
+                ① GAS메뉴 → <strong>지금 즉시 현재가 갱신</strong><br>
+                ② 웹 → <strong>새로고침</strong> 버튼
+              </td>
+            </tr>
+            <tr style="background:#1a2a1a">
+              <td style="padding:8px;border-bottom:1px solid var(--border)">⚙️ config</td>
+              <td style="padding:8px;border-bottom:1px solid var(--border)">
+                ① GAS메뉴 → <strong>지금 즉시 현재가 갱신</strong><br>
+                ② 웹 → <strong>새로고침</strong> 버튼
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px">🔤 종목코드</td>
+              <td style="padding:8px">
+                GAS메뉴 → <strong>지금 즉시 현재가 갱신</strong> (자동 반영)
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:12px;background:#2d1b1b;border:1px solid #f85149;border-radius:8px;padding:12px;font-size:12px">
+          🚨 <strong>주의:</strong> Sheets 수정 후 갱신 없이 웹에서 종목을 추가/수정하면 <strong>구버전 캐시 위에 새 데이터가 덮어써져</strong> 데이터가 꼬일 수 있습니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- 탭 3: 버튼 사전 -->
+    <div class="help-tab-content" id="helpTab3">
+      <div style="font-size:12px;line-height:1.9">
+        <div style="font-weight:700;color:var(--blue);margin-bottom:10px;font-size:13px">각 버튼의 역할</div>
+
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;margin-bottom:6px">🌐 웹사이트 헤더</div>
+          <table style="width:100%;border-collapse:collapse">
+            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border);width:35%"><strong>↺ 새로고침</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">Cloudflare KV에서 최신 포트폴리오 데이터를 다시 불러와 화면 갱신. 현재가는 크롤링하지 않음.</td></tr>
+            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)"><strong>+ 종목 추가</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">새 종목을 Sheets에 추가하고 KV 캐시도 즉시 갱신.</td></tr>
+          </table>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;margin-bottom:6px">📈 추이분석 탭</div>
+          <table style="width:100%;border-collapse:collapse">
+            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border);width:35%"><strong>↻ 스냅샷 새로 읽기</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">KV의 snapshot_data 캐시를 삭제하고 Sheets에서 최신 스냅샷을 재로드. Sheets 직접 수정 후 사용.</td></tr>
+            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)"><strong>💾 스냅샷 저장</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">현재 포트폴리오 상태를 Sheets 스냅샷 시트에 즉시 저장. 매일 오후 4~5시 자동저장 외 수동 저장.</td></tr>
+          </table>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;margin-bottom:6px">💰 배당 탭</div>
+          <table style="width:100%;border-collapse:collapse">
+            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border);width:35%"><strong>↻ 새로 읽기</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">배당내역 시트를 다시 조회. Sheets에서 배당 데이터 직접 수정 후 사용.</td></tr>
+            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)"><strong>+ 배당 입력</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">새 배당 내역을 Sheets에 추가.</td></tr>
+          </table>
+        </div>
+
+        <div>
+          <div style="font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;margin-bottom:6px">⚙️ GAS 메뉴 (Google Sheets)</div>
+          <table style="width:100%;border-collapse:collapse">
+            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border);width:35%"><strong>지금 즉시 현재가 갱신</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">환율+현재가 크롤링 → Sheets 업데이트 → KV 캐시 갱신. 약 30초 소요. Sheets 수정 후 반드시 실행.</td></tr>
+            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)"><strong>배당내역 owner 마이그레이션</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">배당내역 시트에 owner 컬럼을 자동 추가/분리. 최초 1회만 실행.</td></tr>
+            <tr><td style="padding:7px 10px"><strong>추이 스냅샷 지금 저장</strong></td><td style="padding:7px 10px">GAS에서 직접 스냅샷을 저장. 웹의 💾 스냅샷 저장과 동일.</td></tr>
+          </table>
+        </div>
+
+        <div style="margin-top:12px;background:var(--bg3);border-radius:8px;padding:12px;font-size:11px;color:var(--text2)">
+          ⏰ <strong>자동 실행 주기:</strong> 현재가 갱신 10분마다 · KRX 종목코드 갱신 매일 오전 6시 · 스냅샷 자동저장 매일 오후 4~5시
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
