@@ -913,6 +913,12 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <span id="trendFilterText" style="font-size:11px;color:var(--text2)"></span>
     <button onclick="clearTrendFilter()" style="margin-left:auto;font-size:11px;color:var(--text2);background:none;border:none;cursor:pointer">✕ 필터 해제</button>
   </div>
+  <!-- 상단 버튼 -->
+  <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:10px">
+    <button class="btn-refresh" style="font-size:12px" onclick="reloadSnapshot()" title="스냅샷 KV 캐시를 초기화하고 최신 데이터를 불러옵니다">↻ 스냅샷 새로 읽기</button>
+    <button class="btn-refresh" style="font-size:12px" onclick="manualSnapshot()" title="현재 포트폴리오 상태를 스냅샷으로 저장합니다">💾 스냅샷 저장</button>
+  </div>
+
   <!-- 기간 선택 -->
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <span style="font-size:12px;color:var(--text2);margin-right:4px">기간:</span>
@@ -3332,6 +3338,30 @@ function renderTrendSummary(rows, dates) {
         <div class="value" style="font-size:13px">${dates.length}일</div>
         <div class="sub">${firstDate} ~ ${lastDate}</div>
       </div>`;
+  }
+}
+
+// 스냅샷 새로 읽기 (KV 캐시 무효화 후 재로드)
+async function reloadSnapshot() {
+  try {
+    // KV 캐시 삭제를 위해 빈 DELETE 요청
+    const workerUrl = localStorage.getItem('sstfolio_worker_url') || WORKER_URL;
+    // snapshot POST로 KV 무효화 후 GAS에서 재로드
+    const res = await fetch(workerUrl + '/api/snapshot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reload' })
+    });
+    // 추이 탭 데이터 재로드
+    trendState.loaded = false;
+    trendState.data   = null;
+    await initTrendTab();
+    alert('✅ 스냅샷 데이터를 새로 불러왔습니다.');
+  } catch(e) {
+    // 실패해도 강제 재로드
+    trendState.loaded = false;
+    trendState.data   = null;
+    await initTrendTab();
   }
 }
 
