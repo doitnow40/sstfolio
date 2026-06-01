@@ -117,7 +117,8 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
 
 /* ── 콘텐츠 패널 ──────────────────────────────────────────── */
 .panel { display:none; }
-.panel.active { display:block; }
+.panel.active { display:block; padding-right: 48px; }
+@media (min-width: 1641px) { .panel.active { padding-right: 0; } }
 
 /* ── 차트 영역 ────────────────────────────────────────────── */
 .chart-grid {
@@ -523,9 +524,9 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   gap: 4px;
   z-index: 999;
 }
-/* 화면이 1600px 이하이면 우측 8px로 fallback */
+/* 화면이 1600px 이하이면 우측 44px로 fallback (테이블 침범 방지) */
 @media (max-width: 1640px) {
-  #scrollBtnGroup { left: auto; right: 8px; }
+  #scrollBtnGroup { left: auto; right: 44px; }
 }
 #scrollTopBtn, #scrollBottomBtn {
   width: 30px;
@@ -1141,7 +1142,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <input class="form-input" id="divInputMemo" placeholder="메모">
     </div>
     <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn-primary" style="flex:1" onclick="saveDividend()">저장</button>
+      <button class="btn-primary" id="divSaveBtn" style="flex:1" onclick="saveDividend()">저장</button>
       <button class="btn-refresh" style="flex:1" onclick="closeDividendModal()">취소</button>
     </div>
   </div>
@@ -1382,7 +1383,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <input class="form-input" id="inputGroupName" placeholder="그룹명 (예: 연금계좌그룹)" style="margin-bottom:10px">
       <div style="font-size:12px;color:var(--text2);margin-bottom:6px">포함할 계좌 선택:</div>
       <div class="group-account-checks" id="groupAccountChecks"></div>
-      <button class="btn-primary" onclick="saveAccountGroup()" style="margin-top:4px">그룹 저장</button>
+      <button class="btn-primary" id="groupSaveBtn" onclick="saveAccountGroup()" style="margin-top:4px">그룹 저장</button>
     </div>
   </div>
   <div class="settings-section">
@@ -1478,7 +1479,8 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal()">취소</button>
-      <button class="btn-primary" onclick="submitHolding()">저장</button>
+      <button id="holdingDeleteBtn" class="btn-primary" style="background:var(--red);border-color:var(--red);display:none" onclick="deleteHoldingFromModal()">🗑️ 종목 삭제</button>
+      <button class="btn-primary" id="holdingSaveBtn" onclick="submitHolding()">저장</button>
     </div>
   </div>
 </div>
@@ -1491,6 +1493,47 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 let GAS_URL    = localStorage.getItem('sstfolio_gas_url')    || 'https://script.google.com/macros/s/AKfycbxATlxHQi45Oii_TyFZlB1aGCiM_vKDuL811YSkA_BgLusWbJ6Frlut74EOREMYb2DV/exec';
 let WORKER_URL = localStorage.getItem('sstfolio_worker_url') || 'https://sstfolio-worker.doitnow40.workers.dev';
 function getApiUrl() { return WORKER_URL || GAS_URL; }
+
+// ============================================================
+// 공통 저장 버튼 애니메이션 유틸
+// ============================================================
+// 사용법:
+//   const restore = btnSaving(btnEl);   // 로딩 상태로 전환
+//   await doWork();
+//   await btnDone(btnEl, restore);      // 완료 표시 후 원복
+//   btnError(btnEl, restore);           // 실패 시 즉시 원복
+const SPINNER_SVG = '<svg width="13" height="13" viewBox="0 0 14 14" style="animation:spin .8s linear infinite;flex-shrink:0"><circle cx="7" cy="7" r="5.5" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="2"/><path d="M7 1.5 A5.5 5.5 0 0 1 12.5 7" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
+
+function btnSaving(btn) {
+  if (!btn) return null;
+  const orig = { html: btn.innerHTML, bg: btn.style.background, disabled: btn.disabled };
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px">' + SPINNER_SVG + '처리 중...</span>';
+  btn.style.opacity = '0.85';
+  return orig;
+}
+
+async function btnDone(btn, orig, label) {
+  if (!btn) return;
+  btn.innerHTML = '✓ ' + (label || '완료');
+  btn.style.background = 'var(--green)';
+  btn.style.opacity = '1';
+  await new Promise(r => setTimeout(r, 700));
+  if (orig) {
+    btn.innerHTML   = orig.html;
+    btn.style.background = orig.bg;
+    btn.disabled    = orig.disabled || false;
+    btn.style.opacity = '';
+  }
+}
+
+function btnError(btn, orig) {
+  if (!btn || !orig) return;
+  btn.innerHTML   = orig.html;
+  btn.style.background = orig.bg;
+  btn.disabled    = orig.disabled || false;
+  btn.style.opacity = '';
+}
 
 // ============================================================
 // 전역 상태
@@ -2832,11 +2875,13 @@ async function saveAccountGroup() {
   if (accountIds.length === 0) { alert('계좌를 1개 이상 선택하세요'); return; }
 
   const postUrl = WORKER_URL ? WORKER_URL + '/api/account-group' : GAS_URL;
+  const btn = document.getElementById('groupSaveBtn');
+  const orig = btnSaving(btn);
   try {
     const res  = await fetch(postUrl, { method:'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action:'save_account_group', groupName:name, accountIds, displayLabels }) });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    alert('✅ 그룹 저장 완료: ' + name);
+    await btnDone(btn, orig, '저장 완료');
     document.getElementById('inputGroupName').value = '';
     (state.accounts || []).forEach(function(a) {
       const cb = document.getElementById('grpChk_' + String(a.account_id));
@@ -2844,6 +2889,7 @@ async function saveAccountGroup() {
     });
     await loadData();
   } catch(err) {
+    btnError(btn, orig);
     alert('저장 실패: ' + err.message);
   }
 }
@@ -3014,6 +3060,8 @@ function onSearchKeydown(e) {
 function openModal(holdingId = null) {
   state.editingId = holdingId;
   document.getElementById('modalTitle').textContent = holdingId ? '종목 수정' : '종목 추가';
+  // 삭제 버튼: 수정 모드에서만 표시
+  document.getElementById('holdingDeleteBtn').style.display = holdingId ? 'inline-flex' : 'none';
 
   // 계좌 드롭다운
   const sel = document.getElementById('formAccount');
@@ -3061,6 +3109,38 @@ function closeModal() {
 
 function editHolding(id) { openModal(id); }
 
+async function deleteHoldingFromModal() {
+  if (!state.editingId) return;
+  if (!confirm('이 종목을 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.')) return;
+  const btn = document.getElementById('holdingDeleteBtn');
+  const origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 14 14" style="animation:spin .8s linear infinite"><circle cx="7" cy="7" r="5.5" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="2"/><path d="M7 1.5 A5.5 5.5 0 0 1 12.5 7" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>삭제 중...</span>';
+  try {
+    const h = state.holdings.find(x => String(x.id) === String(state.editingId));
+    const postUrl = WORKER_URL ? WORKER_URL + '/api/holding' : GAS_URL;
+    const res = await fetch(postUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'delete_holding', id: state.editingId,
+        ticker: h ? String(h.ticker || '') : '',
+        account_id: h ? String(h.account_id || '') : '',
+      }),
+    });
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    btn.innerHTML = '✓ 삭제 완료';
+    btn.style.background = '#555';
+    await new Promise(r => setTimeout(r, 600));
+    closeModal();
+    await loadData();
+  } catch(err) {
+    btn.disabled = false;
+    btn.innerHTML = origHtml;
+    alert('삭제 실패: ' + err.message);
+  }
+}
+
 async function submitHolding() {
   const ticker = document.getElementById('formTicker').value.trim().toUpperCase();
   const name   = document.getElementById('formName').value.trim();
@@ -3081,11 +3161,12 @@ async function submitHolding() {
     sector:        document.getElementById('formSector').value,
     quantity:      qty,
     avg_price:     avg,
-    // 수정 시 원본 ticker/account_id 전달 (GAS에서 정확한 행 탐색용)
     orig_ticker:    state.editingId ? (state.editingOrigTicker    || ticker) : undefined,
     orig_account_id:state.editingId ? (state.editingOrigAccountId || document.getElementById('formAccount').value) : undefined,
   };
 
+  const btn = document.getElementById('holdingSaveBtn');
+  const orig = btnSaving(btn);
   try {
     const postUrl = WORKER_URL ? WORKER_URL + '/api/holding' : GAS_URL;
     const res    = await fetch(postUrl, {
@@ -3095,9 +3176,11 @@ async function submitHolding() {
     });
     const result = await res.json();
     if (result.error) throw new Error(result.error);
+    await btnDone(btn, orig, '저장 완료');
     closeModal();
     await loadData();
   } catch (err) {
+    btnError(btn, orig);
     alert('저장 실패: ' + err.message);
   }
 }
@@ -3697,6 +3780,8 @@ async function reloadSnapshot() {
 async function manualSnapshot() {
   const postUrl = WORKER_URL ? WORKER_URL + '/api/snapshot' : GAS_URL;
   if (!postUrl) { alert('Worker URL 또는 GAS URL을 먼저 설정하세요'); return; }
+  const btn = document.activeElement && document.activeElement.tagName === 'BUTTON' ? document.activeElement : null;
+  const orig = btnSaving(btn);
   try {
     const res  = await fetch(postUrl, {
       method: 'POST',
@@ -3705,9 +3790,10 @@ async function manualSnapshot() {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    alert('✅ 스냅샷 저장 완료! 추이 탭을 새로고침하세요.');
+    await btnDone(btn, orig, '저장 완료');
     await loadTrendData();
   } catch(err) {
+    btnError(btn, orig);
     alert('저장 실패: ' + err.message);
   }
 }
@@ -4146,12 +4232,13 @@ async function saveDividend() {
   if (!amount) { alert('배당금을 입력하세요'); return; }
 
   const [acctId, acctName] = acctVal.split('|');
-  // account_name에서 owner 분리: "어머니 · 키움 일반" → owner="어머니", account_name="키움 일반"
   const parts      = acctName.split(' · ');
   const owner      = parts[0] || '';
   const acctNameOnly = parts.slice(1).join(' · ') || acctName;
   const postUrl = WORKER_URL ? WORKER_URL+'/api/dividend' : GAS_URL;
 
+  const btn = document.getElementById('divSaveBtn');
+  const orig = btnSaving(btn);
   try {
     const res  = await fetch(postUrl, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -4159,10 +4246,11 @@ async function saveDividend() {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
+    await btnDone(btn, orig, '저장 완료');
     closeDividendModal();
     divState.loaded = false;
     await loadDividend();
-  } catch(e) { alert('저장 실패: '+e.message); }
+  } catch(e) { btnError(btn, orig); alert('저장 실패: '+e.message); }
 }
 
 async function deleteDividendRow(id) {
@@ -5050,30 +5138,8 @@ async function saveSale() {
   };
   if (isEdit) payload.id = editId;
 
-  // ── 저장 버튼 로딩 상태 ────────────────────────────────────
   const btn = document.getElementById('saleSaveBtn');
-  const originalText = btn ? btn.textContent : '';
-  function setBtnState(state) {
-    if (!btn) return;
-    if (state === 'loading') {
-      btn.disabled = true;
-      btn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px">'
-        + '<svg width="14" height="14" viewBox="0 0 14 14" style="animation:spin .8s linear infinite;flex-shrink:0"><circle cx="7" cy="7" r="5.5" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="2"/><path d="M7 1.5 A5.5 5.5 0 0 1 12.5 7" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>'
-        + '처리 중...</span>';
-      btn.style.opacity = '0.85';
-    } else if (state === 'done') {
-      btn.innerHTML = '✓ 저장 완료';
-      btn.style.background = 'var(--green)';
-      btn.style.opacity = '1';
-    } else {
-      btn.disabled = false;
-      btn.textContent = originalText;
-      btn.style.opacity = '';
-      btn.style.background = '';
-    }
-  }
-
-  setBtnState('loading');
+  const orig = btnSaving(btn);
   try {
     const res  = await fetch(postUrl, {
       method: 'POST',
@@ -5082,17 +5148,12 @@ async function saveSale() {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-
-    // 완료 표시 후 모달 닫기
-    setBtnState('done');
-    await new Promise(resolve => setTimeout(resolve, 700));
+    await btnDone(btn, orig, '저장 완료');
     closeSaleModal();
-    setBtnState('reset');
-
     saleState.loaded = false;
     await Promise.all([loadSale(), loadData()]);
   } catch(e) {
-    setBtnState('reset');
+    btnError(btn, orig);
     alert((isEdit ? '수정' : '저장') + ' 실패: ' + e.message);
   }
 }
