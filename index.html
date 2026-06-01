@@ -647,6 +647,17 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 }
 .btn-icon:hover { color:var(--text); }
 
+/* ── 실현수익 탭 ─────────────────────────────────────────── */
+.sale-badge-kr  { background:rgba(74,158,255,.15); color:var(--blue); border:1px solid rgba(74,158,255,.3); font-size:10px; padding:1px 5px; border-radius:3px; }
+.sale-badge-us  { background:rgba(255,190,60,.12);  color:#ffbe3c;    border:1px solid rgba(255,190,60,.3);  font-size:10px; padding:1px 5px; border-radius:3px; }
+.sale-after-pos { color:var(--green); font-weight:600; }
+.sale-after-neg { color:var(--red);   font-weight:600; }
+.sale-profit-pos { color:var(--green); font-weight:700; }
+.sale-profit-neg { color:var(--red);   font-weight:700; }
+@media(max-width:680px) {
+  #saleChartGrid { grid-template-columns:1fr !important; }
+}
+
 /* ── GAS URL 설정 안내 ────────────────────────────────────── */
 .setup-banner {
   background: #1a2a3a;
@@ -747,6 +758,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   <div class="tab" onclick="switchTab('charts')">차트 분석</div>
   <div class="tab" onclick="switchTab('trend')">추이 분석</div>
   <div class="tab" onclick="switchTab('dividend')">배당</div>
+  <div class="tab" onclick="switchTab('sale')">실현수익</div>
   <div class="tab" onclick="switchTab('settings')">설정</div>
 </div>
 
@@ -1078,6 +1090,132 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     </div>
   </div>
 </div>
+</div>
+
+<!-- ── 패널: 실현수익 ─────────────────────────────────────── -->
+<div class="panel" id="panel-sale">
+
+  <!-- 상단 버튼 -->
+  <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">
+    <button class="btn-refresh" style="font-size:12px" onclick="reloadSale()">↻ 새로 읽기</button>
+    <button class="btn-primary" style="font-size:12px" onclick="openSaleModal()">+ 매도 입력</button>
+  </div>
+
+  <!-- 집계 카드 -->
+  <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px" id="saleCardRow">
+    <div class="card" id="saleCard_month"   onclick="setSalePeriodByCard('this_month')"   style="cursor:pointer;flex:0 0 auto;min-width:130px" title="클릭하면 기간 필터 적용"><div class="card-label">이번달</div><div class="card-value" id="saleSumMonth">–</div></div>
+    <div class="card" id="saleCard_6m"      onclick="setSalePeriodByCard('6m')"           style="cursor:pointer;flex:0 0 auto;min-width:130px" title="클릭하면 기간 필터 적용"><div class="card-label">최근 6개월</div><div class="card-value" id="saleSum6m">–</div></div>
+    <div class="card" id="saleCard_ytd"     onclick="setSalePeriodByCard('ytd')"          style="cursor:pointer;flex:0 0 auto;min-width:130px" title="클릭하면 기간 필터 적용"><div class="card-label">YTD (올해)</div><div class="card-value" id="saleSumYtd">–</div></div>
+    <div class="card" id="saleCard_year1"   onclick="setSalePeriodByCard('year1')"        style="cursor:pointer;flex:0 0 auto;min-width:130px" title="클릭하면 기간 필터 적용"><div class="card-label">최근 1년</div><div class="card-value" id="saleSumYear1">–</div></div>
+    <div class="card" id="saleCard_all"     onclick="setSalePeriodByCard('all')"          style="cursor:pointer;flex:0 0 auto;min-width:130px" title="클릭하면 기간 필터 적용"><div class="card-label">누적 전체</div><div class="card-value" id="saleSumAll">–</div></div>
+  </div>
+
+  <!-- 기간 필터 -->
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+    <select class="form-select" id="saleFilterPeriod" style="width:auto;font-size:12px" onchange="onSalePeriodChange()">
+      <option value="this_month">이번달</option>
+      <option value="6m">최근 6개월</option>
+      <option value="ytd" selected>올해 (YTD)</option>
+      <option value="year1">최근 1년</option>
+      <option value="all">전체</option>
+      <option value="custom">직접입력</option>
+    </select>
+    <div id="saleCustomRange" style="display:none;gap:6px;align-items:center;flex-wrap:wrap">
+      <select class="form-select" id="saleFromYear"  style="width:95px;font-size:12px" onchange="renderSale()"></select>
+      <select class="form-select" id="saleFromMonth" style="width:70px;font-size:12px" onchange="renderSale()"></select>
+      <span style="color:var(--text2);font-size:12px">~</span>
+      <select class="form-select" id="saleToYear"    style="width:95px;font-size:12px" onchange="renderSale()"></select>
+      <select class="form-select" id="saleToMonth"   style="width:70px;font-size:12px" onchange="renderSale()"></select>
+    </div>
+  </div>
+
+  <!-- 차트 영역: 연도별 실현수익 (bar) + 월별 추이 (line) -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="saleChartGrid">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)">연도별 실현수익</div>
+      <div style="position:relative;height:200px"><canvas id="saleYearChart"></canvas></div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)">월별 실현수익</div>
+      <div style="position:relative;height:200px"><canvas id="saleMonthChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 매도 내역 테이블 -->
+  <div class="table-wrap">
+    <div class="table-header" style="flex-direction:column;align-items:stretch;gap:4px">
+      <div style="display:flex;align-items:center">
+        <span class="table-title">매도 내역</span>
+        <span id="saleRowCount" style="font-size:12px;color:var(--text2);margin-left:8px"></span>
+      </div>
+      <div style="text-align:right;padding-right:40px">
+        <span id="saleRowSum" style="font-size:15px;font-weight:700;color:var(--green)"></span>
+      </div>
+    </div>
+    <div id="saleTableContainer">
+      <div class="loading"><div class="spinner"></div><span>불러오는 중...</span></div>
+    </div>
+  </div>
+
+</div><!-- /panel-sale -->
+
+<!-- ── 실현수익 입력 모달 ────────────────────────────────── -->
+<div class="modal-overlay" id="saleModal" onclick="closeSaleModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:460px;overflow:visible">
+    <div class="modal-title">매도 실현수익 입력</div>
+
+    <div class="form-group">
+      <label class="form-label">매도일</label>
+      <input type="date" class="form-input" id="saleInputDate">
+    </div>
+    <div class="form-group">
+      <label class="form-label">계좌</label>
+      <select class="form-input" id="saleInputAccount"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">종목</label>
+      <div class="autocomplete-wrap">
+        <input class="form-input" id="saleInputSearch" placeholder="종목명 또는 초성 검색..." autocomplete="off" oninput="onSaleSearch(this.value)">
+        <div class="autocomplete-list" id="saleAcList"></div>
+      </div>
+      <input type="hidden" id="saleInputTicker">
+      <input type="hidden" id="saleInputName">
+      <input type="hidden" id="saleInputMarket">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">매도 수량</label>
+        <input type="number" class="form-input" id="saleInputQty" placeholder="100" oninput="calcSaleProfit()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">매도가 (1주)</label>
+        <input type="number" class="form-input" id="saleInputSellPrice" placeholder="55000" oninput="calcSaleProfit()">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">평단가 (1주)</label>
+        <input type="number" class="form-input" id="saleInputBuyPrice" placeholder="42000" oninput="calcSaleProfit()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">실현수익률</label>
+        <div class="form-input" id="saleCalcRate" style="background:var(--bg2);color:var(--green);font-weight:700;display:flex;align-items:center">–</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">실현수익금 <span style="font-size:11px;color:var(--text2)">(자동계산, 직접 입력 가능)</span></label>
+      <input type="number" class="form-input" id="saleInputProfit" placeholder="1,300,000" style="font-weight:700">
+    </div>
+    <div class="form-group">
+      <label class="form-label">메모 (선택)</label>
+      <input class="form-input" id="saleInputMemo" placeholder="예: 목표가 도달, 리밸런싱">
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn-primary" style="flex:1" onclick="saveSale()">저장</button>
+      <button class="btn-refresh" style="flex:1" onclick="closeSaleModal()">취소</button>
+    </div>
+  </div>
 </div>
 
 <!-- ── 패널: 설정 ──────────────────────────────────────── -->
@@ -2583,7 +2721,7 @@ async function deleteAccountGroup(encodedName) {
 function switchTab(tab) {
   state.activeTab = tab;
   document.querySelectorAll('.tab').forEach((el, i) => {
-    const tabs = ['overview','byAccount','charts','trend','dividend','settings'];
+    const tabs = ['overview','byAccount','charts','trend','dividend','sale','settings'];
     el.classList.toggle('active', tabs[i] === tab);
   });
   document.querySelectorAll('.panel').forEach(el => {
@@ -2593,6 +2731,7 @@ function switchTab(tab) {
   if (tab === 'charts') requestAnimationFrame(function(){ requestAnimationFrame(renderCharts); });
   if (tab === 'trend')    initTrendTab();
   if (tab === 'dividend') initDividendTab();
+  if (tab === 'sale')     initSaleTab();
 }
 
 // ============================================================
@@ -3877,6 +4016,597 @@ async function deleteDividendRow(id) {
     divState.loaded = false;
     await loadDividend();
   } catch(e) { alert('삭제 실패: '+e.message); }
+}
+
+// ============================================================
+// 실현수익 탭
+// ============================================================
+
+const saleState = {
+  rows:   [],
+  loaded: false,
+  yearChart:  null,
+  monthChart: null,
+};
+
+function initSaleTab() {
+  renderSaleAccountFilter();
+  initSaleCustomSelects();
+  if (!saleState.loaded) loadSale();
+  else renderSale();
+}
+
+function renderSaleAccountFilter() {
+  // 배당 탭과 동일한 전역 필터를 공유하므로 별도 필터 불필요
+}
+
+async function reloadSale() {
+  saleState.loaded = false;
+  saleState.rows   = [];
+  document.getElementById('saleTableContainer').innerHTML =
+    '<div class="loading"><div class="spinner"></div><span>불러오는 중...</span></div>';
+  await loadSale();
+}
+
+async function loadSale() {
+  try {
+    const url = WORKER_URL ? WORKER_URL + '/api/sale' : GAS_URL + '?action=sale';
+    const res  = await fetch(url);
+    const data = await res.json();
+    saleState.rows   = data.rows || [];
+    saleState.loaded = true;
+    initSaleCustomSelects();
+    renderSale();
+  } catch(e) {
+    document.getElementById('saleTableContainer').innerHTML =
+      '<div style="padding:40px;text-align:center;color:var(--red)">불러오기 실패: ' + e.message + '</div>';
+  }
+}
+
+// ── 기간 계산 ───────────────────────────────────────────────
+function getSaleDateRange() {
+  const period = document.getElementById('saleFilterPeriod')?.value || 'ytd';
+  const now = new Date();
+  const y   = now.getFullYear();
+  const pad = n => String(n).padStart(2,'0');
+  const todayStr = y + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
+
+  if (period === 'this_month') {
+    return { from: y + '-' + pad(now.getMonth()+1) + '-01', to: todayStr };
+  }
+  if (period === '6m') {
+    const d6 = new Date(now); d6.setMonth(d6.getMonth() - 6);
+    return { from: d6.getFullYear()+'-'+pad(d6.getMonth()+1)+'-'+pad(d6.getDate()), to: todayStr };
+  }
+  if (period === 'ytd') {
+    return { from: y + '-01-01', to: todayStr };
+  }
+  if (period === 'year1') {
+    const d1 = new Date(now); d1.setFullYear(d1.getFullYear()-1);
+    return { from: d1.getFullYear()+'-'+pad(d1.getMonth()+1)+'-'+pad(d1.getDate()), to: todayStr };
+  }
+  if (period === 'all') return { from: '', to: '' };
+  if (period === 'custom') {
+    const fy = document.getElementById('saleFromYear')?.value  || '';
+    const fm = document.getElementById('saleFromMonth')?.value || '01';
+    const ty = document.getElementById('saleToYear')?.value    || '';
+    const tm = document.getElementById('saleToMonth')?.value   || '12';
+    const lastDay = tm && ty ? new Date(parseInt(ty), parseInt(tm), 0).getDate() : 31;
+    return {
+      from: fy ? fy + '-' + pad(fm) + '-01' : '',
+      to:   ty ? ty + '-' + pad(tm) + '-' + lastDay : '',
+    };
+  }
+  return { from: '', to: '' };
+}
+
+function setSalePeriodByCard(period) {
+  const el = document.getElementById('saleFilterPeriod');
+  if (el) el.value = period;
+  onSalePeriodChange();
+}
+
+function onSalePeriodChange() {
+  const period = document.getElementById('saleFilterPeriod')?.value;
+  const cr = document.getElementById('saleCustomRange');
+  if (cr) cr.style.display = period === 'custom' ? 'flex' : 'none';
+  updateSaleCardActive(period);
+  renderSale();
+}
+
+function updateSaleCardActive(period) {
+  const map = { this_month:'month', '6m':'6m', ytd:'ytd', year1:'year1', all:'all' };
+  ['month','6m','ytd','year1','all'].forEach(function(k) {
+    const el = document.getElementById('saleCard_' + k);
+    if (el) el.style.borderColor = (map[period] === k) ? 'var(--blue)' : '';
+  });
+}
+
+function initSaleCustomSelects() {
+  const years = saleState.rows
+    .filter(function(r){return r.date;})
+    .map(function(r){return r.date.slice(0,4);});
+  if (!years.length) return;
+  const minY = Math.min(...years.map(Number));
+  const maxY = new Date().getFullYear();
+  const yOpts = Array.from({length: maxY - minY + 1}, (_,i) => minY + i);
+  const mOpts = Array.from({length:12}, (_,i) => i+1);
+
+  ['saleFromYear','saleToYear'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (!el || el.options.length === yOpts.length) return;
+    el.innerHTML = yOpts.map(y=>`<option value="${y}">${y}년</option>`).join('');
+    el.value = id.includes('From') ? minY : maxY;
+  });
+  ['saleFromMonth','saleToMonth'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (!el || el.options.length) return;
+    el.innerHTML = mOpts.map(m=>`<option value="${String(m).padStart(2,'0')}">${m}월</option>`).join('');
+    el.value = id.includes('From') ? '01' : '12';
+  });
+}
+
+// ── 현재가/등락률 조회 (보유 종목 state에서) ────────────────
+function getSaleLiveInfo(ticker) {
+  // 보유 종목에서 현재가 / 오늘 등락률 조회
+  const h = (state.holdings || []).find(function(x) {
+    return x.ticker === ticker;
+  });
+  if (!h) return { currentPrice: null, changeRate: null, market: null };
+  return {
+    currentPrice: h.current_price || null,
+    changeRate:   h.change_rate   || null,
+    market:       h.market        || 'KR',
+  };
+}
+
+// ── 매도 후 손익률 계산 (매도가 대비 현재가) ────────────────
+function calcAfterSaleRate(sellPrice, currentPrice) {
+  if (!sellPrice || !currentPrice) return null;
+  return ((currentPrice - sellPrice) / sellPrice) * 100;
+}
+
+// ── 렌더링 ──────────────────────────────────────────────────
+function renderSale() {
+  const { from, to } = getSaleDateRange();
+  const now = new Date();
+  const y   = now.getFullYear();
+  const mo  = now.getMonth() + 1;
+  const pad = n => String(n).padStart(2,'0');
+  const todayStr = y + '-' + pad(mo) + '-' + pad(now.getDate());
+
+  function filterByOwnerAccount(rows) {
+    return rows.filter(function(r) {
+      if (selectedOwners.size > 0 && !selectedOwners.has(r.owner)) return false;
+      if (selectedAccounts.size > 0 && !selectedAccounts.has(String(r.account_id))) return false;
+      return true;
+    });
+  }
+  function sumProfit(rows) { return rows.reduce(function(s,r){return s+Number(r.profit||0);},0); }
+  function fmt(v) {
+    const sign = v >= 0 ? '+' : '';
+    return sign + Math.round(v).toLocaleString('ko-KR') + '원';
+  }
+  function fmtColor(v) {
+    return v >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+
+  const allFiltered = filterByOwnerAccount(saleState.rows);
+
+  // 집계 카드
+  const d6 = new Date(now); d6.setMonth(d6.getMonth()-6);
+  const d6str = d6.getFullYear()+'-'+pad(d6.getMonth()+1)+'-'+pad(d6.getDate());
+  const d1 = new Date(now); d1.setFullYear(d1.getFullYear()-1);
+  const d1str = d1.getFullYear()+'-'+pad(d1.getMonth()+1)+'-'+pad(d1.getDate());
+
+  const monthRows = allFiltered.filter(r => r.date && r.date >= (y+'-'+pad(mo)+'-01') && r.date <= todayStr);
+  const m6Rows    = allFiltered.filter(r => r.date && r.date >= d6str);
+  const ytdRows   = allFiltered.filter(r => r.date && r.date >= (y+'-01-01'));
+  const year1Rows = allFiltered.filter(r => r.date && r.date >= d1str);
+
+  function setCard(id, v) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = fmt(v);
+    el.style.color = fmtColor(v);
+  }
+  setCard('saleSumMonth', sumProfit(monthRows));
+  setCard('saleSum6m',    sumProfit(m6Rows));
+  setCard('saleSumYtd',   sumProfit(ytdRows));
+  setCard('saleSumYear1', sumProfit(year1Rows));
+  setCard('saleSumAll',   sumProfit(allFiltered));
+
+  // 기간 필터 적용 행
+  const filteredRows = allFiltered.filter(function(r) {
+    if (from && r.date < from) return false;
+    if (to   && r.date > to)   return false;
+    return true;
+  });
+
+  // 차트 렌더
+  requestAnimationFrame(function() {
+    renderSaleYearChart(allFiltered);
+    renderSaleMonthChart(allFiltered);
+  });
+
+  // 테이블
+  document.getElementById('saleRowCount').textContent = filteredRows.length + '건';
+  const totalProfit = sumProfit(filteredRows);
+  const sumEl = document.getElementById('saleRowSum');
+  if (sumEl) {
+    sumEl.textContent = filteredRows.length > 0 ? '합계: ' + fmt(totalProfit) : '';
+    sumEl.style.color = fmtColor(totalProfit);
+  }
+
+  if (filteredRows.length === 0) {
+    document.getElementById('saleTableContainer').innerHTML =
+      '<div style="padding:40px;text-align:center;color:var(--text2)">매도 내역이 없습니다</div>';
+    return;
+  }
+
+  const sorted = [...filteredRows].sort(function(a,b){ return b.date.localeCompare(a.date); });
+
+  let html = '<div style="overflow-x:auto"><table style="table-layout:auto;width:100%;min-width:700px">'
+    + '<thead><tr>'
+    + '<th style="white-space:nowrap">매도일</th>'
+    + '<th style="white-space:nowrap">소유자</th>'
+    + '<th style="white-space:nowrap">종목</th>'
+    + '<th style="text-align:right;white-space:nowrap">매도가</th>'
+    + '<th style="text-align:right;white-space:nowrap">평단가</th>'
+    + '<th style="text-align:right;white-space:nowrap">실현수익</th>'
+    + '<th style="text-align:right;white-space:nowrap">수익률</th>'
+    + '<th style="text-align:right;white-space:nowrap">매도후 손익</th>'
+    + '<th style="text-align:right;white-space:nowrap">오늘 등락</th>'
+    + '<th></th>'
+    + '</tr></thead><tbody>';
+
+  sorted.forEach(function(r) {
+    const live        = getSaleLiveInfo(r.ticker);
+    const afterRate   = r.sell_price && live.currentPrice
+      ? calcAfterSaleRate(r.sell_price, live.currentPrice)
+      : null;
+    const isKR        = (r.market || 'KR') !== 'US';
+    const currency    = isKR ? '원' : '$';
+    const mktBadge    = isKR
+      ? '<span class="sale-badge-kr">KR</span>'
+      : '<span class="sale-badge-us">US</span>';
+
+    // 매도가/평단가 표시
+    const sellPriceFmt = r.sell_price
+      ? (isKR ? r.sell_price.toLocaleString('ko-KR') + '원' : '$' + r.sell_price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}))
+      : '–';
+    const buyPriceFmt = r.buy_price
+      ? (isKR ? r.buy_price.toLocaleString('ko-KR') + '원' : '$' + r.buy_price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}))
+      : '–';
+
+    // 실현수익
+    const profitFmt  = fmt(r.profit || 0);
+    const profitCls  = (r.profit || 0) >= 0 ? 'sale-profit-pos' : 'sale-profit-neg';
+
+    // 수익률
+    const rateFmt    = r.profit_rate != null && r.profit_rate !== 0
+      ? (r.profit_rate >= 0 ? '+' : '') + Number(r.profit_rate).toFixed(2) + '%'
+      : '–';
+    const rateCls    = r.profit_rate >= 0 ? 'sale-after-pos' : 'sale-after-neg';
+
+    // 매도후 손익 (현재가 vs 매도가)
+    let afterHtml = '<span style="color:var(--text2);font-size:11px">미보유</span>';
+    if (afterRate !== null) {
+      const afterSign = afterRate >= 0 ? '+' : '';
+      const afterCls  = afterRate >= 0 ? 'sale-after-pos' : 'sale-after-neg';
+      // 매도후 손익이 양수 = 팔고나서 더 올랐다 = 아쉬운 상황
+      const icon = afterRate > 0 ? '📈' : '📉';
+      afterHtml = `<span class="${afterCls}">${icon} ${afterSign}${afterRate.toFixed(2)}%</span>`;
+    }
+
+    // 오늘 등락률
+    let todayHtml = '<span style="color:var(--text2);font-size:11px">–</span>';
+    if (live.changeRate) {
+      const crNum = parseFloat(String(live.changeRate).replace('%',''));
+      const crCls = crNum >= 0 ? 'sale-after-pos' : 'sale-after-neg';
+      todayHtml = `<span class="${crCls}">${live.changeRate}</span>`;
+    }
+
+    // 종목명 링크
+    const fakeH = { ticker: r.ticker, market: r.market || 'KR', exchange: r.exchange || (r.market==='US'?'NASDAQ':'KR'), is_cash: false };
+    const nameHtml = r.ticker ? makeStockNameHtml(fakeH, r.name || r.ticker) : (r.name || '–');
+
+    html += '<tr>'
+      + '<td style="font-size:12px;white-space:nowrap">' + r.date + '</td>'
+      + '<td style="font-size:11px;color:var(--text2);white-space:nowrap">' + (r.owner||'') + '<br>' + (r.account_name||'') + '</td>'
+      + '<td><strong>' + nameHtml + '</strong> ' + mktBadge + '<br><small style="color:var(--text2)">' + (r.ticker||'') + (r.qty ? ' · ' + r.qty + '주' : '') + '</small></td>'
+      + '<td style="text-align:right;font-size:12px;white-space:nowrap">' + sellPriceFmt + '</td>'
+      + '<td style="text-align:right;font-size:12px;white-space:nowrap;color:var(--text2)">' + buyPriceFmt + '</td>'
+      + '<td style="text-align:right;white-space:nowrap" class="' + profitCls + '">' + profitFmt + '</td>'
+      + '<td style="text-align:right;white-space:nowrap" class="' + rateCls + '">' + rateFmt + '</td>'
+      + '<td style="text-align:right;white-space:nowrap">' + afterHtml + '</td>'
+      + '<td style="text-align:right;white-space:nowrap">' + todayHtml + '</td>'
+      + '<td><button class="btn-icon" onclick="deleteSaleRow(\'' + r.id + '\')" title="삭제">🗑️</button></td>'
+      + '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  document.getElementById('saleTableContainer').innerHTML = html;
+}
+
+// ── 연도별 실현수익 차트 ────────────────────────────────────
+function renderSaleYearChart(rows) {
+  const canvas = document.getElementById('saleYearChart');
+  if (!canvas) return;
+  if (saleState.yearChart) { saleState.yearChart.destroy(); saleState.yearChart = null; }
+  if (!rows.length) return;
+
+  const map = {};
+  rows.forEach(function(r) {
+    if (!r.date) return;
+    const y = r.date.slice(0,4);
+    map[y] = (map[y] || 0) + Number(r.profit || 0);
+  });
+  const labels  = Object.keys(map).sort();
+  const profits = labels.map(y => map[y]);
+  const colors  = profits.map(v => v >= 0 ? 'rgba(46,204,113,0.75)' : 'rgba(231,76,60,0.75)');
+  const bdrClrs = profits.map(v => v >= 0 ? 'rgba(46,204,113,1)' : 'rgba(231,76,60,1)');
+
+  saleState.yearChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: labels.map(y => y + '년'),
+      datasets: [{
+        label: '실현수익',
+        data: profits,
+        backgroundColor: colors,
+        borderColor: bdrClrs,
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              const v = ctx.raw;
+              return (v >= 0 ? '+' : '') + Math.round(v).toLocaleString('ko-KR') + '원';
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: 'rgba(255,255,255,.6)', font:{size:11} }, grid:{color:'rgba(255,255,255,.05)'} },
+        y: {
+          ticks: {
+            color: 'rgba(255,255,255,.6)', font:{size:10},
+            callback: function(v) {
+              if (Math.abs(v) >= 1000000) return (v/1000000).toFixed(0) + '백만';
+              if (Math.abs(v) >= 10000)   return (v/10000).toFixed(0) + '만';
+              return v.toLocaleString();
+            }
+          },
+          grid:{color:'rgba(255,255,255,.05)'}
+        }
+      }
+    }
+  });
+}
+
+// ── 월별 실현수익 차트 ─────────────────────────────────────
+function renderSaleMonthChart(rows) {
+  const canvas = document.getElementById('saleMonthChart');
+  if (!canvas) return;
+  if (saleState.monthChart) { saleState.monthChart.destroy(); saleState.monthChart = null; }
+  if (!rows.length) return;
+
+  // 최근 12개월
+  const now = new Date();
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+  }
+  const map = {};
+  rows.forEach(function(r) {
+    if (!r.date) return;
+    const key = r.date.slice(0,7);
+    map[key] = (map[key] || 0) + Number(r.profit || 0);
+  });
+  const data   = months.map(m => map[m] || 0);
+  const colors = data.map(v => v >= 0 ? 'rgba(74,158,255,0.7)' : 'rgba(231,76,60,0.7)');
+
+  saleState.monthChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: months.map(m => m.slice(5) + '월'),
+      datasets: [{
+        label: '월별 실현수익',
+        data: data,
+        backgroundColor: colors,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              const v = ctx.raw;
+              return (v >= 0 ? '+' : '') + Math.round(v).toLocaleString('ko-KR') + '원';
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: 'rgba(255,255,255,.6)', font:{size:10} }, grid:{color:'rgba(255,255,255,.05)'} },
+        y: {
+          ticks: {
+            color: 'rgba(255,255,255,.6)', font:{size:10},
+            callback: function(v) {
+              if (Math.abs(v) >= 1000000) return (v/1000000).toFixed(0) + '백만';
+              if (Math.abs(v) >= 10000)   return (v/10000).toFixed(0) + '만';
+              return v.toLocaleString();
+            }
+          },
+          grid:{color:'rgba(255,255,255,.05)'}
+        }
+      }
+    }
+  });
+}
+
+// ── 모달 ────────────────────────────────────────────────────
+function openSaleModal() {
+  // 날짜 기본값
+  const today = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('saleInputDate').value =
+    today.getFullYear() + '-' + pad(today.getMonth()+1) + '-' + pad(today.getDate());
+
+  // 계좌 목록
+  const sel = document.getElementById('saleInputAccount');
+  sel.innerHTML = state.accounts.map(function(a) {
+    return `<option value="${a.account_id}">${a.owner} · ${a.broker} ${a.account_type}</option>`;
+  }).join('');
+
+  // 초기화
+  document.getElementById('saleInputSearch').value   = '';
+  document.getElementById('saleInputTicker').value   = '';
+  document.getElementById('saleInputName').value     = '';
+  document.getElementById('saleInputMarket').value   = 'KR';
+  document.getElementById('saleInputQty').value      = '';
+  document.getElementById('saleInputSellPrice').value = '';
+  document.getElementById('saleInputBuyPrice').value  = '';
+  document.getElementById('saleInputProfit').value    = '';
+  document.getElementById('saleInputMemo').value      = '';
+  document.getElementById('saleCalcRate').textContent = '–';
+  document.getElementById('saleAcList').innerHTML     = '';
+  document.getElementById('saleModal').classList.add('active');
+}
+
+function closeSaleModal() {
+  document.getElementById('saleModal').classList.remove('active');
+}
+
+// 자동완성 (배당 탭과 동일 패턴)
+const saleAc = { timer: null, results: [], selected: -1 };
+
+async function onSaleSearch(q) {
+  clearTimeout(saleAc.timer);
+  if (q.length < 1) { document.getElementById('saleAcList').innerHTML = ''; return; }
+  saleAc.timer = setTimeout(async function() {
+    const searchUrl = WORKER_URL
+      ? WORKER_URL + '/api/search?q=' + encodeURIComponent(q)
+      : GAS_URL + '?action=search_ticker&q=' + encodeURIComponent(q);
+    try {
+      const res  = await fetch(searchUrl);
+      const data = await res.json();
+      saleAc.results = data.results || [];
+      const list = document.getElementById('saleAcList');
+      if (!saleAc.results.length) { list.innerHTML = ''; return; }
+      list.innerHTML = saleAc.results.map(function(item, i) {
+        return `<div class="autocomplete-item" onclick="selectSaleItem(${i})">${item.name} <small style="color:var(--text2)">${item.ticker}</small></div>`;
+      }).join('');
+    } catch(e) {}
+  }, 250);
+}
+
+function selectSaleItem(i) {
+  const item = saleAc.results[i];
+  if (!item) return;
+  document.getElementById('saleInputSearch').value   = item.name;
+  document.getElementById('saleInputTicker').value   = item.ticker;
+  document.getElementById('saleInputName').value     = item.name;
+  document.getElementById('saleInputMarket').value   = item.market || 'KR';
+  document.getElementById('saleAcList').innerHTML    = '';
+  // 보유 종목에서 평단가 자동완성
+  const held = (state.holdings || []).find(function(h) { return h.ticker === item.ticker; });
+  if (held && held.avg_price) {
+    document.getElementById('saleInputBuyPrice').value = held.avg_price;
+    calcSaleProfit();
+  }
+}
+
+// 수익금 자동계산
+function calcSaleProfit() {
+  const qty   = parseFloat(document.getElementById('saleInputQty').value)       || 0;
+  const sell  = parseFloat(document.getElementById('saleInputSellPrice').value)  || 0;
+  const buy   = parseFloat(document.getElementById('saleInputBuyPrice').value)   || 0;
+  const rateEl = document.getElementById('saleCalcRate');
+
+  if (qty > 0 && sell > 0 && buy > 0) {
+    const profit = (sell - buy) * qty;
+    const rate   = ((sell - buy) / buy) * 100;
+    document.getElementById('saleInputProfit').value = Math.round(profit);
+    rateEl.textContent = (rate >= 0 ? '+' : '') + rate.toFixed(2) + '%';
+    rateEl.style.color = rate >= 0 ? 'var(--green)' : 'var(--red)';
+  } else if (sell > 0 && buy > 0) {
+    const rate = ((sell - buy) / buy) * 100;
+    rateEl.textContent = (rate >= 0 ? '+' : '') + rate.toFixed(2) + '%';
+    rateEl.style.color = rate >= 0 ? 'var(--green)' : 'var(--red)';
+  } else {
+    rateEl.textContent = '–';
+    rateEl.style.color = '';
+  }
+}
+
+async function saveSale() {
+  const dateVal   = document.getElementById('saleInputDate').value;
+  const accountEl = document.getElementById('saleInputAccount');
+  const accountId = accountEl.value;
+  const acctName  = accountEl.options[accountEl.selectedIndex]?.text || '';
+  const owner     = acctName.split(' · ')[0] || '';
+  const ticker    = document.getElementById('saleInputTicker').value.trim();
+  const name      = document.getElementById('saleInputName').value.trim()    || ticker;
+  const market    = document.getElementById('saleInputMarket').value          || 'KR';
+  const qty       = parseFloat(document.getElementById('saleInputQty').value)        || 0;
+  const sellPrice = parseFloat(document.getElementById('saleInputSellPrice').value)  || 0;
+  const buyPrice  = parseFloat(document.getElementById('saleInputBuyPrice').value)   || 0;
+  const profit    = parseFloat(document.getElementById('saleInputProfit').value);
+  const memo      = document.getElementById('saleInputMemo').value.trim();
+
+  if (!dateVal)   { alert('매도일을 입력하세요'); return; }
+  if (!accountId) { alert('계좌를 선택하세요'); return; }
+  if (isNaN(profit) || profit === 0 && !confirm('실현수익금이 0입니다. 계속할까요?')) return;
+
+  const profitRate = (sellPrice > 0 && buyPrice > 0)
+    ? parseFloat(((sellPrice - buyPrice) / buyPrice * 100).toFixed(4))
+    : 0;
+
+  const postUrl = WORKER_URL ? WORKER_URL + '/api/sale' : GAS_URL;
+  try {
+    const res  = await fetch(postUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'add_sale',
+        date: dateVal, account_id: accountId, owner, account_name: acctName,
+        ticker, name, market, qty, sell_price: sellPrice, buy_price: buyPrice,
+        profit: Math.round(profit), profit_rate: profitRate, memo,
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    closeSaleModal();
+    saleState.loaded = false;
+    await loadSale();
+  } catch(e) { alert('저장 실패: ' + e.message); }
+}
+
+async function deleteSaleRow(id) {
+  if (!confirm('이 매도 내역을 삭제할까요?')) return;
+  const postUrl = WORKER_URL ? WORKER_URL + '/api/sale' : GAS_URL;
+  try {
+    const res  = await fetch(postUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete_sale', id }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    saleState.loaded = false;
+    await loadSale();
+  } catch(e) { alert('삭제 실패: ' + e.message); }
 }
 
 // ============================================================
