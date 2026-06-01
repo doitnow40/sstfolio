@@ -1212,6 +1212,18 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <input class="form-input" id="saleInputMemo" placeholder="예: 목표가 도달, 리밸런싱">
     </div>
 
+    <!-- 현황 영향 안주기 옵션 -->
+    <div id="saleSkipHoldingWrap" style="margin-top:10px;padding:10px 12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg2)">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+        <input type="checkbox" id="saleSkipHolding" onchange="onSkipHoldingChange()" style="width:15px;height:15px;cursor:pointer;accent-color:var(--blue)">
+        <span style="font-size:13px;font-weight:600">현황에 영향 안주기</span>
+        <span style="font-size:11px;color:var(--text2)">(과거 기록 입력용)</span>
+      </label>
+      <div id="saleSkipHoldingNote" style="display:none;margin-top:6px;padding:6px 8px;border-radius:4px;background:rgba(255,190,60,.1);border:1px solid rgba(255,190,60,.3);font-size:11px;color:#ffbe3c;line-height:1.5">
+        ⚠️ 체크 시 투자현황 수량이 변경되지 않습니다.<br>현재 보유하지 않는 과거 매도 기록을 입력할 때만 사용하세요.
+      </div>
+    </div>
+
     <div style="display:flex;gap:8px;margin-top:16px">
       <button class="btn-primary" id="saleSaveBtn" style="flex:1" onclick="saveSale()">저장</button>
       <button class="btn-refresh" style="flex:1" onclick="closeSaleModal()">취소</button>
@@ -4488,12 +4500,28 @@ function openSaleModal() {
   document.getElementById('saleCalcRate').textContent  = '–';
   document.getElementById('saleCalcRate').style.color  = '';
   document.getElementById('saleAcList').classList.remove('open');
+  // 체크박스 항상 해제 상태로 초기화
+  document.getElementById('saleSkipHolding').checked  = false;
+  document.getElementById('saleSkipHoldingNote').style.display = 'none';
+  document.getElementById('saleSkipHoldingWrap').style.borderColor = '';
   document.querySelector('#saleModal .modal-title').textContent = '매도 실현수익 입력';
   document.getElementById('saleModal').classList.add('open');
 }
 
 function closeSaleModal() {
   document.getElementById('saleModal').classList.remove('open');
+  // 닫을 때도 체크박스 초기화
+  document.getElementById('saleSkipHolding').checked  = false;
+  document.getElementById('saleSkipHoldingNote').style.display = 'none';
+  document.getElementById('saleSkipHoldingWrap').style.borderColor = '';
+}
+
+function onSkipHoldingChange() {
+  const checked  = document.getElementById('saleSkipHolding').checked;
+  const note     = document.getElementById('saleSkipHoldingNote');
+  const wrap     = document.getElementById('saleSkipHoldingWrap');
+  note.style.display   = checked ? 'block' : 'none';
+  wrap.style.borderColor = checked ? 'rgba(255,190,60,.6)' : '';
 }
 
 // 자동완성 (배당 탭과 동일 패턴)
@@ -4591,13 +4619,15 @@ async function saveSale() {
     ? parseFloat(((sellPrice - buyPrice) / buyPrice * 100).toFixed(4))
     : 0;
 
-  const isEdit  = editId.length > 0;
-  const action  = isEdit ? 'update_sale' : 'add_sale';
-  const postUrl = WORKER_URL ? WORKER_URL + '/api/sale' : GAS_URL;
+  const isEdit     = editId.length > 0;
+  const action     = isEdit ? 'update_sale' : 'add_sale';
+  const skipHolding = document.getElementById('saleSkipHolding').checked;
+  const postUrl    = WORKER_URL ? WORKER_URL + '/api/sale' : GAS_URL;
   const payload = {
     action, date: dateVal, account_id: accountId, owner, account_name: acctName,
     ticker, name, market, qty, sell_price: sellPrice, buy_price: buyPrice,
     profit: Math.round(profit), profit_rate: profitRate, memo,
+    skip_holding: skipHolding,
   };
   if (isEdit) payload.id = editId;
 
@@ -4688,6 +4718,12 @@ function openSaleEditModal(id) {
   document.getElementById('saleInputMemo').value      = row.memo       || '';
   document.getElementById('saleEditId').value         = String(row.id);
   document.getElementById('saleAcList').classList.remove('open');
+
+  // skip_holding 상태 복원 (스냅샷 없으면 과거기록으로 간주해서 체크)
+  const wasSkipped = !row.holding_snapshot || row.holding_snapshot === '';
+  document.getElementById('saleSkipHolding').checked  = wasSkipped;
+  document.getElementById('saleSkipHoldingNote').style.display  = wasSkipped ? 'block' : 'none';
+  document.getElementById('saleSkipHoldingWrap').style.borderColor = wasSkipped ? 'rgba(255,190,60,.6)' : '';
 
   // 수익률 표시 업데이트
   calcSaleProfit();
