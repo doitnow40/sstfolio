@@ -5059,6 +5059,7 @@ document.addEventListener('click', e => {
       <button class="help-tab-btn" onclick="switchHelpTab(1)">🌐 웹에서 수정</button>
       <button class="help-tab-btn" onclick="switchHelpTab(2)">📊 시트에서 수정</button>
       <button class="help-tab-btn" onclick="switchHelpTab(3)">🔘 버튼 사전</button>
+      <button class="help-tab-btn" onclick="switchHelpTab(4)">💸 실현수익</button>
     </div>
 
     <!-- 탭 0: 데이터 흐름 -->
@@ -5115,6 +5116,7 @@ document.addEventListener('click', e => {
             <tr><td style="padding:8px;border-bottom:1px solid var(--border)">✏️ 종목 수정</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
             <tr><td style="padding:8px;border-bottom:1px solid var(--border)">🗑️ 종목 삭제</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
             <tr><td style="padding:8px;border-bottom:1px solid var(--border)">💰 배당 입력/삭제</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">💸 실현수익 입력/수정/삭제</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시 (투자현황 수량도 자동 반영)</td></tr>
             <tr><td style="padding:8px;border-bottom:1px solid var(--border)">📁 계좌 그룹 설정</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
             <tr><td style="padding:8px">💾 스냅샷 저장</td><td style="padding:8px"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px">즉시</td></tr>
           </tbody>
@@ -5157,6 +5159,13 @@ document.addEventListener('click', e => {
               </td>
             </tr>
             <tr>
+              <td style="padding:8px;border-bottom:1px solid var(--border)">💸 실현수익</td>
+              <td style="padding:8px;border-bottom:1px solid var(--border)">
+                웹 → 실현수익 탭 → <strong>↻ 새로 읽기</strong> 버튼<br>
+                <span style="color:var(--red);font-size:11px">⚠️ Sheets 직접 수정 시 투자현황 수량 연동이 깨질 수 있으므로 가급적 웹에서 입력</span>
+              </td>
+            </tr>
+            <tr style="background:#1a2a1a">
               <td style="padding:8px;border-bottom:1px solid var(--border)">🏦 계좌</td>
               <td style="padding:8px;border-bottom:1px solid var(--border)">
                 ① GAS메뉴 → <strong>지금 즉시 현재가 갱신</strong><br>
@@ -5213,6 +5222,16 @@ document.addEventListener('click', e => {
           </table>
         </div>
 
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;margin-bottom:6px">💸 실현수익 탭</div>
+          <table style="width:100%;border-collapse:collapse">
+            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border);width:35%"><strong>↻ 새로 읽기</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">실현수익 시트를 다시 조회. Sheets에서 직접 수정한 경우 사용.</td></tr>
+            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)"><strong>+ 매도 입력</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">매도 기록 입력. 기본 동작으로 투자현황 수량이 자동 차감됨.</td></tr>
+            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border)"><strong>✏️ 수정</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">기존 매도 기록 수정. 수량 변경 시 투자현황도 자동 재조정.</td></tr>
+            <tr><td style="padding:7px 10px"><strong>🗑️ 삭제</strong></td><td style="padding:7px 10px">매도 기록 삭제 = 매도 취소. 투자현황 수량이 자동 원복됨.</td></tr>
+          </table>
+        </div>
+
         <div>
           <div style="font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;margin-bottom:6px">⚙️ GAS 메뉴 (Google Sheets)</div>
           <table style="width:100%;border-collapse:collapse">
@@ -5227,6 +5246,101 @@ document.addEventListener('click', e => {
         </div>
       </div>
     </div>
+
+    <!-- 탭 4: 실현수익 사용법 -->
+    <div class="help-tab-content" id="helpTab4">
+      <div style="font-size:13px;line-height:1.8">
+
+        <!-- 개요 -->
+        <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:14px">
+          <div style="font-weight:700;color:var(--blue);margin-bottom:8px;font-size:14px">💸 실현수익 탭 개요</div>
+          <div style="color:var(--text2);font-size:12px;line-height:1.8">
+            주식 매도 시 실현한 수익/손실을 기록·집계하는 탭입니다.<br>
+            매도 기록 저장 시 <strong>투자현황 시트의 수량이 자동 차감</strong>되며, 삭제 시 자동 복원됩니다.
+          </div>
+        </div>
+
+        <!-- 매도 입력 -->
+        <div style="margin-bottom:14px">
+          <div style="font-weight:700;color:var(--text1);margin-bottom:8px">① 매도 입력</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <tr style="background:var(--bg3)">
+              <th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);width:28%">항목</th>
+              <th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">설명</th>
+            </tr>
+            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)">매도일</td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">실제 매도한 날짜</td></tr>
+            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border)">계좌</td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">매도한 계좌 선택</td></tr>
+            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)">종목</td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">종목명 또는 초성 검색. 선택 시 보유 중이면 평단가 자동완성</td></tr>
+            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border)">매도 수량</td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">매도한 주수. 입력 시 투자현황 수량이 차감됨</td></tr>
+            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)">매도가 · 평단가</td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">입력하면 실현수익률·수익금 자동계산</td></tr>
+            <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border)">실현수익금</td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">자동계산 또는 직접 입력 (세금공제 후 실수령액 등)</td></tr>
+            <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)">태그</td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">Enter 또는 쉼표로 추가. 여러 개 가능. 예: <code style="background:var(--bg3);padding:1px 4px;border-radius:3px">손절</code> <code style="background:var(--bg3);padding:1px 4px;border-radius:3px">목표가</code></td></tr>
+            <tr style="background:var(--bg3)"><td style="padding:7px 10px">메모</td><td style="padding:7px 10px">자유 입력 (예: 저항대 뚫고 내려감)</td></tr>
+          </table>
+        </div>
+
+        <!-- 현황에 영향 안주기 -->
+        <div style="margin-bottom:14px;background:rgba(255,190,60,.08);border:1px solid rgba(255,190,60,.3);border-radius:8px;padding:12px">
+          <div style="font-weight:700;color:#ffbe3c;margin-bottom:6px">⚠️ "현황에 영향 안주기" 옵션</div>
+          <div style="font-size:12px;line-height:1.8;color:var(--text2)">
+            <strong style="color:var(--text1)">언제 사용?</strong> 현재 보유하지 않는 <strong>과거 매도 내역</strong>을 소급 입력할 때<br>
+            예) 삼성전기를 현재 3주 보유 중인데, 예전에 7주를 매도한 기록을 추가하고 싶은 경우<br>
+            → 이 옵션 체크 후 저장하면 현재 보유 3주에는 영향 없이 기록만 추가됨<br><br>
+            <strong style="color:var(--text1)">기본값:</strong> 해제 — 저장 시 투자현황 수량이 자동 차감됨
+          </div>
+        </div>
+
+        <!-- 집계 카드 & 기간 필터 -->
+        <div style="margin-bottom:14px">
+          <div style="font-weight:700;color:var(--text1);margin-bottom:8px">② 집계 카드 & 기간 필터</div>
+          <div style="font-size:12px;line-height:1.8;color:var(--text2)">
+            상단 카드(이번달/최근6개월/YTD/최근1년/누적전체)를 클릭하면 기간 필터가 자동 적용됩니다.<br>
+            직접입력 선택 시 연·월 범위를 지정할 수 있습니다.
+          </div>
+        </div>
+
+        <!-- 태그 기능 -->
+        <div style="margin-bottom:14px">
+          <div style="font-weight:700;color:var(--text1);margin-bottom:8px">③ 태그 필터 & 집계</div>
+          <div style="font-size:12px;line-height:1.8">
+            <div style="color:var(--text2);margin-bottom:6px">태그를 활용하면 매도 이유·전략별 수익을 분석할 수 있습니다.</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+              <span style="background:rgba(74,158,255,.15);color:var(--blue);border:1px solid rgba(74,158,255,.3);padding:2px 8px;border-radius:20px;font-size:11px">손절</span>
+              <span style="background:rgba(74,158,255,.15);color:var(--blue);border:1px solid rgba(74,158,255,.3);padding:2px 8px;border-radius:20px;font-size:11px">목표가</span>
+              <span style="background:rgba(74,158,255,.15);color:var(--blue);border:1px solid rgba(74,158,255,.3);padding:2px 8px;border-radius:20px;font-size:11px">리밸런싱</span>
+              <span style="background:rgba(74,158,255,.15);color:var(--blue);border:1px solid rgba(74,158,255,.3);padding:2px 8px;border-radius:20px;font-size:11px">단기</span>
+              <span style="background:rgba(74,158,255,.15);color:var(--blue);border:1px solid rgba(74,158,255,.3);padding:2px 8px;border-radius:20px;font-size:11px">장기</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border);width:35%">태그 필터 버튼</td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">클릭 시 해당 태그가 붙은 기록만 차트·테이블에 표시</td></tr>
+              <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)">태그별 수익 요약표</td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">건수·총수익금·평균수익률·승률 집계. 행 클릭 시 필터 연동</td></tr>
+              <tr style="background:var(--bg3)"><td style="padding:7px 10px">테이블 내 태그</td><td style="padding:7px 10px">매도 내역 테이블의 태그 클릭 시 해당 태그 필터 즉시 적용</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- 매도후 손익 -->
+        <div style="margin-bottom:14px">
+          <div style="font-weight:700;color:var(--text1);margin-bottom:8px">④ 매도후 손익 & 오늘 등락</div>
+          <div style="font-size:12px;line-height:1.8;color:var(--text2)">
+            <strong style="color:var(--text1)">매도후 손익</strong>: 현재 보유 중인 종목이면 매도가 대비 현재가를 실시간 비교<br>
+            📈 양수 = 팔고 나서 더 올랐다 (아쉬운 상황) / 📉 음수 = 팔고 나서 내려갔다 (잘 판 상황)<br>
+            <strong style="color:var(--text1)">오늘 등락</strong>: 해당 종목의 오늘 등락률 (보유 중인 경우만 표시)
+          </div>
+        </div>
+
+        <!-- 수정/삭제 -->
+        <div style="background:var(--bg3);border-radius:8px;padding:12px;font-size:12px;line-height:1.8">
+          <div style="font-weight:700;color:var(--text1);margin-bottom:6px">⑤ 수정 · 삭제 시 투자현황 자동 처리</div>
+          <div style="color:var(--text2)">
+            ✏️ <strong style="color:var(--text1)">수정</strong>: 수량 변경 시 변경분(delta)만큼 투자현황 재조정. 완전매도→부분매도로 변경 시 삭제된 행이 자동 복원됨<br>
+            🗑️ <strong style="color:var(--text1)">삭제</strong>: 매도 자체를 취소. 투자현황 수량이 원래대로 복원됨. 완전매도로 행이 삭제됐던 경우도 자동 복원
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </div>
 
