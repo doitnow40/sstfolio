@@ -3034,6 +3034,9 @@ function openModal(holdingId = null) {
       document.getElementById('formSector').value   = h.sector;
       document.getElementById('formQuantity').value = h.quantity;
       document.getElementById('formAvgPrice').value = h.avg_price;
+      // 수정 전 원본값 저장 (GAS 행 탐색용)
+      state.editingOrigTicker    = String(h.ticker     || '').trim();
+      state.editingOrigAccountId = String(h.account_id || '').trim();
     }
   } else {
     // 추가 모드 — 초기화
@@ -3068,16 +3071,19 @@ async function submitHolding() {
   if (!qty || !avg) { alert('수량과 평단가는 필수입니다.'); return; }
 
   const data = {
-    action:     state.editingId ? 'update_holding' : 'add_holding',
-    id:         state.editingId,
-    account_id: document.getElementById('formAccount').value,
+    action:        state.editingId ? 'update_holding' : 'add_holding',
+    id:            state.editingId,
+    account_id:    document.getElementById('formAccount').value,
     ticker,
-    market:       document.getElementById('formMarket').value,
-    asset_region: document.getElementById('formAssetRegion').value,
-    name:         name || ticker,
-    sector:     document.getElementById('formSector').value,
-    quantity:   qty,
-    avg_price:  avg,
+    market:        document.getElementById('formMarket').value,
+    asset_region:  document.getElementById('formAssetRegion').value,
+    name:          name || ticker,
+    sector:        document.getElementById('formSector').value,
+    quantity:      qty,
+    avg_price:     avg,
+    // 수정 시 원본 ticker/account_id 전달 (GAS에서 정확한 행 탐색용)
+    orig_ticker:    state.editingId ? (state.editingOrigTicker    || ticker) : undefined,
+    orig_account_id:state.editingId ? (state.editingOrigAccountId || document.getElementById('formAccount').value) : undefined,
   };
 
   try {
@@ -3098,12 +3104,19 @@ async function submitHolding() {
 
 async function deleteHolding(id) {
   if (!confirm('이 종목을 삭제하시겠습니까?')) return;
+  // holdings에서 ticker/account_id 찾기 (GAS 정확한 행 탐색용)
+  const h = state.holdings.find(x => String(x.id) === String(id));
   try {
     const postUrl2 = WORKER_URL ? WORKER_URL + '/api/holding' : GAS_URL;
     const res = await fetch(postUrl2, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ action: 'delete_holding', id }),
+      body:    JSON.stringify({
+        action:     'delete_holding',
+        id,
+        ticker:     h ? String(h.ticker     || '') : '',
+        account_id: h ? String(h.account_id || '') : '',
+      }),
     });
     const result = await res.json();
     if (result.error) throw new Error(result.error);
@@ -5470,14 +5483,6 @@ document.addEventListener('click', e => {
         </div>
 
       </div>
-    </div>
-
-  </div>
-</div>
-
-</body>
-</html>
-    </div>
     </div>
 
   </div>
