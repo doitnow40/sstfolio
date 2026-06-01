@@ -1233,83 +1233,104 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
 <!-- ── 실현수익 입력 모달 ────────────────────────────────── -->
 <div class="modal-overlay" id="saleModal" onclick="closeSaleModal()">
-  <div class="modal" onclick="event.stopPropagation()" style="max-width:460px;overflow:visible">
-    <div class="modal-title">매도 실현수익 입력</div>
-    <input type="hidden" id="saleEditId" value="">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:480px;overflow:hidden;display:flex;flex-direction:column;padding:0">
 
-    <div class="form-group">
-      <label class="form-label">매도일</label>
-      <input type="date" class="form-input" id="saleInputDate">
-    </div>
-    <div class="form-group">
-      <label class="form-label">계좌</label>
-      <select class="form-input" id="saleInputAccount"></select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">종목</label>
-      <div class="autocomplete-wrap">
-        <input class="form-input" id="saleInputSearch" placeholder="종목명 또는 초성 검색..." autocomplete="off" oninput="onSaleSearch(this.value)">
-        <div class="autocomplete-list" id="saleAcList"></div>
-      </div>
-      <input type="hidden" id="saleInputTicker">
-      <input type="hidden" id="saleInputName">
-      <input type="hidden" id="saleInputMarket">
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="form-group">
-        <label class="form-label">매도 수량</label>
-        <input type="number" class="form-input" id="saleInputQty" placeholder="100" oninput="calcSaleProfit()">
-      </div>
-      <div class="form-group">
-        <label class="form-label">매도가 (1주)</label>
-        <input type="number" class="form-input" id="saleInputSellPrice" placeholder="55000" oninput="calcSaleProfit()">
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="form-group">
-        <label class="form-label">평단가 (1주)</label>
-        <input type="number" class="form-input" id="saleInputBuyPrice" placeholder="42000" oninput="calcSaleProfit()">
-      </div>
-      <div class="form-group">
-        <label class="form-label">실현수익률</label>
-        <div class="form-input" id="saleCalcRate" style="background:var(--bg2);color:var(--green);font-weight:700;display:flex;align-items:center">–</div>
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">실현수익금 <span style="font-size:11px;color:var(--text2)">(자동계산, 직접 입력 가능)</span></label>
-      <input type="number" class="form-input" id="saleInputProfit" placeholder="1,300,000" style="font-weight:700">
-    </div>
-    <div class="form-group">
-      <label class="form-label">태그 <span style="font-size:11px;color:var(--text2)">(Enter 또는 쉼표로 추가)</span></label>
-      <div class="sale-tag-input-wrap" id="saleTagWrap" onclick="document.getElementById('saleTagInput').focus()">
-        <div id="saleTagPills" style="display:contents"></div>
-        <input class="sale-tag-input" id="saleTagInput" placeholder="태그 입력..." autocomplete="off"
-          onkeydown="onSaleTagKeydown(event)" oninput="onSaleTagInput(this.value)">
-      </div>
-      <div class="sale-tag-suggest" id="saleTagSuggest"></div>
+    <!-- 헤더 고정 -->
+    <div style="padding:18px 22px 14px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div class="modal-title" style="margin-bottom:0">매도 실현수익 입력</div>
+      <input type="hidden" id="saleEditId" value="">
     </div>
 
-    <div class="form-group">
-      <label class="form-label">메모 (선택)</label>
-      <input class="form-input" id="saleInputMemo" placeholder="예: 목표가 도달, 리밸런싱">
-    </div>
+    <!-- 스크롤 영역 -->
+    <div style="padding:14px 22px 8px;overflow-y:auto;flex:1;min-height:0">
 
-    <!-- 현황 영향 안주기 옵션 -->
-    <div id="saleSkipHoldingWrap" style="margin-top:10px;padding:10px 12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg2)">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
-        <input type="checkbox" id="saleSkipHolding" onchange="onSkipHoldingChange()" style="width:15px;height:15px;cursor:pointer;accent-color:var(--blue)">
-        <span style="font-size:13px;font-weight:600">현황에 영향 안주기</span>
-        <span style="font-size:11px;color:var(--text2)">(과거 기록 입력용)</span>
-      </label>
-      <div id="saleSkipHoldingNote" style="display:none;margin-top:6px;padding:6px 8px;border-radius:4px;background:rgba(255,190,60,.1);border:1px solid rgba(255,190,60,.3);font-size:11px;color:#ffbe3c;line-height:1.5">
-        ⚠️ 체크 시 투자현황 수량이 변경되지 않습니다.<br>현재 보유하지 않는 과거 매도 기록을 입력할 때만 사용하세요.
+      <!-- 매도일 + 계좌 — 2열 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label">매도일</label>
+          <input type="date" class="form-input" id="saleInputDate">
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label">계좌</label>
+          <select class="form-input" id="saleInputAccount"></select>
+        </div>
       </div>
-    </div>
 
-    <div style="display:flex;gap:8px;margin-top:16px">
+      <!-- 종목 -->
+      <div class="form-group" style="margin-bottom:10px">
+        <label class="form-label">종목</label>
+        <div class="autocomplete-wrap">
+          <input class="form-input" id="saleInputSearch" placeholder="종목명 또는 초성 검색..." autocomplete="off" oninput="onSaleSearch(this.value)">
+          <div class="autocomplete-list" id="saleAcList"></div>
+        </div>
+        <input type="hidden" id="saleInputTicker">
+        <input type="hidden" id="saleInputName">
+        <input type="hidden" id="saleInputMarket">
+      </div>
+
+      <!-- 수량/매도가/평단가/수익률 — 2×2 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">매도 수량</label>
+          <input type="number" class="form-input" id="saleInputQty" placeholder="100" oninput="calcSaleProfit()">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">매도가 (1주)</label>
+          <input type="number" class="form-input" id="saleInputSellPrice" placeholder="55000" oninput="calcSaleProfit()">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">평단가 (1주)</label>
+          <input type="number" class="form-input" id="saleInputBuyPrice" placeholder="42000" oninput="calcSaleProfit()">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">실현수익률</label>
+          <div class="form-input" id="saleCalcRate" style="background:var(--bg3,var(--bg2));color:var(--green);font-weight:700;display:flex;align-items:center">–</div>
+        </div>
+      </div>
+
+      <!-- 실현수익금 -->
+      <div class="form-group" style="margin-bottom:10px">
+        <label class="form-label">실현수익금 <span style="font-size:11px;color:var(--text2)">(자동계산·직접입력 가능)</span></label>
+        <input type="number" class="form-input" id="saleInputProfit" placeholder="1,300,000" style="font-weight:700">
+      </div>
+
+      <!-- 태그 + 메모 — 2열 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">태그 <span style="font-size:10px;color:var(--text2)">Enter·쉼표로 추가</span></label>
+          <div class="sale-tag-input-wrap" id="saleTagWrap" onclick="document.getElementById('saleTagInput').focus()" style="min-height:36px;padding:4px 8px">
+            <div id="saleTagPills" style="display:contents"></div>
+            <input class="sale-tag-input" id="saleTagInput" placeholder="태그..." autocomplete="off"
+              onkeydown="onSaleTagKeydown(event)" oninput="onSaleTagInput(this.value)">
+          </div>
+          <div class="sale-tag-suggest" id="saleTagSuggest" style="margin-top:4px"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">메모 (선택)</label>
+          <input class="form-input" id="saleInputMemo" placeholder="예: 목표가 도달">
+        </div>
+      </div>
+
+      <!-- 현황 영향 안주기 옵션 -->
+      <div id="saleSkipHoldingWrap" style="margin-bottom:6px;padding:8px 12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg2)">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+          <input type="checkbox" id="saleSkipHolding" onchange="onSkipHoldingChange()" style="width:15px;height:15px;cursor:pointer;accent-color:var(--blue)">
+          <span style="font-size:13px;font-weight:600">현황에 영향 안주기</span>
+          <span style="font-size:11px;color:var(--text2)">(과거 기록 입력용)</span>
+        </label>
+        <div id="saleSkipHoldingNote" style="display:none;margin-top:6px;padding:6px 8px;border-radius:4px;background:rgba(255,190,60,.1);border:1px solid rgba(255,190,60,.3);font-size:11px;color:#ffbe3c;line-height:1.5">
+          ⚠️ 체크 시 투자현황 수량이 변경되지 않습니다.<br>현재 보유하지 않는 과거 매도 기록을 입력할 때만 사용하세요.
+        </div>
+      </div>
+
+    </div><!-- /스크롤 영역 -->
+
+    <!-- 버튼 — 항상 하단 고정 -->
+    <div style="padding:12px 22px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;background:var(--bg2)">
       <button class="btn-primary" id="saleSaveBtn" style="flex:1" onclick="saveSale()">저장</button>
       <button class="btn-refresh" style="flex:1" onclick="closeSaleModal()">취소</button>
     </div>
+
   </div>
 </div>
 
