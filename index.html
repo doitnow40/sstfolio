@@ -1158,33 +1158,6 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <div class="card" id="saleCard_all"     onclick="setSalePeriodByCard('all')"          style="cursor:pointer;flex:0 0 auto;min-width:130px" title="클릭하면 기간 필터 적용"><div class="card-label">누적 전체</div><div class="card-value" id="saleSumAll">–</div></div>
   </div>
 
-  <!-- 기간 필터 -->
-  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
-    <select class="form-select" id="saleFilterPeriod" style="width:auto;font-size:12px" onchange="onSalePeriodChange()">
-      <option value="this_month">이번달</option>
-      <option value="6m">최근 6개월</option>
-      <option value="ytd" selected>올해 (YTD)</option>
-      <option value="year1">최근 1년</option>
-      <option value="all">전체</option>
-      <option value="custom">직접입력</option>
-    </select>
-    <div id="saleCustomRange" style="display:none;gap:6px;align-items:center;flex-wrap:wrap">
-      <select class="form-select" id="saleFromYear"  style="width:95px;font-size:12px" onchange="renderSale()"></select>
-      <select class="form-select" id="saleFromMonth" style="width:70px;font-size:12px" onchange="renderSale()"></select>
-      <span style="color:var(--text2);font-size:12px">~</span>
-      <select class="form-select" id="saleToYear"    style="width:95px;font-size:12px" onchange="renderSale()"></select>
-      <select class="form-select" id="saleToMonth"   style="width:70px;font-size:12px" onchange="renderSale()"></select>
-    </div>
-  </div>
-
-  <!-- 태그 필터 행 -->
-  <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
-    <span style="font-size:11px;color:var(--text2);white-space:nowrap">태그:</span>
-    <div id="saleTagFilterRow" style="display:flex;gap:5px;flex-wrap:wrap">
-      <button class="sale-tag-filter-btn active" data-tag="" onclick="setSaleTagFilter('')">전체</button>
-    </div>
-  </div>
-
   <!-- 태그별 집계 섹션 -->
   <div id="saleTagSummaryWrap" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;display:none">
     <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)">🏷️ 태그별 손익 요약</div>
@@ -1213,7 +1186,30 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     </div>
   </div>
 
-  <!-- 매도 내역 테이블 -->
+  <!-- 매도 내역 필터 + 테이블 -->
+  <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius)">
+    <select class="form-select" id="saleFilterPeriod" style="width:auto;font-size:12px" onchange="onSalePeriodChange()">
+      <option value="this_month">이번달</option>
+      <option value="6m">최근 6개월</option>
+      <option value="ytd" selected>올해 (YTD)</option>
+      <option value="year1">최근 1년</option>
+      <option value="all">전체</option>
+      <option value="custom">직접입력</option>
+    </select>
+    <div id="saleCustomRange" style="display:none;gap:6px;align-items:center;flex-wrap:wrap">
+      <select class="form-select" id="saleFromYear"  style="width:95px;font-size:12px" onchange="renderSale()"></select>
+      <select class="form-select" id="saleFromMonth" style="width:70px;font-size:12px" onchange="renderSale()"></select>
+      <span style="color:var(--text2);font-size:12px">~</span>
+      <select class="form-select" id="saleToYear"    style="width:95px;font-size:12px" onchange="renderSale()"></select>
+      <select class="form-select" id="saleToMonth"   style="width:70px;font-size:12px" onchange="renderSale()"></select>
+    </div>
+    <div style="width:1px;height:16px;background:var(--border);flex-shrink:0"></div>
+    <span style="font-size:11px;color:var(--text2);white-space:nowrap;flex-shrink:0">태그:</span>
+    <div id="saleTagFilterRow" style="display:flex;gap:5px;flex-wrap:wrap">
+      <button class="sale-tag-filter-btn active" data-tag="" onclick="setSaleTagFilter('')">전체</button>
+    </div>
+  </div>
+
   <div class="table-wrap">
     <div class="table-header" style="flex-direction:column;align-items:stretch;gap:4px">
       <div style="display:flex;align-items:center">
@@ -4471,9 +4467,7 @@ function renderSale() {
     if (afterRate !== null) {
       const afterSign = afterRate >= 0 ? '+' : '';
       const afterCls  = afterRate >= 0 ? 'sale-after-pos' : 'sale-after-neg';
-      // 매도후 손익이 양수 = 팔고나서 더 올랐다 = 아쉬운 상황
-      const icon = afterRate > 0 ? '📈' : '📉';
-      afterHtml = `<span class="${afterCls}">${icon} ${afterSign}${afterRate.toFixed(2)}%</span>`;
+      afterHtml = `<span class="${afterCls}">${afterSign}${afterRate.toFixed(2)}%</span>`;
     }
 
     // 오늘 등락률
