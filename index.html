@@ -1535,6 +1535,27 @@ async function loadData() {
     state.config        = data.config        || {};
     state.accountGroups = data.accountGroups || [];
 
+    // 현재가 맵 구성 (완전매도 종목 포함 모든 ticker 조회용)
+    state.priceMap = {};
+    (data.prices || []).forEach(function(p) {
+      state.priceMap[String(p.ticker || '').trim()] = {
+        price:       p.price       || 0,
+        change_rate: p.change_rate || '',
+        name:        p.name        || '',
+      };
+    });
+    // holdings도 priceMap에 병합 (최신 current_price 우선)
+    (state.holdings || []).forEach(function(h) {
+      const tk = String(h.ticker || '').trim();
+      if (tk && h.current_price) {
+        state.priceMap[tk] = {
+          price:       h.current_price || 0,
+          change_rate: h.change_rate   || '',
+          name:        h.name          || '',
+        };
+      }
+    });
+
     document.getElementById('lastUpdated').textContent =
       '갱신: ' + new Date().toLocaleTimeString('ko-KR');
     document.getElementById('settingLastFetch').textContent =
@@ -4265,17 +4286,31 @@ function initSaleCustomSelects() {
 
 // ── 현재가/등락률 조회 (보유 종목 state에서) ────────────────
 function getSaleLiveInfo(ticker) {
-  // 보유 종목에서 현재가 / 오늘 등락률 조회 (ticker 타입 불일치 방지)
   const tickerStr = String(ticker || '').trim();
+
+  // 1순위: 보유 종목 (current_price 가장 정확)
   const h = (state.holdings || []).find(function(x) {
     return String(x.ticker || '').trim() === tickerStr;
   });
-  if (!h) return { currentPrice: null, changeRate: null, market: null };
-  return {
-    currentPrice: h.current_price || null,
-    changeRate:   h.change_rate   || null,
-    market:       h.market        || 'KR',
-  };
+  if (h && h.current_price) {
+    return {
+      currentPrice: h.current_price,
+      changeRate:   h.change_rate || null,
+      market:       h.market || 'KR',
+    };
+  }
+
+  // 2순위: priceMap (완전매도 종목 포함)
+  const p = (state.priceMap || {})[tickerStr];
+  if (p && p.price) {
+    return {
+      currentPrice: p.price,
+      changeRate:   p.change_rate || null,
+      market:       'KR', // priceMap에 market 없으면 기본값
+    };
+  }
+
+  return { currentPrice: null, changeRate: null, market: null };
 }
 
 // ── 매도 후 손익률 계산 (매도가 대비 현재가) ────────────────
