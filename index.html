@@ -706,6 +706,14 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 .tag-summary-table tr:hover td { background:rgba(255,255,255,.04); }
 .tag-summary-table tr.active-tag td { background:rgba(74,158,255,.08); }
 
+/* ── 실현손익 배당포함 토글 ─────────────────────────────────── */
+.sale-div-toggle { position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;cursor:pointer; }
+.sale-div-toggle input { opacity:0;width:0;height:0; }
+.sale-div-slider { position:absolute;inset:0;background:var(--border);border-radius:20px;transition:.2s; }
+.sale-div-slider::before { content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s; }
+.sale-div-toggle input:checked + .sale-div-slider { background:var(--blue); }
+.sale-div-toggle input:checked + .sale-div-slider::before { transform:translateX(16px); }
+
 /* ── GAS URL 설정 안내 ────────────────────────────────────── */
 .setup-banner {
   background: #1a2a3a;
@@ -1147,6 +1155,15 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">
     <button class="btn-refresh" style="font-size:12px" onclick="reloadSale()">↻ 새로 읽기</button>
     <button class="btn-primary" style="font-size:12px" onclick="openSaleModal()">+ 매도 입력</button>
+  </div>
+
+  <!-- 배당포함 토글 -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <label class="sale-div-toggle" title="배당수익을 실현손익에 포함하여 집계합니다">
+      <input type="checkbox" id="saleIncludeDividend" onchange="onSaleIncludeDividendChange()">
+      <span class="sale-div-slider"></span>
+    </label>
+    <span style="font-size:12px;color:var(--text2)" id="saleIncludeDividendLabel">배당 포함 <span style="color:var(--text2);font-size:11px">(OFF)</span></span>
   </div>
 
   <!-- 집계 카드 -->
@@ -4159,16 +4176,19 @@ async function deleteDividendRow(id) {
 // ============================================================
 
 const saleState = {
-  rows:       [],
-  loaded:     false,
-  yearChart:  null,
-  monthChart: null,
-  activeTag:  '',   // '' = 전체, 태그명 = 해당 태그 필터
+  rows:             [],
+  loaded:           false,
+  yearChart:        null,
+  monthChart:       null,
+  activeTag:        '',
+  includeDividend:  false,
 };
 
 function initSaleTab() {
   renderSaleAccountFilter();
   initSaleCustomSelects();
+  // 배당포함 옵션에 필요한 배당 데이터 미리 로드
+  if (!divState.loaded) loadDividend();
   if (!saleState.loaded) loadSale();
   else renderSale();
 }
@@ -4328,6 +4348,44 @@ function calcAfterSaleRate(sellPrice, currentPrice) {
 }
 
 // ── 렌더링 ──────────────────────────────────────────────────
+function onSaleIncludeDividendChange() {
+  saleState.includeDividend = document.getElementById('saleIncludeDividend').checked;
+  const label = document.getElementById('saleIncludeDividendLabel');
+  if (label) label.innerHTML = '배당 포함 <span style="color:' +
+    (saleState.includeDividend ? 'var(--blue)' : 'var(--text2)') +
+    ';font-size:11px">(' + (saleState.includeDividend ? 'ON' : 'OFF') + ')</span>';
+  // 배당 데이터 아직 없으면 로드 후 렌더
+  if (saleState.includeDividend && !divState.loaded) {
+    loadDividend().then(function() { renderSale(); });
+  } else {
+    renderSale();
+  }
+}
+
+// 배당 rows → 실현손익 rows 형태로 변환
+function getDivRowsAsSale() {
+  return (divState.rows || []).map(function(r) {
+    return {
+      id:           'div_' + r.id,
+      date:         r.date || '',
+      account_id:   String(r.account_id || ''),
+      owner:        r.owner || (r.account_name || '').split(' · ')[0] || '',
+      account_name: r.account_name || '',
+      ticker:       r.ticker || '',
+      name:         r.name   || r.ticker || '',
+      market:       r.market || 'KR',
+      qty:          0,
+      sell_price:   0,
+      buy_price:    0,
+      profit:       Number(r.amount || 0),
+      profit_rate:  0,
+      memo:         r.memo || '',
+      tags:         [],
+      _type:        'dividend', // 배당 행 구분용
+    };
+  });
+}
+
 function renderSale() {
   const { from, to } = getSaleDateRange();
   const now = new Date();
@@ -4358,7 +4416,14 @@ function renderSale() {
     return v >= 0 ? 'var(--green)' : 'var(--red)';
   }
 
+  // 매도 rows (소유자/계좌 필터 적용)
   const allFiltered = filterByOwnerAccount(saleState.rows);
+
+  // 배당포함 ON 시 배당 rows도 합산
+  const divRows = saleState.includeDividend
+    ? filterByOwnerAccount(getDivRowsAsSale())
+    : [];
+  const allCombined = allFiltered.concat(divRows);
 
   // 태그 필터 버튼 렌더
   renderSaleTagFilterRow(allFiltered);
@@ -4369,10 +4434,10 @@ function renderSale() {
   const d1 = new Date(now); d1.setFullYear(d1.getFullYear()-1);
   const d1str = d1.getFullYear()+'-'+pad(d1.getMonth()+1)+'-'+pad(d1.getDate());
 
-  const monthRows = allFiltered.filter(r => r.date && r.date >= (y+'-'+pad(mo)+'-01') && r.date <= todayStr);
-  const m6Rows    = allFiltered.filter(r => r.date && r.date >= d6str);
-  const ytdRows   = allFiltered.filter(r => r.date && r.date >= (y+'-01-01'));
-  const year1Rows = allFiltered.filter(r => r.date && r.date >= d1str);
+  const monthRows = allCombined.filter(r => r.date && r.date >= (y+'-'+pad(mo)+'-01') && r.date <= todayStr);
+  const m6Rows    = allCombined.filter(r => r.date && r.date >= d6str);
+  const ytdRows   = allCombined.filter(r => r.date && r.date >= (y+'-01-01'));
+  const year1Rows = allCombined.filter(r => r.date && r.date >= d1str);
 
   function setCard(id, v) {
     const el = document.getElementById(id);
@@ -4384,22 +4449,27 @@ function renderSale() {
   setCard('saleSum6m',    sumProfit(m6Rows));
   setCard('saleSumYtd',   sumProfit(ytdRows));
   setCard('saleSumYear1', sumProfit(year1Rows));
-  setCard('saleSumAll',   sumProfit(allFiltered));
+  setCard('saleSumAll',   sumProfit(allCombined));
 
-  // 태그 집계 렌더 (전체 필터 기준, 기간 무관)
+  // 태그 집계 렌더 (매도 행만 — 배당은 태그 없으므로 allFiltered 기준 유지)
+  renderSaleTagFilterRow(allFiltered);
   renderSaleTagSummary(allFiltered);
 
-  // 기간 + 태그 필터 적용 행
+  // 기간 + 태그 필터 적용 행 (배당 포함 시 태그필터는 매도 행에만 적용, 배당은 태그 무관 전체 포함)
   const filteredRows = filterByTag(allFiltered).filter(function(r) {
     if (from && r.date < from) return false;
     if (to   && r.date > to)   return false;
     return true;
-  });
+  }).concat(divRows.filter(function(r) {
+    if (from && r.date < from) return false;
+    if (to   && r.date > to)   return false;
+    return true;
+  }));
 
   // 차트 렌더
   requestAnimationFrame(function() {
-    renderSaleYearChart(allFiltered);
-    renderSaleMonthChart(allFiltered);
+    renderSaleYearChart(allCombined);
+    renderSaleMonthChart(allCombined);
   });
 
   // 테이블
@@ -4435,6 +4505,27 @@ function renderSale() {
     + '</tr></thead><tbody>';
 
   sorted.forEach(function(r) {
+    // ── 배당 행 별도 렌더 ────────────────────────────────────
+    if (r._type === 'dividend') {
+      const divAmt    = Number(r.profit || 0);
+      const divFmt    = (divAmt >= 0 ? '+' : '') + Math.round(divAmt).toLocaleString('ko-KR') + '원';
+      const divColor  = divAmt >= 0 ? 'var(--green)' : 'var(--red)';
+      html += '<tr style="background:rgba(46,160,67,.06)">'
+        + '<td style="font-size:12px;white-space:nowrap">' + r.date + '</td>'
+        + '<td style="font-size:11px;color:var(--text2);white-space:nowrap">' + (r.owner||'') + '<br>' + (r.account_name||'') + '</td>'
+        + '<td><strong>' + (r.name||'–') + '</strong> <span style="font-size:10px;background:rgba(46,160,67,.2);color:#3fb950;border:1px solid rgba(46,160,67,.4);padding:1px 5px;border-radius:3px;margin-left:2px">배당</span></td>'
+        + '<td style="text-align:right;color:var(--text2);font-size:11px">–</td>'
+        + '<td style="text-align:right;color:var(--text2);font-size:11px">–</td>'
+        + '<td style="text-align:right;font-weight:700;color:' + divColor + '">' + divFmt + '</td>'
+        + '<td style="text-align:right;color:var(--text2);font-size:11px">–</td>'
+        + '<td style="text-align:right;color:var(--text2);font-size:11px">–</td>'
+        + '<td style="text-align:right;color:var(--text2);font-size:11px">–</td>'
+        + '<td style="white-space:nowrap">–</td>'
+        + '<td></td>'
+        + '</tr>';
+      return;
+    }
+
     const live        = getSaleLiveInfo(r.ticker, r.market);
     const afterRate   = r.sell_price && live.currentPrice
       ? calcAfterSaleRate(r.sell_price, live.currentPrice)
