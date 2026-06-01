@@ -1536,17 +1536,19 @@ async function loadData() {
     state.accountGroups = data.accountGroups || [];
 
     // 현재가 맵 구성 (완전매도 종목 포함 모든 ticker 조회용)
+    // GAS buildPriceMap이 이미 normalizeTicker 적용한 키로 반환하므로 그대로 사용
     state.priceMap = {};
     (data.prices || []).forEach(function(p) {
-      state.priceMap[String(p.ticker || '').trim()] = {
+      const tk = String(p.ticker || '').trim(); // 이미 6자리 패딩된 상태
+      if (tk) state.priceMap[tk] = {
         price:       p.price       || 0,
         change_rate: p.change_rate || '',
         name:        p.name        || '',
       };
     });
-    // holdings도 priceMap에 병합 (최신 current_price 우선)
+    // holdings도 priceMap에 병합 (최신 current_price 우선, ticker 정규화 적용)
     (state.holdings || []).forEach(function(h) {
-      const tk = String(h.ticker || '').trim();
+      const tk = normalizeSaleTicker(h.ticker, h.market);
       if (tk && h.current_price) {
         state.priceMap[tk] = {
           price:       h.current_price || 0,
@@ -4285,12 +4287,21 @@ function initSaleCustomSelects() {
 }
 
 // ── 현재가/등락률 조회 (보유 종목 state에서) ────────────────
-function getSaleLiveInfo(ticker) {
-  const tickerStr = String(ticker || '').trim();
+function normalizeSaleTicker(ticker, market) {
+  // GAS normalizeTicker와 동일한 로직: KR 숫자 ticker → 6자리 패딩
+  ticker = String(ticker || '').trim().toUpperCase();
+  if ((market || 'KR') === 'KR' && /^\d+$/.test(ticker) && ticker.length < 6) {
+    ticker = ticker.padStart(6, '0');
+  }
+  return ticker;
+}
+
+function getSaleLiveInfo(ticker, market) {
+  const tickerStr = normalizeSaleTicker(ticker, market);
 
   // 1순위: 보유 종목 (current_price 가장 정확)
   const h = (state.holdings || []).find(function(x) {
-    return String(x.ticker || '').trim() === tickerStr;
+    return normalizeSaleTicker(x.ticker, x.market) === tickerStr;
   });
   if (h && h.current_price) {
     return {
@@ -4306,7 +4317,7 @@ function getSaleLiveInfo(ticker) {
     return {
       currentPrice: p.price,
       changeRate:   p.change_rate || null,
-      market:       'KR', // priceMap에 market 없으면 기본값
+      market:       market || 'KR',
     };
   }
 
@@ -4427,7 +4438,7 @@ function renderSale() {
     + '</tr></thead><tbody>';
 
   sorted.forEach(function(r) {
-    const live        = getSaleLiveInfo(r.ticker);
+    const live        = getSaleLiveInfo(r.ticker, r.market);
     const afterRate   = r.sell_price && live.currentPrice
       ? calcAfterSaleRate(r.sell_price, live.currentPrice)
       : null;
@@ -4875,7 +4886,9 @@ function selectSaleItem(i) {
   document.getElementById('saleInputMarket').value = item.market || 'KR';
   document.getElementById('saleAcList').classList.remove('open');
   // 보유 종목에서 평단가 자동완성
-  const held = (state.holdings || []).find(function(h) { return h.ticker === item.ticker; });
+  const held = (state.holdings || []).find(function(h) {
+    return normalizeSaleTicker(h.ticker, h.market) === normalizeSaleTicker(item.ticker, item.market || 'KR');
+  });
   if (held && held.avg_price) {
     document.getElementById('saleInputBuyPrice').value = held.avg_price;
     calcSaleProfit();
