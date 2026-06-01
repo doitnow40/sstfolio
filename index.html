@@ -647,7 +647,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 }
 .btn-icon:hover { color:var(--text); }
 
-/* ── 실현수익 탭 ─────────────────────────────────────────── */
+/* ── 실현손익 탭 ─────────────────────────────────────────── */
 .sale-badge-kr  { background:rgba(74,158,255,.15); color:var(--blue); border:1px solid rgba(74,158,255,.3); font-size:10px; padding:1px 5px; border-radius:3px; }
 .sale-badge-us  { background:rgba(255,190,60,.12);  color:#ffbe3c;    border:1px solid rgba(255,190,60,.3);  font-size:10px; padding:1px 5px; border-radius:3px; }
 .sale-after-pos { color:var(--green); font-weight:600; }
@@ -658,7 +658,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   #saleChartGrid { grid-template-columns:1fr !important; }
 }
 
-/* ── 실현수익 태그 ──────────────────────────────────────────── */
+/* ── 실현손익 태그 ──────────────────────────────────────────── */
 .sale-tag {
   display:inline-flex;align-items:center;gap:3px;
   padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;
@@ -806,7 +806,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   <div class="tab" onclick="switchTab('charts')">차트 분석</div>
   <div class="tab" onclick="switchTab('trend')">추이 분석</div>
   <div class="tab" onclick="switchTab('dividend')">배당</div>
-  <div class="tab" onclick="switchTab('sale')">실현수익</div>
+  <div class="tab" onclick="switchTab('sale')">실현손익</div>
   <div class="tab" onclick="switchTab('settings')">설정</div>
 </div>
 
@@ -1140,7 +1140,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 </div>
 </div>
 
-<!-- ── 패널: 실현수익 ─────────────────────────────────────── -->
+<!-- ── 패널: 실현손익 ─────────────────────────────────────── -->
 <div class="panel" id="panel-sale">
 
   <!-- 상단 버튼 -->
@@ -1187,7 +1187,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
   <!-- 태그별 집계 섹션 -->
   <div id="saleTagSummaryWrap" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;display:none">
-    <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)">🏷️ 태그별 수익 요약</div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)">🏷️ 태그별 손익 요약</div>
     <div style="overflow-x:auto">
       <table class="tag-summary-table" id="saleTagSummaryTable">
         <thead><tr>
@@ -1201,14 +1201,14 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     </div>
   </div>
 
-  <!-- 차트 영역: 연도별 실현수익 (bar) + 월별 추이 (line) -->
+  <!-- 차트 영역: 연도별 실현손익 (bar) + 월별 추이 (line) -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="saleChartGrid">
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
-      <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)">연도별 실현수익</div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)">연도별 실현손익</div>
       <div style="position:relative;height:200px"><canvas id="saleYearChart"></canvas></div>
     </div>
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
-      <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)">월별 실현수익</div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)">월별 실현손익</div>
       <div style="position:relative;height:200px"><canvas id="saleMonthChart"></canvas></div>
     </div>
   </div>
@@ -1231,13 +1231,13 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
 </div><!-- /panel-sale -->
 
-<!-- ── 실현수익 입력 모달 ────────────────────────────────── -->
+<!-- ── 실현손익 입력 모달 ────────────────────────────────── -->
 <div class="modal-overlay" id="saleModal" onclick="closeSaleModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:480px;overflow:hidden;display:flex;flex-direction:column;padding:0">
 
     <!-- 헤더 고정 -->
     <div style="padding:18px 22px 14px;border-bottom:1px solid var(--border);flex-shrink:0">
-      <div class="modal-title" style="margin-bottom:0">매도 실현수익 입력</div>
+      <div class="modal-title" style="margin-bottom:0">매도 실현손익 입력</div>
       <input type="hidden" id="saleEditId" value="">
     </div>
 
@@ -4135,7 +4135,7 @@ async function deleteDividendRow(id) {
 }
 
 // ============================================================
-// 실현수익 탭
+// 실현손익 탭
 // ============================================================
 
 const saleState = {
@@ -4265,9 +4265,10 @@ function initSaleCustomSelects() {
 
 // ── 현재가/등락률 조회 (보유 종목 state에서) ────────────────
 function getSaleLiveInfo(ticker) {
-  // 보유 종목에서 현재가 / 오늘 등락률 조회
+  // 보유 종목에서 현재가 / 오늘 등락률 조회 (ticker 타입 불일치 방지)
+  const tickerStr = String(ticker || '').trim();
   const h = (state.holdings || []).find(function(x) {
-    return x.ticker === ticker;
+    return String(x.ticker || '').trim() === tickerStr;
   });
   if (!h) return { currentPrice: null, changeRate: null, market: null };
   return {
@@ -4382,7 +4383,7 @@ function renderSale() {
     + '<th style="white-space:nowrap">종목</th>'
     + '<th style="text-align:right;white-space:nowrap">매도가</th>'
     + '<th style="text-align:right;white-space:nowrap">평단가</th>'
-    + '<th style="text-align:right;white-space:nowrap">실현수익</th>'
+    + '<th style="text-align:right;white-space:nowrap">실현손익</th>'
     + '<th style="text-align:right;white-space:nowrap">수익률</th>'
     + '<th style="text-align:right;white-space:nowrap">매도후 손익</th>'
     + '<th style="text-align:right;white-space:nowrap">오늘 등락</th>'
@@ -4409,7 +4410,7 @@ function renderSale() {
       ? (isKR ? r.buy_price.toLocaleString('ko-KR') + '원' : '$' + r.buy_price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}))
       : '–';
 
-    // 실현수익
+    // 실현손익
     const profitFmt  = fmt(r.profit || 0);
     const profitCls  = (r.profit || 0) >= 0 ? 'sale-profit-pos' : 'sale-profit-neg';
 
@@ -4614,7 +4615,7 @@ function onSaleTagInput(val) {
   }
 }
 
-// ── 연도별 실현수익 차트 ────────────────────────────────────
+// ── 연도별 실현손익 차트 ────────────────────────────────────
 function renderSaleYearChart(rows) {
   const canvas = document.getElementById('saleYearChart');
   if (!canvas) return;
@@ -4637,7 +4638,7 @@ function renderSaleYearChart(rows) {
     data: {
       labels: labels.map(y => y + '년'),
       datasets: [{
-        label: '실현수익',
+        label: '실현손익',
         data: profits,
         backgroundColor: colors,
         borderColor: bdrClrs,
@@ -4676,7 +4677,7 @@ function renderSaleYearChart(rows) {
   });
 }
 
-// ── 월별 실현수익 차트 ─────────────────────────────────────
+// ── 월별 실현손익 차트 ─────────────────────────────────────
 function renderSaleMonthChart(rows) {
   const canvas = document.getElementById('saleMonthChart');
   if (!canvas) return;
@@ -5009,7 +5010,7 @@ function openSaleEditModal(id) {
   calcSaleProfit();
 
   // 모달 타이틀 변경
-  document.querySelector('#saleModal .modal-title').textContent = '매도 실현수익 수정';
+  document.querySelector('#saleModal .modal-title').textContent = '매도 실현손익 수정';
   document.getElementById('saleModal').classList.add('open');
 }
 
@@ -5059,7 +5060,7 @@ document.addEventListener('click', e => {
       <button class="help-tab-btn" onclick="switchHelpTab(1)">🌐 웹에서 수정</button>
       <button class="help-tab-btn" onclick="switchHelpTab(2)">📊 시트에서 수정</button>
       <button class="help-tab-btn" onclick="switchHelpTab(3)">🔘 버튼 사전</button>
-      <button class="help-tab-btn" onclick="switchHelpTab(4)">💸 실현수익</button>
+      <button class="help-tab-btn" onclick="switchHelpTab(4)">💸 실현손익</button>
     </div>
 
     <!-- 탭 0: 데이터 흐름 -->
@@ -5116,7 +5117,7 @@ document.addEventListener('click', e => {
             <tr><td style="padding:8px;border-bottom:1px solid var(--border)">✏️ 종목 수정</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
             <tr><td style="padding:8px;border-bottom:1px solid var(--border)">🗑️ 종목 삭제</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
             <tr><td style="padding:8px;border-bottom:1px solid var(--border)">💰 배당 입력/삭제</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">💸 실현수익 입력/수정/삭제</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시 (투자현황 수량도 자동 반영)</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid var(--border)">💸 실현손익 입력/수정/삭제</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시 (투자현황 수량도 자동 반영)</td></tr>
             <tr><td style="padding:8px;border-bottom:1px solid var(--border)">📁 계좌 그룹 설정</td><td style="padding:8px;border-bottom:1px solid var(--border)"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px;border-bottom:1px solid var(--border)">즉시</td></tr>
             <tr><td style="padding:8px">💾 스냅샷 저장</td><td style="padding:8px"><span style="color:var(--green)">없음 (자동)</span></td><td style="padding:8px">즉시</td></tr>
           </tbody>
@@ -5159,9 +5160,9 @@ document.addEventListener('click', e => {
               </td>
             </tr>
             <tr>
-              <td style="padding:8px;border-bottom:1px solid var(--border)">💸 실현수익</td>
+              <td style="padding:8px;border-bottom:1px solid var(--border)">💸 실현손익</td>
               <td style="padding:8px;border-bottom:1px solid var(--border)">
-                웹 → 실현수익 탭 → <strong>↻ 새로 읽기</strong> 버튼<br>
+                웹 → 실현손익 탭 → <strong>↻ 새로 읽기</strong> 버튼<br>
                 <span style="color:var(--red);font-size:11px">⚠️ Sheets 직접 수정 시 투자현황 수량 연동이 깨질 수 있으므로 가급적 웹에서 입력</span>
               </td>
             </tr>
@@ -5223,7 +5224,7 @@ document.addEventListener('click', e => {
         </div>
 
         <div style="margin-bottom:12px">
-          <div style="font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;margin-bottom:6px">💸 실현수익 탭</div>
+          <div style="font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;margin-bottom:6px">💸 실현손익 탭</div>
           <table style="width:100%;border-collapse:collapse">
             <tr style="background:var(--bg3)"><td style="padding:7px 10px;border-bottom:1px solid var(--border);width:35%"><strong>↻ 새로 읽기</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">실현수익 시트를 다시 조회. Sheets에서 직접 수정한 경우 사용.</td></tr>
             <tr><td style="padding:7px 10px;border-bottom:1px solid var(--border)"><strong>+ 매도 입력</strong></td><td style="padding:7px 10px;border-bottom:1px solid var(--border)">매도 기록 입력. 기본 동작으로 투자현황 수량이 자동 차감됨.</td></tr>
@@ -5247,13 +5248,13 @@ document.addEventListener('click', e => {
       </div>
     </div>
 
-    <!-- 탭 4: 실현수익 사용법 -->
+    <!-- 탭 4: 실현손익 사용법 -->
     <div class="help-tab-content" id="helpTab4">
       <div style="font-size:13px;line-height:1.8">
 
         <!-- 개요 -->
         <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:14px">
-          <div style="font-weight:700;color:var(--blue);margin-bottom:8px;font-size:14px">💸 실현수익 탭 개요</div>
+          <div style="font-weight:700;color:var(--blue);margin-bottom:8px;font-size:14px">💸 실현손익 탭 개요</div>
           <div style="color:var(--text2);font-size:12px;line-height:1.8">
             주식 매도 시 실현한 수익/손실을 기록·집계하는 탭입니다.<br>
             매도 기록 저장 시 <strong>투자현황 시트의 수량이 자동 차감</strong>되며, 삭제 시 자동 복원됩니다.
