@@ -1151,19 +1151,15 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <!-- ── 패널: 실현손익 ─────────────────────────────────────── -->
 <div class="panel" id="panel-sale">
 
-  <!-- 상단 버튼 -->
-  <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">
-    <button class="btn-refresh" style="font-size:12px" onclick="reloadSale()">↻ 새로 읽기</button>
-    <button class="btn-primary" style="font-size:12px" onclick="openSaleModal()">+ 매도 입력</button>
-  </div>
-
-  <!-- 배당포함 토글 -->
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+  <!-- 상단 버튼 + 배당포함 토글 한 줄 -->
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px">
     <label class="sale-div-toggle" title="배당수익을 실현손익에 포함하여 집계합니다">
       <input type="checkbox" id="saleIncludeDividend" onchange="onSaleIncludeDividendChange()">
       <span class="sale-div-slider"></span>
     </label>
-    <span style="font-size:12px;color:var(--text2)" id="saleIncludeDividendLabel">배당 포함 <span style="color:var(--text2);font-size:11px">(OFF)</span></span>
+    <span style="font-size:12px;color:var(--text2);flex:1" id="saleIncludeDividendLabel">배당 포함 <span style="color:var(--text2);font-size:11px">(OFF)</span></span>
+    <button class="btn-refresh" style="font-size:12px" onclick="reloadSale()">↻ 새로 읽기</button>
+    <button class="btn-primary" style="font-size:12px" onclick="openSaleModal()">+ 매도 입력</button>
   </div>
 
   <!-- 집계 카드 -->
@@ -5474,6 +5470,14 @@ document.addEventListener('click', e => {
         </div>
 
       </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
+    </div>
     </div>
 
   </div>
