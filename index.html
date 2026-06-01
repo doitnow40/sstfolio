@@ -1163,6 +1163,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <div class="modal-overlay" id="saleModal" onclick="closeSaleModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:460px;overflow:visible">
     <div class="modal-title">매도 실현수익 입력</div>
+    <input type="hidden" id="saleEditId" value="">
 
     <div class="form-group">
       <label class="form-label">매도일</label>
@@ -4257,7 +4258,7 @@ function renderSale() {
     + '<th style="text-align:right;white-space:nowrap">수익률</th>'
     + '<th style="text-align:right;white-space:nowrap">매도후 손익</th>'
     + '<th style="text-align:right;white-space:nowrap">오늘 등락</th>'
-    + '<th></th>'
+    + '<th style="white-space:nowrap;text-align:center">수정/삭제</th>'
     + '</tr></thead><tbody>';
 
   sorted.forEach(function(r) {
@@ -4321,7 +4322,10 @@ function renderSale() {
       + '<td style="text-align:right;white-space:nowrap" class="' + rateCls + '">' + rateFmt + '</td>'
       + '<td style="text-align:right;white-space:nowrap">' + afterHtml + '</td>'
       + '<td style="text-align:right;white-space:nowrap">' + todayHtml + '</td>'
-      + '<td><button class="btn-icon" onclick="deleteSaleRow(\'' + r.id + '\')" title="삭제">🗑️</button></td>'
+      + '<td style="text-align:center;white-space:nowrap">'
+      + '<button class="btn-icon" onclick="openSaleEditModal(\'' + r.id + '\')" title="수정" style="margin-right:2px">✏️</button>'
+      + '<button class="btn-icon" onclick="deleteSaleRow(\'' + r.id + '\')" title="삭제">🗑️</button>'
+      + '</td>'
       + '</tr>';
   });
 
@@ -4470,18 +4474,21 @@ function openSaleModal() {
     return `<option value="${a.account_id}">${a.owner} · ${a.broker} ${a.account_type}</option>`;
   }).join('');
 
-  // 초기화
-  document.getElementById('saleInputSearch').value   = '';
-  document.getElementById('saleInputTicker').value   = '';
-  document.getElementById('saleInputName').value     = '';
-  document.getElementById('saleInputMarket').value   = 'KR';
-  document.getElementById('saleInputQty').value      = '';
-  document.getElementById('saleInputSellPrice').value = '';
-  document.getElementById('saleInputBuyPrice').value  = '';
-  document.getElementById('saleInputProfit').value    = '';
-  document.getElementById('saleInputMemo').value      = '';
-  document.getElementById('saleCalcRate').textContent = '–';
+  // 초기화 (신규 입력 모드)
+  document.getElementById('saleEditId').value          = '';
+  document.getElementById('saleInputSearch').value     = '';
+  document.getElementById('saleInputTicker').value     = '';
+  document.getElementById('saleInputName').value       = '';
+  document.getElementById('saleInputMarket').value     = 'KR';
+  document.getElementById('saleInputQty').value        = '';
+  document.getElementById('saleInputSellPrice').value  = '';
+  document.getElementById('saleInputBuyPrice').value   = '';
+  document.getElementById('saleInputProfit').value     = '';
+  document.getElementById('saleInputMemo').value       = '';
+  document.getElementById('saleCalcRate').textContent  = '–';
+  document.getElementById('saleCalcRate').style.color  = '';
   document.getElementById('saleAcList').classList.remove('open');
+  document.querySelector('#saleModal .modal-title').textContent = '매도 실현수익 입력';
   document.getElementById('saleModal').classList.add('open');
 }
 
@@ -4574,37 +4581,43 @@ async function saveSale() {
   const buyPrice  = parseFloat(document.getElementById('saleInputBuyPrice').value)   || 0;
   const profit    = parseFloat(document.getElementById('saleInputProfit').value);
   const memo      = document.getElementById('saleInputMemo').value.trim();
+  const editId    = document.getElementById('saleEditId').value.trim(); // 수정 모드 여부
 
   if (!dateVal)   { alert('매도일을 입력하세요'); return; }
   if (!accountId) { alert('계좌를 선택하세요'); return; }
-  if (isNaN(profit) || profit === 0 && !confirm('실현수익금이 0입니다. 계속할까요?')) return;
+  if (isNaN(profit) || (profit === 0 && !confirm('실현수익금이 0입니다. 계속할까요?'))) return;
 
   const profitRate = (sellPrice > 0 && buyPrice > 0)
     ? parseFloat(((sellPrice - buyPrice) / buyPrice * 100).toFixed(4))
     : 0;
 
+  const isEdit  = editId.length > 0;
+  const action  = isEdit ? 'update_sale' : 'add_sale';
   const postUrl = WORKER_URL ? WORKER_URL + '/api/sale' : GAS_URL;
+  const payload = {
+    action, date: dateVal, account_id: accountId, owner, account_name: acctName,
+    ticker, name, market, qty, sell_price: sellPrice, buy_price: buyPrice,
+    profit: Math.round(profit), profit_rate: profitRate, memo,
+  };
+  if (isEdit) payload.id = editId;
+
   try {
     const res  = await fetch(postUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'add_sale',
-        date: dateVal, account_id: accountId, owner, account_name: acctName,
-        ticker, name, market, qty, sell_price: sellPrice, buy_price: buyPrice,
-        profit: Math.round(profit), profit_rate: profitRate, memo,
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     closeSaleModal();
     saleState.loaded = false;
-    await loadSale();
-  } catch(e) { alert('저장 실패: ' + e.message); }
+    // 투자현황 수량이 바뀌었으므로 전체 데이터도 새로고침
+    await Promise.all([loadSale(), loadData()]);
+  } catch(e) { alert((isEdit ? '수정' : '저장') + ' 실패: ' + e.message); }
 }
 
 async function deleteSaleRow(id) {
-  if (!confirm('이 매도 내역을 삭제할까요?')) return;
+  if (!confirm('이 매도 내역을 삭제하면 투자현황 수량이 원복됩니다. 삭제할까요?')) return;
   const postUrl = WORKER_URL ? WORKER_URL + '/api/sale' : GAS_URL;
   try {
     const res  = await fetch(postUrl, {
@@ -4614,8 +4627,42 @@ async function deleteSaleRow(id) {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     saleState.loaded = false;
-    await loadSale();
+    await Promise.all([loadSale(), loadData()]);
   } catch(e) { alert('삭제 실패: ' + e.message); }
+}
+
+// ── 수정 모달 열기 ───────────────────────────────────────────
+function openSaleEditModal(id) {
+  const row = saleState.rows.find(function(r) { return String(r.id) === String(id); });
+  if (!row) { alert('내역을 찾을 수 없습니다'); return; }
+
+  // 계좌 목록 채우기
+  const sel = document.getElementById('saleInputAccount');
+  sel.innerHTML = state.accounts.map(function(a) {
+    return '<option value="' + a.account_id + '"' + (String(a.account_id) === String(row.account_id) ? ' selected' : '') + '>'
+      + a.owner + ' · ' + a.broker + ' ' + a.account_type + '</option>';
+  }).join('');
+
+  // 기존 값 채우기
+  document.getElementById('saleInputDate').value      = row.date       || '';
+  document.getElementById('saleInputSearch').value    = row.name ? row.name + '  (' + row.ticker + ')' : '';
+  document.getElementById('saleInputTicker').value    = row.ticker     || '';
+  document.getElementById('saleInputName').value      = row.name       || '';
+  document.getElementById('saleInputMarket').value    = row.market     || 'KR';
+  document.getElementById('saleInputQty').value       = row.qty        || '';
+  document.getElementById('saleInputSellPrice').value = row.sell_price || '';
+  document.getElementById('saleInputBuyPrice').value  = row.buy_price  || '';
+  document.getElementById('saleInputProfit').value    = row.profit     || '';
+  document.getElementById('saleInputMemo').value      = row.memo       || '';
+  document.getElementById('saleEditId').value         = String(row.id);
+  document.getElementById('saleAcList').classList.remove('open');
+
+  // 수익률 표시 업데이트
+  calcSaleProfit();
+
+  // 모달 타이틀 변경
+  document.querySelector('#saleModal .modal-title').textContent = '매도 실현수익 수정';
+  document.getElementById('saleModal').classList.add('open');
 }
 
 // ============================================================
