@@ -658,6 +658,54 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   #saleChartGrid { grid-template-columns:1fr !important; }
 }
 
+/* ── 실현수익 태그 ──────────────────────────────────────────── */
+.sale-tag {
+  display:inline-flex;align-items:center;gap:3px;
+  padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;
+  background:rgba(74,158,255,.15);color:var(--blue);
+  border:1px solid rgba(74,158,255,.3);cursor:default;white-space:nowrap;
+}
+.sale-tag-input-wrap {
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  padding:6px 10px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--radius);min-height:38px;cursor:text;
+}
+.sale-tag-input-wrap:focus-within { border-color:var(--blue); }
+.sale-tag-pill {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600;
+  background:rgba(74,158,255,.2);color:var(--blue);
+  border:1px solid rgba(74,158,255,.4);
+}
+.sale-tag-pill .rm { cursor:pointer;opacity:.7;font-size:13px;line-height:1; }
+.sale-tag-pill .rm:hover { opacity:1; }
+.sale-tag-input {
+  border:none;outline:none;background:transparent;
+  color:var(--text);font-size:13px;min-width:80px;flex:1;
+}
+.sale-tag-suggest { display:flex;flex-wrap:wrap;gap:5px;margin-top:6px; }
+.sale-tag-suggest-btn {
+  padding:2px 9px;border-radius:20px;font-size:11px;cursor:pointer;
+  background:var(--bg2);color:var(--text2);border:1px solid var(--border);
+  transition:all .15s;
+}
+.sale-tag-suggest-btn:hover { border-color:var(--blue);color:var(--blue); }
+/* 태그 필터 버튼 */
+.sale-tag-filter-btn {
+  padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;
+  background:var(--bg2);color:var(--text2);border:1px solid var(--border);
+  transition:all .15s;white-space:nowrap;
+}
+.sale-tag-filter-btn:hover  { border-color:var(--blue);color:var(--blue); }
+.sale-tag-filter-btn.active { background:rgba(74,158,255,.2);color:var(--blue);border-color:var(--blue); }
+/* 태그 집계 테이블 */
+.tag-summary-table { width:100%;border-collapse:collapse;font-size:13px; }
+.tag-summary-table th { text-align:left;padding:7px 10px;color:var(--text2);font-size:11px;font-weight:600;border-bottom:1px solid var(--border); }
+.tag-summary-table td { padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.05); }
+.tag-summary-table tr { cursor:pointer;transition:background .12s; }
+.tag-summary-table tr:hover td { background:rgba(255,255,255,.04); }
+.tag-summary-table tr.active-tag td { background:rgba(74,158,255,.08); }
+
 /* ── GAS URL 설정 안내 ────────────────────────────────────── */
 .setup-banner {
   background: #1a2a3a;
@@ -1129,6 +1177,30 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     </div>
   </div>
 
+  <!-- 태그 필터 행 -->
+  <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+    <span style="font-size:11px;color:var(--text2);white-space:nowrap">태그:</span>
+    <div id="saleTagFilterRow" style="display:flex;gap:5px;flex-wrap:wrap">
+      <button class="sale-tag-filter-btn active" data-tag="" onclick="setSaleTagFilter('')">전체</button>
+    </div>
+  </div>
+
+  <!-- 태그별 집계 섹션 -->
+  <div id="saleTagSummaryWrap" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;display:none">
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)">🏷️ 태그별 수익 요약</div>
+    <div style="overflow-x:auto">
+      <table class="tag-summary-table" id="saleTagSummaryTable">
+        <thead><tr>
+          <th>태그</th><th>건수</th>
+          <th style="text-align:right">총 수익금</th>
+          <th style="text-align:right">평균 수익률</th>
+          <th style="text-align:right">승률</th>
+        </tr></thead>
+        <tbody id="saleTagSummaryBody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- 차트 영역: 연도별 실현수익 (bar) + 월별 추이 (line) -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="saleChartGrid">
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
@@ -1207,6 +1279,16 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <label class="form-label">실현수익금 <span style="font-size:11px;color:var(--text2)">(자동계산, 직접 입력 가능)</span></label>
       <input type="number" class="form-input" id="saleInputProfit" placeholder="1,300,000" style="font-weight:700">
     </div>
+    <div class="form-group">
+      <label class="form-label">태그 <span style="font-size:11px;color:var(--text2)">(Enter 또는 쉼표로 추가)</span></label>
+      <div class="sale-tag-input-wrap" id="saleTagWrap" onclick="document.getElementById('saleTagInput').focus()">
+        <div id="saleTagPills" style="display:contents"></div>
+        <input class="sale-tag-input" id="saleTagInput" placeholder="태그 입력..." autocomplete="off"
+          onkeydown="onSaleTagKeydown(event)" oninput="onSaleTagInput(this.value)">
+      </div>
+      <div class="sale-tag-suggest" id="saleTagSuggest"></div>
+    </div>
+
     <div class="form-group">
       <label class="form-label">메모 (선택)</label>
       <input class="form-input" id="saleInputMemo" placeholder="예: 목표가 도달, 리밸런싱">
@@ -4036,10 +4118,11 @@ async function deleteDividendRow(id) {
 // ============================================================
 
 const saleState = {
-  rows:   [],
-  loaded: false,
+  rows:       [],
+  loaded:     false,
   yearChart:  null,
   monthChart: null,
+  activeTag:  '',   // '' = 전체, 태그명 = 해당 태그 필터
 };
 
 function initSaleTab() {
@@ -4195,6 +4278,12 @@ function renderSale() {
       return true;
     });
   }
+  function filterByTag(rows) {
+    if (!saleState.activeTag) return rows;
+    return rows.filter(function(r) {
+      return Array.isArray(r.tags) && r.tags.includes(saleState.activeTag);
+    });
+  }
   function sumProfit(rows) { return rows.reduce(function(s,r){return s+Number(r.profit||0);},0); }
   function fmt(v) {
     const sign = v >= 0 ? '+' : '';
@@ -4205,6 +4294,9 @@ function renderSale() {
   }
 
   const allFiltered = filterByOwnerAccount(saleState.rows);
+
+  // 태그 필터 버튼 렌더
+  renderSaleTagFilterRow(allFiltered);
 
   // 집계 카드
   const d6 = new Date(now); d6.setMonth(d6.getMonth()-6);
@@ -4229,8 +4321,11 @@ function renderSale() {
   setCard('saleSumYear1', sumProfit(year1Rows));
   setCard('saleSumAll',   sumProfit(allFiltered));
 
-  // 기간 필터 적용 행
-  const filteredRows = allFiltered.filter(function(r) {
+  // 태그 집계 렌더 (전체 필터 기준, 기간 무관)
+  renderSaleTagSummary(allFiltered);
+
+  // 기간 + 태그 필터 적용 행
+  const filteredRows = filterByTag(allFiltered).filter(function(r) {
     if (from && r.date < from) return false;
     if (to   && r.date > to)   return false;
     return true;
@@ -4270,6 +4365,7 @@ function renderSale() {
     + '<th style="text-align:right;white-space:nowrap">수익률</th>'
     + '<th style="text-align:right;white-space:nowrap">매도후 손익</th>'
     + '<th style="text-align:right;white-space:nowrap">오늘 등락</th>'
+    + '<th style="white-space:nowrap">태그</th>'
     + '<th style="white-space:nowrap;text-align:center">수정/삭제</th>'
     + '</tr></thead><tbody>';
 
@@ -4334,6 +4430,9 @@ function renderSale() {
       + '<td style="text-align:right;white-space:nowrap" class="' + rateCls + '">' + rateFmt + '</td>'
       + '<td style="text-align:right;white-space:nowrap">' + afterHtml + '</td>'
       + '<td style="text-align:right;white-space:nowrap">' + todayHtml + '</td>'
+      + '<td style="white-space:nowrap">' + (r.tags && r.tags.length
+          ? r.tags.map(function(tg){ return '<span class="sale-tag" onclick="setSaleTagFilter(\'' + tg.replace(/'/g,"\\'") + '\')" style="cursor:pointer" title="' + tg + ' 필터">' + tg + '</span>'; }).join(' ')
+          : '<span style="color:var(--text2);font-size:11px">–</span>') + '</td>'
       + '<td style="text-align:center;white-space:nowrap">'
       + '<button class="btn-icon" onclick="openSaleEditModal(\'' + r.id + '\')" title="수정" style="margin-right:2px">✏️</button>'
       + '<button class="btn-icon" onclick="deleteSaleRow(\'' + r.id + '\')" title="삭제">🗑️</button>'
@@ -4343,6 +4442,155 @@ function renderSale() {
 
   html += '</tbody></table></div>';
   document.getElementById('saleTableContainer').innerHTML = html;
+}
+
+// ── 태그 필터 버튼 행 렌더 ──────────────────────────────────
+function renderSaleTagFilterRow(rows) {
+  const row = document.getElementById('saleTagFilterRow');
+  if (!row) return;
+
+  // 전체 태그 목록 수집
+  const tagSet = {};
+  rows.forEach(function(r) {
+    (r.tags || []).forEach(function(t) {
+      tagSet[t] = (tagSet[t] || 0) + 1;
+    });
+  });
+  const tags = Object.keys(tagSet).sort();
+
+  let html = '<button class="sale-tag-filter-btn' + (!saleState.activeTag ? ' active' : '') + '" onclick="setSaleTagFilter(\'\')">전체</button>';
+  tags.forEach(function(t) {
+    const active = saleState.activeTag === t ? ' active' : '';
+    html += '<button class="sale-tag-filter-btn' + active + '" onclick="setSaleTagFilter(\'' + t.replace(/'/g,"\\'") + '\')">' + t + ' <span style="opacity:.6;font-size:10px">' + tagSet[t] + '</span></button>';
+  });
+  row.innerHTML = html;
+}
+
+function setSaleTagFilter(tag) {
+  saleState.activeTag = tag;
+  renderSale();
+}
+
+// ── 태그별 집계 섹션 렌더 ────────────────────────────────────
+function renderSaleTagSummary(rows) {
+  const wrap = document.getElementById('saleTagSummaryWrap');
+  const body = document.getElementById('saleTagSummaryBody');
+  if (!wrap || !body) return;
+
+  // 태그별 집계
+  const map = {};
+  rows.forEach(function(r) {
+    const tags = r.tags && r.tags.length ? r.tags : ['(태그없음)'];
+    tags.forEach(function(t) {
+      if (!map[t]) map[t] = { profit: 0, cnt: 0, winCnt: 0, rateSum: 0 };
+      map[t].profit  += Number(r.profit || 0);
+      map[t].cnt     += 1;
+      map[t].rateSum += Number(r.profit_rate || 0);
+      if (Number(r.profit || 0) > 0) map[t].winCnt += 1;
+    });
+  });
+
+  const tags = Object.keys(map);
+  if (!tags.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+
+  // 총수익금 내림차순 정렬
+  tags.sort(function(a,b){ return map[b].profit - map[a].profit; });
+
+  const fmt = function(v) {
+    const sign = v >= 0 ? '+' : '';
+    return sign + Math.round(v).toLocaleString('ko-KR') + '원';
+  };
+
+  body.innerHTML = tags.map(function(t) {
+    const d       = map[t];
+    const avgRate = d.cnt > 0 ? (d.rateSum / d.cnt) : 0;
+    const winRate = d.cnt > 0 ? Math.round(d.winCnt / d.cnt * 100) : 0;
+    const profitColor = d.profit >= 0 ? 'var(--green)' : 'var(--red)';
+    const rateColor   = avgRate  >= 0 ? 'var(--green)' : 'var(--red)';
+    const isActive    = saleState.activeTag === t;
+    const tagLabel    = t === '(태그없음)'
+      ? '<span style="color:var(--text2);font-size:11px">(태그없음)</span>'
+      : '<span class="sale-tag">' + t + '</span>';
+    return '<tr class="' + (isActive ? 'active-tag' : '') + '" onclick="setSaleTagFilter(\'' + (t === '(태그없음)' ? '' : t.replace(/'/g,"\\'")) + '\')">'
+      + '<td>' + tagLabel + '</td>'
+      + '<td style="color:var(--text2)">' + d.cnt + '건</td>'
+      + '<td style="text-align:right;font-weight:700;color:' + profitColor + '">' + fmt(d.profit) + '</td>'
+      + '<td style="text-align:right;color:' + rateColor + '">' + (avgRate >= 0 ? '+' : '') + avgRate.toFixed(2) + '%</td>'
+      + '<td style="text-align:right">'
+        + '<span style="color:' + (winRate >= 50 ? 'var(--green)' : 'var(--red)') + ';font-weight:600">' + winRate + '%</span>'
+        + ' <span style="color:var(--text2);font-size:11px">(' + d.winCnt + '/' + d.cnt + ')</span>'
+      + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+// ── 태그 입력 모달 로직 ──────────────────────────────────────
+const saleTagState = { tags: [] };
+
+function renderSaleTagPills() {
+  const pills = document.getElementById('saleTagPills');
+  if (!pills) return;
+  pills.innerHTML = saleTagState.tags.map(function(t, i) {
+    return '<span class="sale-tag-pill">' + t
+      + '<span class="rm" onclick="removeSaleTag(' + i + ')">×</span></span>';
+  }).join('');
+  // 자주 쓰는 태그 추천 (기존 데이터 기반)
+  renderSaleTagSuggestions();
+}
+
+function renderSaleTagSuggestions() {
+  const el = document.getElementById('saleTagSuggest');
+  if (!el) return;
+  // 기존 데이터에서 태그 수집
+  const existing = {};
+  (saleState.rows || []).forEach(function(r) {
+    (r.tags || []).forEach(function(t) { existing[t] = (existing[t]||0)+1; });
+  });
+  // 자주 쓰는 기본 태그
+  const defaults = ['손절','목표가','리밸런싱','단기','스윙','장기','배당전략'];
+  const all = Object.keys(existing).sort(function(a,b){ return existing[b]-existing[a]; });
+  defaults.forEach(function(d){ if (!existing[d]) all.push(d); });
+  const unused = all.filter(function(t){ return !saleTagState.tags.includes(t); }).slice(0, 10);
+  if (!unused.length) { el.innerHTML = ''; return; }
+  el.innerHTML = unused.map(function(t) {
+    return '<button class="sale-tag-suggest-btn" type="button" onmousedown="addSaleTag(\'' + t.replace(/'/g,"\\'") + '\')">' + t + '</button>';
+  }).join('');
+}
+
+function addSaleTag(tag) {
+  tag = tag.trim();
+  if (!tag || saleTagState.tags.includes(tag)) return;
+  saleTagState.tags.push(tag);
+  renderSaleTagPills();
+  const inp = document.getElementById('saleTagInput');
+  if (inp) { inp.value = ''; inp.focus(); }
+}
+
+function removeSaleTag(i) {
+  saleTagState.tags.splice(i, 1);
+  renderSaleTagPills();
+}
+
+function onSaleTagKeydown(e) {
+  const inp = e.target;
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = inp.value.replace(/,/g,'').trim();
+    if (val) addSaleTag(val);
+    inp.value = '';
+  } else if (e.key === 'Backspace' && inp.value === '' && saleTagState.tags.length) {
+    saleTagState.tags.pop();
+    renderSaleTagPills();
+  }
+}
+
+function onSaleTagInput(val) {
+  // 쉼표 입력 즉시 처리
+  if (val.includes(',')) {
+    val.split(',').forEach(function(t){ if(t.trim()) addSaleTag(t.trim()); });
+    document.getElementById('saleTagInput').value = '';
+  }
 }
 
 // ── 연도별 실현수익 차트 ────────────────────────────────────
@@ -4500,6 +4748,10 @@ function openSaleModal() {
   document.getElementById('saleCalcRate').textContent  = '–';
   document.getElementById('saleCalcRate').style.color  = '';
   document.getElementById('saleAcList').classList.remove('open');
+  // 태그 초기화
+  saleTagState.tags = [];
+  renderSaleTagPills();
+  document.getElementById('saleTagInput').value = '';
   // 체크박스 항상 해제 상태로 초기화
   document.getElementById('saleSkipHolding').checked  = false;
   document.getElementById('saleSkipHoldingNote').style.display = 'none';
@@ -4510,10 +4762,11 @@ function openSaleModal() {
 
 function closeSaleModal() {
   document.getElementById('saleModal').classList.remove('open');
-  // 닫을 때도 체크박스 초기화
-  document.getElementById('saleSkipHolding').checked  = false;
+  // 닫을 때도 체크박스·태그 초기화
+  document.getElementById('saleSkipHolding').checked   = false;
   document.getElementById('saleSkipHoldingNote').style.display = 'none';
   document.getElementById('saleSkipHoldingWrap').style.borderColor = '';
+  saleTagState.tags = [];
 }
 
 function onSkipHoldingChange() {
@@ -4628,6 +4881,7 @@ async function saveSale() {
     ticker, name, market, qty, sell_price: sellPrice, buy_price: buyPrice,
     profit: Math.round(profit), profit_rate: profitRate, memo,
     skip_holding: skipHolding,
+    tags: saleTagState.tags.slice(),
   };
   if (isEdit) payload.id = editId;
 
@@ -4724,6 +4978,11 @@ function openSaleEditModal(id) {
   document.getElementById('saleSkipHolding').checked  = wasSkipped;
   document.getElementById('saleSkipHoldingNote').style.display  = wasSkipped ? 'block' : 'none';
   document.getElementById('saleSkipHoldingWrap').style.borderColor = wasSkipped ? 'rgba(255,190,60,.6)' : '';
+
+  // 기존 태그 복원
+  saleTagState.tags = Array.isArray(row.tags) ? row.tags.slice() : [];
+  renderSaleTagPills();
+  document.getElementById('saleTagInput').value = '';
 
   // 수익률 표시 업데이트
   calcSaleProfit();
