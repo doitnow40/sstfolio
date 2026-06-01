@@ -4482,11 +4482,11 @@ function openSaleModal() {
   document.getElementById('saleInputMemo').value      = '';
   document.getElementById('saleCalcRate').textContent = '–';
   document.getElementById('saleAcList').innerHTML     = '';
-  document.getElementById('saleModal').classList.add('active');
+  document.getElementById('saleModal').classList.add('open');
 }
 
 function closeSaleModal() {
-  document.getElementById('saleModal').classList.remove('active');
+  document.getElementById('saleModal').classList.remove('open');
 }
 
 // 자동완성 (배당 탭과 동일 패턴)
