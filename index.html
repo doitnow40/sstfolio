@@ -4481,7 +4481,7 @@ function openSaleModal() {
   document.getElementById('saleInputProfit').value    = '';
   document.getElementById('saleInputMemo').value      = '';
   document.getElementById('saleCalcRate').textContent = '–';
-  document.getElementById('saleAcList').innerHTML     = '';
+  document.getElementById('saleAcList').classList.remove('open');
   document.getElementById('saleModal').classList.add('open');
 }
 
@@ -4494,32 +4494,41 @@ const saleAc = { timer: null, results: [], selected: -1 };
 
 async function onSaleSearch(q) {
   clearTimeout(saleAc.timer);
-  if (q.length < 1) { document.getElementById('saleAcList').innerHTML = ''; return; }
+  if (!q || q.length < 1) { document.getElementById('saleAcList').classList.remove('open'); return; }
   saleAc.timer = setTimeout(async function() {
-    const searchUrl = WORKER_URL
+    const url = WORKER_URL
       ? WORKER_URL + '/api/search?q=' + encodeURIComponent(q)
       : GAS_URL + '?action=search_ticker&q=' + encodeURIComponent(q);
     try {
-      const res  = await fetch(searchUrl);
+      const res  = await fetch(url);
       const data = await res.json();
-      saleAc.results = data.results || [];
-      const list = document.getElementById('saleAcList');
-      if (!saleAc.results.length) { list.innerHTML = ''; return; }
-      list.innerHTML = saleAc.results.map(function(item, i) {
-        return `<div class="autocomplete-item" onclick="selectSaleItem(${i})">${item.name} <small style="color:var(--text2)">${item.ticker}</small></div>`;
-      }).join('');
+      saleAc.results  = data || [];
+      saleAc.selected = -1;
+      renderSaleAcList();
     } catch(e) {}
   }, 250);
+}
+
+function renderSaleAcList() {
+  const list = document.getElementById('saleAcList');
+  const rs   = saleAc.results;
+  if (!rs.length) { list.classList.remove('open'); return; }
+  list.innerHTML = rs.map(function(r, i) {
+    return '<div class="autocomplete-item' + (i === saleAc.selected ? ' selected' : '') + '" onmousedown="selectSaleItem(' + i + ')">'
+      + '<div><span class="ac-name">' + r.name + '</span><span class="ac-ticker">' + r.ticker + '</span></div>'
+      + '<div class="ac-market">' + (r.exchange || r.market) + '</div></div>';
+  }).join('');
+  list.classList.add('open');
 }
 
 function selectSaleItem(i) {
   const item = saleAc.results[i];
   if (!item) return;
-  document.getElementById('saleInputSearch').value   = item.name;
-  document.getElementById('saleInputTicker').value   = item.ticker;
-  document.getElementById('saleInputName').value     = item.name;
-  document.getElementById('saleInputMarket').value   = item.market || 'KR';
-  document.getElementById('saleAcList').innerHTML    = '';
+  document.getElementById('saleInputSearch').value = item.name + '  (' + item.ticker + ')';
+  document.getElementById('saleInputTicker').value = item.ticker;
+  document.getElementById('saleInputName').value   = item.name;
+  document.getElementById('saleInputMarket').value = item.market || 'KR';
+  document.getElementById('saleAcList').classList.remove('open');
   // 보유 종목에서 평단가 자동완성
   const held = (state.holdings || []).find(function(h) { return h.ticker === item.ticker; });
   if (held && held.avg_price) {
