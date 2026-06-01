@@ -1593,8 +1593,9 @@ function renderAll() {
   renderAccountList();
   renderAccountGroupList();
   renderGroupAccountChecks();
-  if (state.activeTab === 'trend'   && trendState.loaded) renderTrendChart();
-  if (state.activeTab === 'dividend' && divState.loaded)  renderDividend();
+  if (state.activeTab === 'trend'   && trendState.loaded)  renderTrendChart();
+  if (state.activeTab === 'dividend' && divState.loaded)   renderDividend();
+  if (state.activeTab === 'sale'     && saleState.loaded)  renderSale();
 }
 
 // ── 요약 카드 ────────────────────────────────────────────────
