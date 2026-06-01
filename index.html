@@ -1213,7 +1213,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     </div>
 
     <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn-primary" style="flex:1" onclick="saveSale()">저장</button>
+      <button class="btn-primary" id="saleSaveBtn" style="flex:1" onclick="saveSale()">저장</button>
       <button class="btn-refresh" style="flex:1" onclick="closeSaleModal()">취소</button>
     </div>
   </div>
@@ -3010,7 +3010,7 @@ function openYahoo(ticker, event) {
 
 // 종목명 HTML 생성 헬퍼
 function makeStockNameHtml(h, nameText) {
-  const ticker   = h.ticker || '';
+  const ticker   = String(h.ticker || '');
   const market   = h.market || 'KR';
   const exchange = h.exchange || (market === 'US' ? 'NASDAQ' : 'KR');
   const isCash   = h.is_cash || ticker === 'CASH_KR' || ticker === 'CASH_US';
@@ -4309,7 +4309,7 @@ function renderSale() {
     }
 
     // 종목명 링크
-    const fakeH = { ticker: r.ticker, market: r.market || 'KR', exchange: r.exchange || (r.market==='US'?'NASDAQ':'KR'), is_cash: false };
+    const fakeH = { ticker: String(r.ticker || ''), market: r.market || 'KR', exchange: r.exchange || (r.market==='US'?'NASDAQ':'KR'), is_cash: false };
     const nameHtml = r.ticker ? makeStockNameHtml(fakeH, r.name || r.ticker) : (r.name || '–');
 
     html += '<tr>'
@@ -4581,7 +4581,7 @@ async function saveSale() {
   const buyPrice  = parseFloat(document.getElementById('saleInputBuyPrice').value)   || 0;
   const profit    = parseFloat(document.getElementById('saleInputProfit').value);
   const memo      = document.getElementById('saleInputMemo').value.trim();
-  const editId    = document.getElementById('saleEditId').value.trim(); // 수정 모드 여부
+  const editId    = document.getElementById('saleEditId').value.trim();
 
   if (!dateVal)   { alert('매도일을 입력하세요'); return; }
   if (!accountId) { alert('계좌를 선택하세요'); return; }
@@ -4601,6 +4601,30 @@ async function saveSale() {
   };
   if (isEdit) payload.id = editId;
 
+  // ── 저장 버튼 로딩 상태 ────────────────────────────────────
+  const btn = document.getElementById('saleSaveBtn');
+  const originalText = btn ? btn.textContent : '';
+  function setBtnState(state) {
+    if (!btn) return;
+    if (state === 'loading') {
+      btn.disabled = true;
+      btn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px">'
+        + '<svg width="14" height="14" viewBox="0 0 14 14" style="animation:spin .8s linear infinite;flex-shrink:0"><circle cx="7" cy="7" r="5.5" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="2"/><path d="M7 1.5 A5.5 5.5 0 0 1 12.5 7" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>'
+        + '처리 중...</span>';
+      btn.style.opacity = '0.85';
+    } else if (state === 'done') {
+      btn.innerHTML = '✓ 저장 완료';
+      btn.style.background = 'var(--green)';
+      btn.style.opacity = '1';
+    } else {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      btn.style.opacity = '';
+      btn.style.background = '';
+    }
+  }
+
+  setBtnState('loading');
   try {
     const res  = await fetch(postUrl, {
       method: 'POST',
@@ -4609,11 +4633,19 @@ async function saveSale() {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
+
+    // 완료 표시 후 모달 닫기
+    setBtnState('done');
+    await new Promise(resolve => setTimeout(resolve, 700));
     closeSaleModal();
+    setBtnState('reset');
+
     saleState.loaded = false;
-    // 투자현황 수량이 바뀌었으므로 전체 데이터도 새로고침
     await Promise.all([loadSale(), loadData()]);
-  } catch(e) { alert((isEdit ? '수정' : '저장') + ' 실패: ' + e.message); }
+  } catch(e) {
+    setBtnState('reset');
+    alert((isEdit ? '수정' : '저장') + ' 실패: ' + e.message);
+  }
 }
 
 async function deleteSaleRow(id) {
