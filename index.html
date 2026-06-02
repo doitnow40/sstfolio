@@ -3339,7 +3339,8 @@ function makeStockNameHtml(h, nameText) {
   const market   = h.market || 'KR';
   const exchange = h.exchange || (market === 'US' ? 'NASDAQ' : 'KR');
   const isCash   = h.is_cash || ticker === 'CASH_KR' || ticker === 'CASH_US';
-  if (isCash) return nameText || ticker;
+  const isFund   = h.is_fund || false;
+  if (isCash || isFund) return nameText || ticker;
 
   const nameStyle = 'cursor:pointer;text-decoration:underline dotted rgba(255,255,255,.4)';
   const nameClick = "openStockLink('" + ticker.replace(/'/g,"\'") + "','" + market + "','" + exchange + "',event)";
