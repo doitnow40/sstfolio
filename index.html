@@ -138,7 +138,7 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
 .panel { display:none; }
 .panel.active {
   display: block;
-  padding-right: 20px;
+  padding-right: 0;
   padding-top: 16px;
   padding-bottom: 20px;
   background: var(--panel-bg);
@@ -552,9 +552,9 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   gap: 4px;
   z-index: 999;
 }
-/* 화면이 1600px 이하이면 우측 20px로 fallback (스크롤바 바로 왼쪽) */
+/* 화면이 1600px 이하이면 우측 끝에 바짝 */
 @media (max-width: 1640px) {
-  #scrollBtnGroup { left: auto; right: 20px; }
+  #scrollBtnGroup { left: auto; right: 0; }
 }
 #scrollTopBtn, #scrollBottomBtn {
   width: 30px;
