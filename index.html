@@ -1664,6 +1664,12 @@ async function loadData() {
 
     hideError();
     renderAll();
+
+    // ── 백그라운드 프리로딩 (탭 전환 시 즉시 표시) ──────────
+    // await 없이 호출 → 메인 화면 렌더링을 막지 않음
+    if (!divState.loaded)  loadDividend(true);
+    if (!saleState.loaded) loadSale(true);
+
   } catch (err) {
     showError('데이터 로드 실패: ' + err.message + ' (GAS URL 확인 필요)');
     console.error(err);
@@ -3901,16 +3907,16 @@ async function reloadDividend() {
   await loadDividend();
 }
 
-async function loadDividend() {
+async function loadDividend(silent) {
   try {
     const url  = WORKER_URL ? WORKER_URL+'/api/dividend' : GAS_URL+'?action=dividend';
     const res  = await fetch(url);
     const data = await res.json();
     divState.rows   = data.rows || [];
     divState.loaded = true;
-    renderDividend();
+    if (!silent) renderDividend();
   } catch(e) {
-    document.getElementById('divTableContainer').innerHTML =
+    if (!silent) document.getElementById('divTableContainer').innerHTML =
       '<div style="padding:20px;color:var(--text2)">데이터 불러오기 실패: '+e.message+'</div>';
   }
 }
@@ -4351,11 +4357,13 @@ const saleState = {
 
 function initSaleTab() {
   renderSaleAccountFilter();
-  initSaleCustomSelects();
   // 배당포함 옵션에 필요한 배당 데이터 미리 로드
-  if (!divState.loaded) loadDividend();
+  if (!divState.loaded) loadDividend(true);
   if (!saleState.loaded) loadSale();
-  else renderSale();
+  else {
+    initSaleCustomSelects();
+    renderSale();
+  }
 }
 
 function renderSaleAccountFilter() {
@@ -4370,17 +4378,19 @@ async function reloadSale() {
   await loadSale();
 }
 
-async function loadSale() {
+async function loadSale(silent) {
   try {
     const url = WORKER_URL ? WORKER_URL + '/api/sale' : GAS_URL + '?action=sale';
     const res  = await fetch(url);
     const data = await res.json();
     saleState.rows   = data.rows || [];
     saleState.loaded = true;
-    initSaleCustomSelects();
-    renderSale();
+    if (!silent) {
+      initSaleCustomSelects();
+      renderSale();
+    }
   } catch(e) {
-    document.getElementById('saleTableContainer').innerHTML =
+    if (!silent) document.getElementById('saleTableContainer').innerHTML =
       '<div style="padding:40px;text-align:center;color:var(--red)">불러오기 실패: ' + e.message + '</div>';
   }
 }
