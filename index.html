@@ -8,6 +8,7 @@
 <title>SSTfolio</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap@2.3.0/dist/chartjs-chart-treemap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
 /* ── 기본 리셋 & 변수 ──────────────────────────────────────── */
 :root {
@@ -1532,6 +1533,12 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 // ============================================================
 // ★ 서비스 URL 설정 (하드코딩 — 어느 기기에서든 자동 연결)
 // ============================================================
+// datalabels 플러그인 전역 등록 + 기본 비활성화 (원하는 차트에만 명시 활성화)
+if (typeof ChartDataLabels !== 'undefined') {
+  Chart.register(ChartDataLabels);
+  Chart.defaults.plugins.datalabels = { display: false };
+}
+
 let GAS_URL    = localStorage.getItem('sstfolio_gas_url')    || 'https://script.google.com/macros/s/AKfycbxATlxHQi45Oii_TyFZlB1aGCiM_vKDuL811YSkA_BgLusWbJ6Frlut74EOREMYb2DV/exec';
 let WORKER_URL = localStorage.getItem('sstfolio_worker_url') || 'https://sstfolio-worker.doitnow40.workers.dev';
 function getApiUrl() { return WORKER_URL || GAS_URL; }
@@ -4225,12 +4232,27 @@ function renderDivChart(rows) {
       responsive:true, maintainAspectRatio:false,
       plugins: {
         legend:{display:false},
-        tooltip:{callbacks:{label:function(ctx){return ' '+Math.round(ctx.raw).toLocaleString('ko-KR')+'원';}}}
+        tooltip:{callbacks:{label:function(ctx){return ' '+Math.round(ctx.raw).toLocaleString('ko-KR')+'원';}}},
+        datalabels: {
+          display: function(ctx) { return ctx.dataset.data[ctx.dataIndex] > 0; },
+          anchor: 'end',
+          align: 'top',
+          offset: 2,
+          color: '#c9d1d9',
+          font: { size: 10, weight: '600' },
+          formatter: function(v) {
+            if (v >= 10000000) return (v/10000000).toFixed(1) + '천만';
+            if (v >= 1000000)  return (v/10000).toFixed(0) + '만';
+            if (v >= 10000)    return (v/10000).toFixed(1) + '만';
+            return Math.round(v).toLocaleString();
+          }
+        }
       },
       scales:{
         x:{ticks:{color:'#8b949e',font:{size:10}},grid:{color:'#30363d'}},
         y:{ticks:{color:'#8b949e',font:{size:10},callback:function(v){return v>=10000?(v/10000).toFixed(0)+'만':v;}},grid:{color:'#30363d'}}
-      }
+      },
+      layout: { padding: { top: 20 } }
     }
   });
 }
@@ -4964,6 +4986,23 @@ function renderSaleYearChart(rows) {
               return (v >= 0 ? '+' : '') + Math.round(v).toLocaleString('ko-KR') + '원';
             }
           }
+        },
+        datalabels: {
+          display: true,
+          anchor: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'end' : 'start'; },
+          align:  function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'top' : 'bottom'; },
+          offset: 2,
+          color: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? '#3fb950' : '#f85149'; },
+          font: { size: 11, weight: '700' },
+          formatter: function(v) {
+            const sign = v >= 0 ? '+' : '';
+            const abs = Math.abs(v);
+            if (abs >= 100000000) return sign + (v/100000000).toFixed(1) + '억';
+            if (abs >= 10000000)  return sign + (v/10000000).toFixed(1) + '천만';
+            if (abs >= 1000000)   return sign + (v/10000).toFixed(0) + '만';
+            if (abs >= 10000)     return sign + (v/10000).toFixed(1) + '만';
+            return sign + Math.round(v).toLocaleString();
+          }
         }
       },
       scales: {
@@ -4979,7 +5018,8 @@ function renderSaleYearChart(rows) {
           },
           grid:{color:'rgba(255,255,255,.05)'}
         }
-      }
+      },
+      layout: { padding: { top: 24, bottom: 8 } }
     }
   });
 }
@@ -5012,7 +5052,7 @@ function renderSaleMonthChart(rows) {
     data: {
       labels: months.map(m => m.slice(5) + '월'),
       datasets: [{
-        label: '월별 실현수익',
+        label: '월별 실현손익',
         data: data,
         backgroundColor: colors,
         borderRadius: 3,
@@ -5029,6 +5069,23 @@ function renderSaleMonthChart(rows) {
               return (v >= 0 ? '+' : '') + Math.round(v).toLocaleString('ko-KR') + '원';
             }
           }
+        },
+        datalabels: {
+          display: function(ctx) { return ctx.dataset.data[ctx.dataIndex] !== 0; },
+          anchor: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'end' : 'start'; },
+          align:  function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'top' : 'bottom'; },
+          offset: 1,
+          color: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? '#79c0ff' : '#f85149'; },
+          font: { size: 9, weight: '600' },
+          formatter: function(v) {
+            const sign = v >= 0 ? '+' : '';
+            const abs = Math.abs(v);
+            if (abs >= 100000000) return sign + (v/100000000).toFixed(1) + '억';
+            if (abs >= 10000000)  return sign + (v/10000000).toFixed(1) + '천만';
+            if (abs >= 1000000)   return sign + (v/10000).toFixed(0) + '만';
+            if (abs >= 10000)     return sign + (v/10000).toFixed(1) + '만';
+            return sign + Math.round(v).toLocaleString();
+          }
         }
       },
       scales: {
@@ -5044,7 +5101,8 @@ function renderSaleMonthChart(rows) {
           },
           grid:{color:'rgba(255,255,255,.05)'}
         }
-      }
+      },
+      layout: { padding: { top: 20, bottom: 8 } }
     }
   });
 }
