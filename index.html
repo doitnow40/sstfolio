@@ -3060,8 +3060,13 @@ function onSearchKeydown(e) {
 function openModal(holdingId = null) {
   state.editingId = holdingId;
   document.getElementById('modalTitle').textContent = holdingId ? '종목 수정' : '종목 추가';
-  // 삭제 버튼: 수정 모드에서만 표시
-  document.getElementById('holdingDeleteBtn').style.display = holdingId ? 'inline-flex' : 'none';
+  // 삭제 버튼: 수정 모드에서만 표시 + 상태 초기화
+  const delBtn = document.getElementById('holdingDeleteBtn');
+  delBtn.style.display = holdingId ? 'inline-flex' : 'none';
+  delBtn.disabled = false;
+  delBtn.innerHTML = '🗑️ 종목 삭제';
+  delBtn.style.background = 'var(--red)';
+  delBtn.style.opacity = '';
 
   // 계좌 드롭다운
   const sel = document.getElementById('formAccount');
