@@ -14,6 +14,7 @@
   --bg:        #0d1117;
   --bg2:       #161b22;
   --bg3:       #21262d;
+  --panel-bg:  #1c2128;
   --border:    #30363d;
   --text:      #e6edf3;
   --text2:     #8b949e;
@@ -98,27 +99,54 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
 /* ── 탭 네비게이션 ────────────────────────────────────────── */
 .tabs {
   display: flex;
-  gap: 2px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 10px;
+  gap: 3px;
+  padding: 12px 0 0 0;
   overflow-x: auto;
+  scrollbar-width: none;
+  background: transparent;
+  position: relative;
+  z-index: 1;
 }
+.tabs::-webkit-scrollbar { display: none; }
 .tab {
-  padding: 6px 14px;
+  padding: 7px 18px 9px;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
   color: var(--text2);
-  font-size:13px;
+  font-size: 13px;
+  font-weight: 500;
   white-space: nowrap;
-  transition: all .2s;
+  transition: all .18s;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  position: relative;
+  bottom: -1px;
 }
-.tab:hover   { color:var(--text); }
-.tab.active  { color:var(--blue); border-bottom-color:var(--blue); }
+.tab:hover {
+  color: var(--text);
+  background: rgba(255,255,255,.05);
+}
+.tab.active {
+  color: var(--text);
+  font-weight: 600;
+  background: var(--panel-bg);
+  border-color: var(--border);
+  border-bottom-color: var(--panel-bg);
+}
 
-/* ── 콘텐츠 패널 ──────────────────────────────────────────── */
 .panel { display:none; }
-.panel.active { display:block; padding-right: 48px; }
-@media (min-width: 1641px) { .panel.active { padding-right: 0; } }
+.panel.active {
+  display: block;
+  padding-right: 48px;
+  padding-top: 16px;
+  padding-bottom: 20px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 0 8px 8px 8px;
+  margin-bottom: 20px;
+}
+@media (min-width: 1641px) { .panel.active { padding-right: 16px; } }
 
 /* ── 차트 영역 ────────────────────────────────────────────── */
 .chart-grid {
@@ -808,7 +836,8 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   </div>
 </div>
 
-<!-- ── 탭 ───────────────────────────────────────────────── -->
+<!-- ── 탭 + 콘텐츠 래퍼 ────────────────────────────────────── -->
+<div>
 <div class="tabs">
   <div class="tab active" onclick="switchTab('overview')">전체 현황</div>
   <div class="tab" onclick="switchTab('byAccount')">계좌별</div>
@@ -1394,6 +1423,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <button class="btn-primary" onclick="debugChartData()">차트 데이터 진단</button>
   </div>
 </div>
+</div><!-- /탭+콘텐츠 래퍼 -->
 
 </main>
 </div>
