@@ -3719,7 +3719,29 @@ function renderTrendChart() {
               label: { content: '0%', enabled: true, color: '#f85149', font: { size: 10 } }
             }
           }
-        } : {}
+        } : {},
+        datalabels: {
+          display: function(ctx) {
+            // 마지막 데이터 포인트에만 표시 (점선 데이터셋 제외)
+            const ds = ctx.dataset;
+            if (ds.borderDash && ds.borderDash.length > 0) return false;
+            return ctx.dataIndex === dates.length - 1;
+          },
+          anchor: 'end',
+          align: 'right',
+          offset: 6,
+          color: function(ctx) { return ctx.dataset.borderColor || '#e6edf3'; },
+          font: { size: 10, weight: '700' },
+          formatter: function(v) {
+            if (isYield) return (v >= 0 ? '+' : '') + parseFloat(v).toFixed(1) + '%';
+            const abs = Math.abs(v);
+            if (abs >= 100000000) return (v/100000000).toFixed(2) + '억';
+            if (abs >= 10000000)  return (v/10000000).toFixed(1) + '천만';
+            if (abs >= 10000)     return (v/10000).toFixed(0) + '만';
+            return Math.round(v).toLocaleString();
+          },
+          clip: false,
+        }
       },
       scales: {
         x: {
@@ -3738,7 +3760,8 @@ function renderTrendChart() {
           },
           grid: { color:'#30363d' },
         }
-      }
+      },
+      layout: { padding: { right: 60 } }
     }
   });
 
