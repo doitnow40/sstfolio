@@ -344,6 +344,13 @@ thead th {
   font-weight:500;
   white-space:nowrap;
 }
+/* 전체현황 테이블 헤더 sticky — 컨테이너 상단에 고정 */
+#tableContainer thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 0 var(--blue); /* 파란 구분선 */
+}
 thead th:first-child { text-align:left; }
 thead th:nth-child(2) { text-align:left; }
 tbody tr {
@@ -869,7 +876,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
         </select>
       </div>
     </div>
-    <div id="tableContainer" style="overflow-x:auto">
+    <div id="tableContainer" style="overflow-x:auto;overflow-y:auto">
       <div class="loading"><div class="spinner"></div><span>데이터 불러오는 중...</span></div>
     </div>
   </div>
@@ -1593,6 +1600,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('inputGasUrl').value = GAS_URL;
   document.getElementById('inputWorkerUrl').value = WORKER_URL;
 
+  // 화면 크기 변경 시 테이블 높이 재계산
+  window.addEventListener('resize', function() {
+    if (state.activeTab === 'overview') setTableContainerHeight();
+  });
+
   if (!GAS_URL && !WORKER_URL) {
     document.getElementById('setupBanner').style.display = 'block';
     document.getElementById('tableContainer').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text2)">상단 안내에 따라 GAS URL을 먼저 설정하세요</div>';
@@ -1835,6 +1847,7 @@ function renderTableChangePc(rows, sort) {
   });
   html += '</tbody></table>';
   document.getElementById('tableContainer').innerHTML = html;
+  requestAnimationFrame(setTableContainerHeight);
 }
 
 // ── 등락률 모드 모바일 카드 ────────────────────────────────────
@@ -1866,6 +1879,15 @@ function renderTableChangeMobile(rows) {
   });
   html += '</div>';
   document.getElementById('tableContainer').innerHTML = html;
+}
+
+function setTableContainerHeight() {
+  if (window.innerWidth <= 768) return; // 모바일은 적용 안 함
+  const el = document.getElementById('tableContainer');
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const available = window.innerHeight - rect.top - 12; // 하단 여백 12px
+  el.style.height = Math.max(available, 200) + 'px';
 }
 
 function renderTable() {
@@ -1972,6 +1994,7 @@ function renderTable() {
 
   html += '</tbody></table>';
   document.getElementById('tableContainer').innerHTML = html;
+  requestAnimationFrame(setTableContainerHeight);
 }
 
 function renderTableMobile(rows, sort) {
@@ -2966,6 +2989,7 @@ function switchTab(tab) {
   if (tab === 'trend')    initTrendTab();
   if (tab === 'dividend') initDividendTab();
   if (tab === 'sale')     initSaleTab();
+  if (tab === 'overview') requestAnimationFrame(setTableContainerHeight);
 }
 
 // ============================================================
