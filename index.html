@@ -256,7 +256,6 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
   .settings-row { flex-direction: column; align-items: flex-start; gap: 2px; }
 
   /* 스크롤 버튼 */
-  #scrollTopBtn, #scrollBottomBtn { width: 32px; height: 32px; font-size: 14px; }
 
   /* 계좌별 헤더 — PC용 숨기고 모바일용 표시 */
   .acc-hdr-detail { display: none !important; }
@@ -540,45 +539,6 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 }
 .account-body.collapsed { max-height: 0; }
 
-/* ── 스크롤 버튼 ─────────────────────────────────────────── */
-/* 스크롤 버튼 감싸는 컨테이너 — main 우측 바깥에 고정 */
-#scrollBtnGroup {
-  position: fixed;
-  /* main(max-width:1600px)의 우측 경계 바깥 8px */
-  left: calc(50% + 800px + 8px);
-  bottom: 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  z-index: 999;
-}
-/* 화면이 1600px 이하이면 우측 끝에 바짝 */
-@media (max-width: 1640px) {
-  #scrollBtnGroup { left: auto; right: 0; }
-}
-#scrollTopBtn, #scrollBottomBtn {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  color: var(--text2);
-  font-size: 13px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all .2s;
-  opacity: 0.85;
-  box-shadow: 0 2px 8px rgba(0,0,0,.4);
-}
-#scrollTopBtn:hover, #scrollBottomBtn:hover {
-  background: var(--blue);
-  border-color: var(--blue);
-  color: #fff;
-  opacity: 1;
-}
-
 /* ── 에러 배너 ────────────────────────────────────────────── */
 .error-banner {
   background: #2d1a1a;
@@ -766,10 +726,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <div class="app">
 
 <!-- ── 스크롤 버튼 ──────────────────────────────────────── -->
-<div id="scrollBtnGroup">
-  <button id="scrollTopBtn"    onclick="window.scrollTo({top:0,behavior:'smooth'})"    title="맨 위로">▲</button>
-  <button id="scrollBottomBtn" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="맨 아래로">▼</button>
-</div>
+
 
 <!-- ── 헤더 ──────────────────────────────────────────────── -->
 <header>
@@ -779,6 +736,8 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <span class="last-updated" id="lastUpdated">–</span>
       <button class="btn-refresh" onclick="loadData()">⟳ 새로고침</button>
       <button class="btn-refresh" onclick="openModal()">+ 종목 추가</button>
+      <button class="btn-refresh" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="맨 위로" style="padding:4px 8px">▲</button>
+      <button class="btn-refresh" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="맨 아래로" style="padding:4px 8px">▼</button>
       <button class="btn-refresh" onclick="openHelp()" style="background:rgba(88,166,255,.15);border-color:var(--blue);color:var(--blue)" title="도움말">❓</button>
     </div>
   </div>
