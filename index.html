@@ -2381,7 +2381,9 @@ function renderSectorBar() {
         }}},
         datalabels: {
           display: true,
-          anchor: 'end',
+          anchor: function(ctx) {
+            return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'end' : 'start';
+          },
           align: function(ctx) {
             return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'right' : 'left';
           },
