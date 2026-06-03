@@ -2268,7 +2268,7 @@ function renderByAccount() {
       html += '</div>';
     } else if (isChange) {
       // ── PC 등락률 모드
-      var aId = String(acctId);
+      var aId = String(accId);
       var sortedAcc = applyColSort(accHoldings, true, aId);
       html += '<table style="table-layout:auto;width:100%;min-width:780px">'
         + '<colgroup><col style="width:20%"><col style="width:7%"><col style="width:5%"><col style="width:8%">'
@@ -2307,7 +2307,7 @@ function renderByAccount() {
       html += '</tbody></table>';
     } else {
       // ── PC 자산평가 모드 (기존)
-      var aId2 = String(acctId);
+      var aId2 = String(accId);
       var sortedAcc2 = applyColSort(accHoldings, true, aId2);
       html += '<table style="table-layout:auto;width:100%;min-width:780px">'
         + '<colgroup>'
