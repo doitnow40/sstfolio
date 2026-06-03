@@ -910,6 +910,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
         <span style="font-size:13px;font-weight:600;color:var(--text2)">섹터별 비중 맵</span>
         <div style="margin-left:auto;display:flex;gap:4px">
           <button class="chart-view-btn active" id="treemapLabelPct" onclick="setSectorTreemapLabel('pct')">수익률%</button>
+          <button class="chart-view-btn" id="treemapLabelWeight" onclick="setSectorTreemapLabel('weight')">비중%</button>
           <button class="chart-view-btn" id="treemapLabelAmt" onclick="setSectorTreemapLabel('amt')">금액</button>
         </div>
       </div>
@@ -2271,6 +2272,7 @@ function renderSectorAnalysis() {
 function setSectorTreemapLabel(mode) {
   sectorState.treemapLabel = mode;
   document.getElementById('treemapLabelPct').classList.toggle('active', mode === 'pct');
+  document.getElementById('treemapLabelWeight').classList.toggle('active', mode === 'weight');
   document.getElementById('treemapLabelAmt').classList.toggle('active', mode === 'amt');
   renderSectorTreemap(buildSectorData());
 }
@@ -2303,15 +2305,16 @@ function renderSectorTreemap(data) {
     data: {
       datasets: [{
         label: '섹터',
-        tree: data.map(function(d) { return { v: d.eval, sector: d.sector, pct: d.profit_pct, eval: d.eval }; }),
+        tree: data.map(function(d) { return { v: d.eval, sector: d.sector, pct: d.profit_pct, eval: d.eval, weight: d.weight }; }),
         key: 'v',
         labels: {
           display: true,
           formatter: function(ctx) {
             const d = ctx.raw._data;
-            const line2 = labelMode === 'pct'
-              ? (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%'
-              : fmtAmt(d.eval);
+            var line2;
+            if (labelMode === 'pct')    line2 = (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%';
+            else if (labelMode === 'weight') line2 = d.weight.toFixed(1) + '%';
+            else                        line2 = fmtAmt(d.eval);
             return [d.sector, line2];
           },
           color: '#fff',
