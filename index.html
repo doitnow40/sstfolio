@@ -2402,13 +2402,15 @@ function renderSectorBar() {
           clip: false,
         }
       },
+      layout: { padding: { right: 55, left: 5 } },
       scales: {
-        x: { ticks: { color: '#8b949e', font: { size: 10 },
-          callback: function(v) { return metric === 'pct' ? v.toFixed(0) + '%' : (Math.abs(v) >= 100000000 ? (v/100000000).toFixed(1) + '억' : Math.abs(v) >= 10000 ? (v/10000).toFixed(0) + '만' : v); }
-        }, grid: { color: '#30363d' } },
-        y: { ticks: { color: '#e6edf3', font: { size: 11 } }, grid: { color: '#30363d' } }
-      },
-      layout: { padding: { right: 55, left: 50 } }
+        x: {
+          min: (function() { const m = Math.min.apply(null, values); return m < 0 ? m * 1.4 : undefined; })(),
+          ticks: { color: '#8b949e', font: { size: 10 },
+            callback: function(v) { return metric === 'pct' ? v.toFixed(0) + '%' : (Math.abs(v) >= 100000000 ? (v/100000000).toFixed(1) + '억' : Math.abs(v) >= 10000 ? (v/10000).toFixed(0) + '만' : v); }
+          }, grid: { color: '#30363d' }
+        },
+        y: { ticks: { color: '#e6edf3', font: { size: 11 }, padding: 8 }, grid: { color: '#30363d' } }
     }
   });
 }
