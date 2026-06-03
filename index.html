@@ -851,6 +851,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <div class="tabs">
   <div class="tab active" onclick="switchTab('overview')">전체 현황</div>
   <div class="tab" onclick="switchTab('byAccount')">계좌별</div>
+  <div class="tab" onclick="switchTab('sector')">섹터 분석</div>
   <div class="tab" onclick="switchTab('charts')">차트 분석</div>
   <div class="tab" onclick="switchTab('trend')">추이 분석</div>
   <div class="tab" onclick="switchTab('dividend')">배당</div>
@@ -899,6 +900,47 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 </div>
 
 <!-- ── 패널: 차트 분석 ─────────────────────────────────── -->
+<!-- ── 패널: 섹터 분석 ──────────────────────────────────── -->
+<div class="panel" id="panel-sector">
+  <!-- 상단 차트 2개 좌우 배치 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+    <!-- 좌: 섹터 트리맵 -->
+    <div class="table-wrap" style="padding:12px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text2)">섹터별 비중 맵</div>
+      <div style="height:280px;position:relative"><canvas id="sectorAnalysisTreemap"></canvas></div>
+    </div>
+    <!-- 우: Top/Bottom 10 바차트 -->
+    <div class="table-wrap" style="padding:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:600;color:var(--text2)" id="sectorBarTitle">섹터 수익률 Top10</span>
+        <div style="margin-left:auto;display:flex;gap:4px">
+          <button class="chart-view-btn active" id="sectorBarTop" onclick="setSectorBarMode('top')">Top10</button>
+          <button class="chart-view-btn" id="sectorBarBot" onclick="setSectorBarMode('bottom')">Bottom10</button>
+          <div style="width:1px;height:16px;background:var(--border);margin:0 2px;align-self:center"></div>
+          <button class="chart-view-btn active" id="sectorBarPct" onclick="setSectorBarMetric('pct')">수익률</button>
+          <button class="chart-view-btn" id="sectorBarAmt" onclick="setSectorBarMetric('amt')">수익금</button>
+        </div>
+      </div>
+      <div style="height:280px;position:relative"><canvas id="sectorAnalysisBar"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 하단 테이블 -->
+  <div class="table-wrap">
+    <div class="table-header">
+      <span class="table-title">섹터별 집계</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="sectorTable" style="width:100%;table-layout:auto">
+        <thead>
+          <tr id="sectorTableHead"></tr>
+        </thead>
+        <tbody id="sectorTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div class="panel" id="panel-charts" style="overflow-x:hidden;max-width:100%">
 
   <!-- 전체 표시 단위 토글 -->
@@ -1709,6 +1751,7 @@ function renderAll() {
   renderAccountList();
   renderAccountGroupList();
   renderGroupAccountChecks();
+  if (state.activeTab === 'sector')   initSectorTab();
   if (state.activeTab === 'trend'   && trendState.loaded)  renderTrendChart();
   if (state.activeTab === 'dividend' && divState.loaded)   renderDividend();
   if (state.activeTab === 'sale'     && saleState.loaded)  renderSale();
@@ -2135,6 +2178,264 @@ function sortHoldings(rows, sort) {
       default: return 0;
     }
   });
+}
+
+// ============================================================
+// 섹터 분석 탭
+// ============================================================
+const sectorState = {
+  treemapChart: null,
+  barChart:     null,
+  barMode:      'top',    // 'top' | 'bottom'
+  barMetric:    'pct',    // 'pct' | 'amt'
+  colSort:      { col: null, dir: 0 },
+  expanded:     {},       // { sector: bool }
+};
+
+function initSectorTab() {
+  requestAnimationFrame(function() {
+    renderSectorAnalysis();
+  });
+}
+
+function setSectorBarMode(mode) {
+  sectorState.barMode = mode;
+  document.getElementById('sectorBarTop').classList.toggle('active', mode === 'top');
+  document.getElementById('sectorBarBot').classList.toggle('active', mode === 'bottom');
+  renderSectorBar();
+}
+
+function setSectorBarMetric(metric) {
+  sectorState.barMetric = metric;
+  document.getElementById('sectorBarPct').classList.toggle('active', metric === 'pct');
+  document.getElementById('sectorBarAmt').classList.toggle('active', metric === 'amt');
+  renderSectorBar();
+}
+
+function toggleSectorRow(sector) {
+  sectorState.expanded[sector] = !sectorState.expanded[sector];
+  renderSectorTable(buildSectorData());
+}
+
+function toggleSectorColSort(col) {
+  const s = sectorState.colSort;
+  if (s.col === col) {
+    s.dir = s.dir === 1 ? -1 : s.dir === -1 ? 0 : 1;
+    if (s.dir === 0) s.col = null;
+  } else { s.col = col; s.dir = 1; }
+  renderSectorTable(buildSectorData());
+}
+
+function sectorSortIcon(col) {
+  const s = sectorState.colSort;
+  if (s.col !== col) return '<span style="opacity:.25;font-size:9px;margin-left:2px">⇅</span>';
+  return s.dir === 1
+    ? '<span style="color:var(--blue);font-size:9px;margin-left:2px">▼</span>'
+    : '<span style="color:var(--blue);font-size:9px;margin-left:2px">▲</span>';
+}
+
+function buildSectorData() {
+  const rows  = getFilteredHoldings();
+  const totalEval = rows.reduce((s, h) => s + (h.eval_amount || 0), 0);
+  const map   = {};
+  rows.forEach(function(h) {
+    const sec = h.sector || '기타';
+    if (!map[sec]) map[sec] = { sector: sec, count: 0, cost: 0, eval: 0, profit: 0, holdings: [] };
+    map[sec].count++;
+    map[sec].cost   += h.cost_amount   || 0;
+    map[sec].eval   += h.eval_amount   || 0;
+    map[sec].profit += h.profit_amount || 0;
+    map[sec].holdings.push(h);
+  });
+  return Object.values(map).map(function(d) {
+    d.profit_pct = d.cost > 0 ? (d.profit / d.cost * 100) : 0;
+    d.weight     = totalEval > 0 ? (d.eval / totalEval * 100) : 0;
+    return d;
+  });
+}
+
+function renderSectorAnalysis() {
+  const data = buildSectorData();
+  renderSectorTreemap(data);
+  renderSectorBar();
+  renderSectorTable(data);
+}
+
+function renderSectorTreemap(data) {
+  const canvas = document.getElementById('sectorAnalysisTreemap');
+  if (!canvas) return;
+  if (sectorState.treemapChart) { sectorState.treemapChart.destroy(); sectorState.treemapChart = null; }
+  const totalEval = data.reduce((s, d) => s + d.eval, 0);
+  sectorState.treemapChart = new Chart(canvas, {
+    type: 'treemap',
+    data: {
+      datasets: [{
+        label: '섹터',
+        tree: data.map(function(d) { return { v: d.eval, sector: d.sector, pct: d.profit_pct }; }),
+        key: 'v',
+        labels: { display: true, formatter: function(ctx) {
+          const d = ctx.raw._data;
+          return [d.sector, (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%'];
+        }, color: '#fff', font: [{ size: 12, weight: '600' }, { size: 10 }] },
+        backgroundColor: function(ctx) {
+          if (!ctx.raw) return '#333';
+          const pct = ctx.raw._data.pct || 0;
+          if (pct >  20) return 'rgba(63,185,80,.9)';
+          if (pct >   5) return 'rgba(63,185,80,.6)';
+          if (pct >   0) return 'rgba(63,185,80,.35)';
+          if (pct > -5)  return 'rgba(248,81,73,.35)';
+          if (pct > -20) return 'rgba(248,81,73,.6)';
+          return 'rgba(248,81,73,.9)';
+        },
+        borderColor: 'rgba(0,0,0,.3)', borderWidth: 1,
+        spacing: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: function(ctx) {
+          const d = ctx.raw._data;
+          return [
+            '섹터: ' + d.sector,
+            '평가금액: ' + Math.round(d.v).toLocaleString('ko-KR') + '원',
+            '수익률: ' + (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%',
+          ];
+        }}
+      }, datalabels: { display: false } }
+    }
+  });
+}
+
+function renderSectorBar() {
+  const canvas = document.getElementById('sectorAnalysisBar');
+  if (!canvas) return;
+  if (sectorState.barChart) { sectorState.barChart.destroy(); sectorState.barChart = null; }
+
+  const data     = buildSectorData();
+  const metric   = sectorState.barMetric;
+  const isTop    = sectorState.barMode === 'top';
+  const getValue = metric === 'pct' ? function(d) { return d.profit_pct; } : function(d) { return d.profit; };
+
+  const sorted = [...data].sort(function(a, b) {
+    return isTop ? getValue(b) - getValue(a) : getValue(a) - getValue(b);
+  }).slice(0, 10);
+
+  const labels = sorted.map(function(d) { return d.sector; });
+  const values = sorted.map(getValue);
+  const colors = values.map(function(v) { return v >= 0 ? 'rgba(63,185,80,.75)' : 'rgba(248,81,73,.75)'; });
+
+  const titleEl = document.getElementById('sectorBarTitle');
+  if (titleEl) titleEl.textContent = '섹터 ' + (metric === 'pct' ? '수익률' : '수익금') + ' ' + (isTop ? 'Top10' : 'Bottom10');
+
+  sectorState.barChart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }] },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: function(ctx) {
+          const v = ctx.raw;
+          return metric === 'pct'
+            ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%'
+            : (v >= 0 ? '+' : '') + Math.round(v).toLocaleString('ko-KR') + '원';
+        }}},
+        datalabels: {
+          display: true, anchor: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'end' : 'start'; },
+          align: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'right' : 'left'; },
+          color: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'var(--green)' : 'var(--red)'; },
+          font: { size: 10, weight: '600' },
+          formatter: function(v) {
+            return metric === 'pct'
+              ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%'
+              : (v >= 0 ? '+' : '') + (Math.abs(v) >= 10000000 ? (v/10000).toFixed(0) + '만' : Math.round(v).toLocaleString());
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#8b949e', font: { size: 10 },
+          callback: function(v) { return metric === 'pct' ? v.toFixed(0) + '%' : (Math.abs(v) >= 10000000 ? (v/10000000).toFixed(0) + '천만' : (Math.abs(v) >= 10000 ? (v/10000).toFixed(0) + '만' : v)); }
+        }, grid: { color: '#30363d' } },
+        y: { ticks: { color: '#e6edf3', font: { size: 11 } }, grid: { color: '#30363d' } }
+      },
+      layout: { padding: { right: 60 } }
+    }
+  });
+}
+
+function renderSectorTable(data) {
+  const s = sectorState.colSort;
+  let sorted = [...data];
+  if (s.col && s.dir !== 0) {
+    sorted.sort(function(a, b) {
+      switch(s.col) {
+        case 'sector':     return s.dir * a.sector.localeCompare(b.sector);
+        case 'count':      return s.dir * (b.count - a.count);
+        case 'cost':       return s.dir * (b.cost - a.cost);
+        case 'eval':       return s.dir * (b.eval - a.eval);
+        case 'profit':     return s.dir * (b.profit - a.profit);
+        case 'profit_pct': return s.dir * (b.profit_pct - a.profit_pct);
+        case 'weight':     return s.dir * (b.weight - a.weight);
+        default: return 0;
+      }
+    });
+  }
+
+  const th = function(col, label) {
+    return '<th onclick="toggleSectorColSort(\'' + col + '\')" style="cursor:pointer;padding:6px 10px;text-align:right;font-size:11px;color:var(--text2);white-space:nowrap;background:var(--bg3)">'
+      + label + sectorSortIcon(col) + '</th>';
+  };
+  const thL = function(col, label) {
+    return '<th onclick="toggleSectorColSort(\'' + col + '\')" style="cursor:pointer;padding:6px 10px;text-align:left;font-size:11px;color:var(--text2);white-space:nowrap;background:var(--bg3)">'
+      + label + sectorSortIcon(col) + '</th>';
+  };
+
+  document.getElementById('sectorTableHead').innerHTML =
+    thL('sector','섹터') + th('count','종목수') + th('cost','매수금액') +
+    th('eval','평가금액') + th('profit','평가손익') + th('profit_pct','수익률') + th('weight','비중');
+
+  const fmt  = function(v) { return Math.round(v).toLocaleString('ko-KR') + '원'; };
+  const fmtC = function(v, pos) { return '<span style="color:' + (v >= 0 ? 'var(--green)' : 'var(--red)') + (pos ? ';font-weight:700' : '') + '">' + (v >= 0 ? '+' : '') + (pos ? v.toFixed(1) + '%' : fmt(v)) + '</span>'; };
+
+  let html = '';
+  sorted.forEach(function(d) {
+    const expanded = sectorState.expanded[d.sector];
+    html += '<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="toggleSectorRow(\'' + d.sector.replace(/'/g,"\\'") + '\')">'
+      + '<td style="padding:8px 10px;font-weight:600">'
+        + '<span style="margin-right:6px;font-size:10px;color:var(--text2)">' + (expanded ? '▼' : '▶') + '</span>'
+        + d.sector + '</td>'
+      + '<td style="padding:8px 10px;text-align:right;color:var(--text2)">' + d.count + '종목</td>'
+      + '<td style="padding:8px 10px;text-align:right">' + fmt(d.cost) + '</td>'
+      + '<td style="padding:8px 10px;text-align:right">' + fmt(d.eval) + '</td>'
+      + '<td style="padding:8px 10px;text-align:right">' + fmtC(d.profit, false) + '</td>'
+      + '<td style="padding:8px 10px;text-align:right">' + fmtC(d.profit_pct, true) + '</td>'
+      + '<td style="padding:8px 10px;text-align:right;color:var(--text2)">' + d.weight.toFixed(1) + '%</td>'
+      + '</tr>';
+
+    // 드릴다운: 해당 섹터 종목 목록
+    if (expanded) {
+      const hSorted = [...d.holdings].sort(function(a,b) { return (b.profit_pct||0)-(a.profit_pct||0); });
+      hSorted.forEach(function(h) {
+        const pp  = h.profit_pct || 0;
+        const col = pp >= 0 ? 'var(--green)' : 'var(--red)';
+        const sign= pp >= 0 ? '+' : '';
+        html += '<tr style="background:rgba(255,255,255,.03);border-bottom:1px solid rgba(48,54,61,.5)">'
+          + '<td style="padding:5px 10px 5px 28px;font-size:12px">' + makeStockNameHtml(h, h.name||h.ticker)
+            + ' <span style="color:var(--text2);font-size:11px">' + h.ticker + '</span></td>'
+          + '<td style="padding:5px 10px;text-align:right;color:var(--text2);font-size:11px">' + (h.quantity||0).toLocaleString() + '</td>'
+          + '<td style="padding:5px 10px;text-align:right;font-size:11px">' + Math.round(h.cost_amount||0).toLocaleString('ko-KR') + '원</td>'
+          + '<td style="padding:5px 10px;text-align:right;font-size:11px">' + Math.round(h.eval_amount||0).toLocaleString('ko-KR') + '원</td>'
+          + '<td style="padding:5px 10px;text-align:right;font-size:11px;color:' + col + '">' + sign + Math.round(h.profit_amount||0).toLocaleString('ko-KR') + '원</td>'
+          + '<td style="padding:5px 10px;text-align:right;font-size:12px;color:' + col + ';font-weight:700">' + sign + pp + '%</td>'
+          + '<td style="padding:5px 10px;text-align:right;color:var(--text2);font-size:11px">'
+            + (h.eval_amount && d.eval > 0 ? (h.eval_amount/d.eval*100).toFixed(1) : '0.0') + '%</td>'
+          + '</tr>';
+      });
+    }
+  });
+  document.getElementById('sectorTableBody').innerHTML = html;
 }
 
 // ── 계좌별 패널 ─────────────────────────────────────────────
@@ -3078,14 +3379,15 @@ async function deleteAccountGroup(encodedName) {
 function switchTab(tab) {
   state.activeTab = tab;
   document.querySelectorAll('.tab').forEach((el, i) => {
-    const tabs = ['overview','byAccount','charts','trend','dividend','sale','settings'];
+    const tabs = ['overview','byAccount','sector','charts','trend','dividend','sale','settings'];
     el.classList.toggle('active', tabs[i] === tab);
   });
   document.querySelectorAll('.panel').forEach(el => {
     el.classList.toggle('active', el.id === 'panel-' + tab);
   });
 
-  if (tab === 'charts') requestAnimationFrame(function(){ requestAnimationFrame(renderCharts); });
+  if (tab === 'sector')   initSectorTab();
+  if (tab === 'charts')   requestAnimationFrame(function(){ requestAnimationFrame(renderCharts); });
   if (tab === 'trend')    initTrendTab();
   if (tab === 'dividend') initDividendTab();
   if (tab === 'sale')     initSaleTab();
