@@ -906,7 +906,13 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
     <!-- 좌: 섹터 트리맵 -->
     <div class="table-wrap" style="padding:12px">
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text2)">섹터별 비중 맵</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:600;color:var(--text2)">섹터별 비중 맵</span>
+        <div style="margin-left:auto;display:flex;gap:4px">
+          <button class="chart-view-btn active" id="treemapLabelPct" onclick="setSectorTreemapLabel('pct')">수익률%</button>
+          <button class="chart-view-btn" id="treemapLabelAmt" onclick="setSectorTreemapLabel('amt')">금액</button>
+        </div>
+      </div>
       <div style="height:280px;position:relative"><canvas id="sectorAnalysisTreemap"></canvas></div>
     </div>
     <!-- 우: Top/Bottom 10 바차트 -->
@@ -2188,6 +2194,7 @@ const sectorState = {
   barChart:     null,
   barMode:      'top',    // 'top' | 'bottom'
   barMetric:    'pct',    // 'pct' | 'amt'
+  treemapLabel: 'pct',   // 'pct' | 'amt'
   colSort:      { col: null, dir: 0 },
   expanded:     {},       // { sector: bool }
 };
@@ -2261,48 +2268,77 @@ function renderSectorAnalysis() {
   renderSectorTable(data);
 }
 
+function setSectorTreemapLabel(mode) {
+  sectorState.treemapLabel = mode;
+  document.getElementById('treemapLabelPct').classList.toggle('active', mode === 'pct');
+  document.getElementById('treemapLabelAmt').classList.toggle('active', mode === 'amt');
+  renderSectorTreemap(buildSectorData());
+}
+
 function renderSectorTreemap(data) {
   const canvas = document.getElementById('sectorAnalysisTreemap');
   if (!canvas) return;
   if (sectorState.treemapChart) { sectorState.treemapChart.destroy(); sectorState.treemapChart = null; }
-  const totalEval = data.reduce((s, d) => s + d.eval, 0);
+  const labelMode = sectorState.treemapLabel;
+
+  // 한국식 색상: + 빨강, - 파랑
+  function getColor(pct, alpha) {
+    if (pct >  20) return 'rgba(248,81,73,' + (alpha || '.9') + ')';
+    if (pct >   5) return 'rgba(248,81,73,' + (alpha || '.65') + ')';
+    if (pct >   0) return 'rgba(248,81,73,' + (alpha || '.35') + ')';
+    if (pct > - 5) return 'rgba(68,147,248,' + (alpha || '.35') + ')';
+    if (pct > -20) return 'rgba(68,147,248,' + (alpha || '.65') + ')';
+    return 'rgba(68,147,248,' + (alpha || '.9') + ')';
+  }
+
+  function fmtAmt(v) {
+    if (Math.abs(v) >= 100000000) return (v/100000000).toFixed(1) + '억';
+    if (Math.abs(v) >= 10000000)  return (v/10000000).toFixed(1) + '천만';
+    if (Math.abs(v) >= 10000)     return (v/10000).toFixed(0) + '만';
+    return Math.round(v).toLocaleString();
+  }
+
   sectorState.treemapChart = new Chart(canvas, {
     type: 'treemap',
     data: {
       datasets: [{
         label: '섹터',
-        tree: data.map(function(d) { return { v: d.eval, sector: d.sector, pct: d.profit_pct }; }),
+        tree: data.map(function(d) { return { v: d.eval, sector: d.sector, pct: d.profit_pct, eval: d.eval }; }),
         key: 'v',
-        labels: { display: true, formatter: function(ctx) {
-          const d = ctx.raw._data;
-          return [d.sector, (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%'];
-        }, color: '#fff', font: [{ size: 12, weight: '600' }, { size: 10 }] },
-        backgroundColor: function(ctx) {
-          if (!ctx.raw) return '#333';
-          const pct = ctx.raw._data.pct || 0;
-          if (pct >  20) return 'rgba(63,185,80,.9)';
-          if (pct >   5) return 'rgba(63,185,80,.6)';
-          if (pct >   0) return 'rgba(63,185,80,.35)';
-          if (pct > -5)  return 'rgba(248,81,73,.35)';
-          if (pct > -20) return 'rgba(248,81,73,.6)';
-          return 'rgba(248,81,73,.9)';
+        labels: {
+          display: true,
+          formatter: function(ctx) {
+            const d = ctx.raw._data;
+            const line2 = labelMode === 'pct'
+              ? (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%'
+              : fmtAmt(d.eval);
+            return [d.sector, line2];
+          },
+          color: '#fff',
+          font: [{ size: 12, weight: '600' }, { size: 10 }]
         },
-        borderColor: 'rgba(0,0,0,.3)', borderWidth: 1,
+        backgroundColor: function(ctx) {
+          if (!ctx.raw) return '#21262d';
+          return getColor(ctx.raw._data.pct || 0);
+        },
+        borderColor: 'rgba(0,0,0,.25)', borderWidth: 1,
         spacing: 2,
       }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: {
-        callbacks: { label: function(ctx) {
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: function(ctx) {
           const d = ctx.raw._data;
           return [
             '섹터: ' + d.sector,
-            '평가금액: ' + Math.round(d.v).toLocaleString('ko-KR') + '원',
+            '평가금액: ' + Math.round(d.eval).toLocaleString('ko-KR') + '원',
             '수익률: ' + (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%',
           ];
-        }}
-      }, datalabels: { display: false } }
+        }}},
+        datalabels: { display: false }
+      }
     }
   });
 }
@@ -2323,7 +2359,8 @@ function renderSectorBar() {
 
   const labels = sorted.map(function(d) { return d.sector; });
   const values = sorted.map(getValue);
-  const colors = values.map(function(v) { return v >= 0 ? 'rgba(63,185,80,.75)' : 'rgba(248,81,73,.75)'; });
+  // 한국식: + 빨강, - 파랑
+  const colors = values.map(function(v) { return v >= 0 ? 'rgba(248,81,73,.8)' : 'rgba(68,147,248,.8)'; });
 
   const titleEl = document.getElementById('sectorBarTitle');
   if (titleEl) titleEl.textContent = '섹터 ' + (metric === 'pct' ? '수익률' : '수익금') + ' ' + (isTop ? 'Top10' : 'Bottom10');
@@ -2343,24 +2380,33 @@ function renderSectorBar() {
             : (v >= 0 ? '+' : '') + Math.round(v).toLocaleString('ko-KR') + '원';
         }}},
         datalabels: {
-          display: true, anchor: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'end' : 'start'; },
-          align: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'right' : 'left'; },
-          color: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'var(--green)' : 'var(--red)'; },
-          font: { size: 10, weight: '600' },
+          display: true,
+          anchor: 'end',
+          align: function(ctx) {
+            // 가로 바차트: 양수는 오른쪽, 음수는 왼쪽에 레이블
+            return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'right' : 'left';
+          },
+          color: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'rgba(248,81,73,1)' : 'rgba(68,147,248,1)'; },
+          font: { size: 10, weight: '700' },
           formatter: function(v) {
-            return metric === 'pct'
-              ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%'
-              : (v >= 0 ? '+' : '') + (Math.abs(v) >= 10000000 ? (v/10000).toFixed(0) + '만' : Math.round(v).toLocaleString());
-          }
+            if (metric === 'pct') return (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+            const abs = Math.abs(v);
+            const sign = v >= 0 ? '+' : '-';
+            if (abs >= 100000000) return sign + (abs/100000000).toFixed(1) + '억';
+            if (abs >= 10000000)  return sign + (abs/10000000).toFixed(1) + '천만';
+            if (abs >= 10000)     return sign + (abs/10000).toFixed(0) + '만';
+            return (v >= 0 ? '+' : '') + Math.round(v).toLocaleString();
+          },
+          clip: false,
         }
       },
       scales: {
         x: { ticks: { color: '#8b949e', font: { size: 10 },
-          callback: function(v) { return metric === 'pct' ? v.toFixed(0) + '%' : (Math.abs(v) >= 10000000 ? (v/10000000).toFixed(0) + '천만' : (Math.abs(v) >= 10000 ? (v/10000).toFixed(0) + '만' : v)); }
+          callback: function(v) { return metric === 'pct' ? v.toFixed(0) + '%' : (Math.abs(v) >= 100000000 ? (v/100000000).toFixed(1) + '억' : Math.abs(v) >= 10000 ? (v/10000).toFixed(0) + '만' : v); }
         }, grid: { color: '#30363d' } },
         y: { ticks: { color: '#e6edf3', font: { size: 11 } }, grid: { color: '#30363d' } }
       },
-      layout: { padding: { right: 60 } }
+      layout: { padding: { right: 55, left: 10 } }
     }
   });
 }
@@ -2397,7 +2443,12 @@ function renderSectorTable(data) {
     th('eval','평가금액') + th('profit','평가손익') + th('profit_pct','수익률') + th('weight','비중');
 
   const fmt  = function(v) { return Math.round(v).toLocaleString('ko-KR') + '원'; };
-  const fmtC = function(v, pos) { return '<span style="color:' + (v >= 0 ? 'var(--green)' : 'var(--red)') + (pos ? ';font-weight:700' : '') + '">' + (v >= 0 ? '+' : '') + (pos ? v.toFixed(1) + '%' : fmt(v)) + '</span>'; };
+  // 한국식: + 빨강, - 파랑
+  const fmtC = function(v, pos) {
+    const col = v >= 0 ? 'rgba(248,81,73,1)' : 'rgba(68,147,248,1)';
+    return '<span style="color:' + col + (pos ? ';font-weight:700' : '') + '">'
+      + (v >= 0 ? '+' : '') + (pos ? v.toFixed(1) + '%' : fmt(v)) + '</span>';
+  };
 
   let html = '';
   sorted.forEach(function(d) {
@@ -2419,7 +2470,7 @@ function renderSectorTable(data) {
       const hSorted = [...d.holdings].sort(function(a,b) { return (b.profit_pct||0)-(a.profit_pct||0); });
       hSorted.forEach(function(h) {
         const pp  = h.profit_pct || 0;
-        const col = pp >= 0 ? 'var(--green)' : 'var(--red)';
+        const col = pp >= 0 ? 'rgba(248,81,73,1)' : 'rgba(68,147,248,1)';
         const sign= pp >= 0 ? '+' : '';
         html += '<tr style="background:rgba(255,255,255,.03);border-bottom:1px solid rgba(48,54,61,.5)">'
           + '<td style="padding:5px 10px 5px 28px;font-size:12px">' + makeStockNameHtml(h, h.name||h.ticker)
