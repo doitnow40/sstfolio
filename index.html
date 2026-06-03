@@ -3307,10 +3307,9 @@ function _naverStockUrl(ticker) {
 }
 
 function _tradingViewUrl(ticker, exchange) {
-  // US 종목: TradingView
-  const exMap = { 'NASDAQ':'NASDAQ', 'NYSE':'NYSE', 'NYSEARCA':'AMEX', 'NYSEAMERICAN':'AMEX' };
-  const tv = exMap[String(exchange || '').toUpperCase()] || 'NASDAQ';
-  return 'https://kr.tradingview.com/symbols/' + tv + '-' + ticker;
+  // TradingView는 ticker만으로 자동으로 거래소 찾아줌
+  // 거래소 prefix 불필요 (NASDAQ-BE → BE, NYSE-META → META)
+  return 'https://kr.tradingview.com/symbols/' + ticker;
 }
 
 function _yahooUrl(ticker) {
