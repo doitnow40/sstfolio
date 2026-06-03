@@ -2383,9 +2383,9 @@ function renderSectorBar() {
           display: true,
           anchor: 'end',
           align: function(ctx) {
-            // 가로 바차트: 양수는 오른쪽, 음수는 왼쪽에 레이블
             return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'right' : 'left';
           },
+          offset: 4,
           color: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'rgba(248,81,73,1)' : 'rgba(68,147,248,1)'; },
           font: { size: 10, weight: '700' },
           formatter: function(v) {
@@ -2406,7 +2406,7 @@ function renderSectorBar() {
         }, grid: { color: '#30363d' } },
         y: { ticks: { color: '#e6edf3', font: { size: 11 } }, grid: { color: '#30363d' } }
       },
-      layout: { padding: { right: 55, left: 10 } }
+      layout: { padding: { right: 55, left: 50 } }
     }
   });
 }
