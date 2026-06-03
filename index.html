@@ -2365,6 +2365,9 @@ function renderSectorBar() {
   const titleEl = document.getElementById('sectorBarTitle');
   if (titleEl) titleEl.textContent = '섹터 ' + (metric === 'pct' ? '수익률' : '수익금') + ' ' + (isTop ? 'Top10' : 'Bottom10');
 
+  const minVal = Math.min.apply(null, values);
+  const xMin   = minVal < 0 ? minVal * 1.4 : undefined;
+
   sectorState.barChart = new Chart(canvas, {
     type: 'bar',
     data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }] },
@@ -2405,7 +2408,7 @@ function renderSectorBar() {
       layout: { padding: { right: 55, left: 5 } },
       scales: {
         x: {
-          min: (function() { const m = Math.min.apply(null, values); return m < 0 ? m * 1.4 : undefined; })(),
+          min: xMin,
           ticks: { color: '#8b949e', font: { size: 10 },
             callback: function(v) { return metric === 'pct' ? v.toFixed(0) + '%' : (Math.abs(v) >= 100000000 ? (v/100000000).toFixed(1) + '억' : Math.abs(v) >= 10000 ? (v/10000).toFixed(0) + '만' : v); }
           }, grid: { color: '#30363d' }
