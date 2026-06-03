@@ -1809,6 +1809,7 @@ function makeCandleBar(changeRateStr, width) {
 
 // ── 등락률 모드 PC 테이블 ──────────────────────────────────────
 function renderTableChangePc(rows, sort) {
+  rows = applyColSort(rows, false, null);
   let lastGroupKey = null;
   let html = '<table style="table-layout:auto;width:100%;min-width:860px">'
     + '<colgroup>'
@@ -1818,9 +1819,16 @@ function renderTableChangePc(rows, sort) {
     + '<col style="width:10%"><col style="width:11%"><col style="width:3%">'
     + '</colgroup>'
     + '<thead><tr>'
-    + '<th>종목명</th><th>섹터</th><th>계좌</th><th>수량</th>'
-    + '<th>등락률</th><th style="text-align:center">등락 차트</th>'
-    + '<th>등락액</th><th>누적수익률</th><th>평가손익</th><th></th>'
+    + '<th onclick="toggleColSort(\'name\',false)" style="cursor:pointer">종목명' + sortIcon('name',false) + '</th>'
+    + '<th onclick="toggleColSort(\'sector\',false)" style="cursor:pointer">섹터' + sortIcon('sector',false) + '</th>'
+    + '<th>계좌</th>'
+    + '<th onclick="toggleColSort(\'qty\',false)" style="cursor:pointer">수량' + sortIcon('qty',false) + '</th>'
+    + '<th onclick="toggleColSort(\'change_rate\',false)" style="cursor:pointer">등락률' + sortIcon('change_rate',false) + '</th>'
+    + '<th style="text-align:center">등락 차트</th>'
+    + '<th onclick="toggleColSort(\'change_rate\',false)" style="cursor:pointer">등락액' + sortIcon('change_rate',false) + '</th>'
+    + '<th onclick="toggleColSort(\'profit_pct\',false)" style="cursor:pointer">누적수익률' + sortIcon('profit_pct',false) + '</th>'
+    + '<th onclick="toggleColSort(\'profit\',false)" style="cursor:pointer">평가손익' + sortIcon('profit',false) + '</th>'
+    + '<th></th>'
     + '</tr></thead><tbody>';
 
   rows.forEach(function(h) {
@@ -1903,11 +1911,65 @@ function setTableContainerHeight() {
   el.style.height = Math.max(available, 200) + 'px';
 }
 
+// ── 컬럼 클릭 정렬 상태 ─────────────────────────────────────
+const tableColSort = { col: null, dir: 0 }; // dir: 0=원래, 1=내림차순, -1=오름차순
+const accColSort   = {};                     // { accId: { col, dir } }
+
+function toggleColSort(col, isAcc, accId) {
+  const state = isAcc
+    ? (accColSort[accId] = accColSort[accId] || { col: null, dir: 0 })
+    : tableColSort;
+  if (state.col === col) {
+    state.dir = state.dir === 1 ? -1 : state.dir === -1 ? 0 : 1;
+    if (state.dir === 0) state.col = null;
+  } else {
+    state.col = col;
+    state.dir = 1;
+  }
+  isAcc ? renderByAccount() : renderTable();
+}
+
+function sortIcon(col, isAcc, accId) {
+  const state = isAcc ? (accColSort[accId] || { col: null, dir: 0 }) : tableColSort;
+  if (state.col !== col) return '<span style="opacity:.25;font-size:9px;margin-left:2px">⇅</span>';
+  return state.dir === 1
+    ? '<span style="color:var(--blue);font-size:9px;margin-left:2px">▼</span>'
+    : '<span style="color:var(--blue);font-size:9px;margin-left:2px">▲</span>';
+}
+
+function applyColSort(rows, isAcc, accId) {
+  const state = isAcc ? (accColSort[accId] || { col: null, dir: 0 }) : tableColSort;
+  if (!state.col || state.dir === 0) return rows;
+  const col = state.col, dir = state.dir;
+  return [...rows].sort(function(a, b) {
+    let av, bv;
+    switch(col) {
+      case 'name':         av = a.name || ''; bv = b.name || ''; return dir * av.localeCompare(bv);
+      case 'sector':       av = a.sector||''; bv = b.sector||''; return dir * av.localeCompare(bv);
+      case 'qty':          return dir * ((b.quantity||0) - (a.quantity||0));
+      case 'avg':          return dir * ((b.avg_price||0) - (a.avg_price||0));
+      case 'price':        return dir * ((b.current_price||0) - (a.current_price||0));
+      case 'cost':         return dir * ((b.cost_amount||0) - (a.cost_amount||0));
+      case 'eval':         return dir * ((b.eval_amount||0) - (a.eval_amount||0));
+      case 'profit':       return dir * ((b.profit_amount||0) - (a.profit_amount||0));
+      case 'profit_pct':   return dir * ((b.profit_pct||0) - (a.profit_pct||0));
+      case 'weight':       return dir * ((b.eval_amount||0) - (a.eval_amount||0));
+      case 'change_rate': {
+        av = parseFloat(String(a.change_rate||'0').replace('%',''))||0;
+        bv = parseFloat(String(b.change_rate||'0').replace('%',''))||0;
+        return dir * (bv - av);
+      }
+      default: return 0;
+    }
+  });
+}
+
 function renderTable() {
   let rows = getFilteredHoldings();
 
   const sort = document.getElementById('sortSelect')?.value || 'profit_pct_desc';
   rows = sortHoldings(rows, sort);
+  rows = applyColSort(rows, false, null);
 
   if (rows.length === 0) {
     document.getElementById('tableContainer').innerHTML =
@@ -1941,10 +2003,18 @@ function renderTable() {
       <col style="width:3%"> <!-- 버튼 -->
     </colgroup>
     <thead><tr>
-      <th>종목명</th><th>섹터</th><th>계좌</th>
-      <th class="tbl-col-qty">수량</th><th class="tbl-col-avg">평단가</th><th>현재가</th>
-      <th class="tbl-col-cost">매수금액</th><th class="tbl-col-eval">평가금액</th>
-      <th>평가손익</th><th>수익률</th><th class="tbl-col-weight">비중</th><th class="tbl-col-btn"></th>
+      <th onclick="toggleColSort('name',false)" style="cursor:pointer">종목명${sortIcon('name',false)}</th>
+      <th onclick="toggleColSort('sector',false)" style="cursor:pointer">섹터${sortIcon('sector',false)}</th>
+      <th>계좌</th>
+      <th class="tbl-col-qty" onclick="toggleColSort('qty',false)" style="cursor:pointer">수량${sortIcon('qty',false)}</th>
+      <th class="tbl-col-avg" onclick="toggleColSort('avg',false)" style="cursor:pointer">평단가${sortIcon('avg',false)}</th>
+      <th onclick="toggleColSort('price',false)" style="cursor:pointer">현재가${sortIcon('price',false)}</th>
+      <th class="tbl-col-cost" onclick="toggleColSort('cost',false)" style="cursor:pointer">매수금액${sortIcon('cost',false)}</th>
+      <th class="tbl-col-eval" onclick="toggleColSort('eval',false)" style="cursor:pointer">평가금액${sortIcon('eval',false)}</th>
+      <th onclick="toggleColSort('profit',false)" style="cursor:pointer">평가손익${sortIcon('profit',false)}</th>
+      <th onclick="toggleColSort('profit_pct',false)" style="cursor:pointer">수익률${sortIcon('profit_pct',false)}</th>
+      <th class="tbl-col-weight" onclick="toggleColSort('weight',false)" style="cursor:pointer">비중${sortIcon('weight',false)}</th>
+      <th class="tbl-col-btn"></th>
     </tr></thead><tbody>`;
 
   let lastGroupKey = null;
@@ -2198,13 +2268,22 @@ function renderByAccount() {
       html += '</div>';
     } else if (isChange) {
       // ── PC 등락률 모드
+      var aId = String(acctId);
+      var sortedAcc = applyColSort(accHoldings, true, aId);
       html += '<table style="table-layout:auto;width:100%;min-width:780px">'
         + '<colgroup><col style="width:20%"><col style="width:7%"><col style="width:5%"><col style="width:8%">'
         + '<col style="width:14%"><col style="width:10%"><col style="width:10%"><col style="width:13%"><col style="width:4%"></colgroup>'
-        + '<thead><tr><th>종목명</th><th>섹터</th><th>수량</th><th>등락률</th>'
-        + '<th style="text-align:center">등락 차트</th><th>등락액</th>'
-        + '<th>누적수익률</th><th>평가손익</th><th></th></tr></thead><tbody>';
-      accHoldings.forEach(function(h) {
+        + '<thead><tr>'
+        + '<th onclick="toggleColSort(\'name\',true,\'' + aId + '\')" style="cursor:pointer">종목명' + sortIcon('name',true,aId) + '</th>'
+        + '<th onclick="toggleColSort(\'sector\',true,\'' + aId + '\')" style="cursor:pointer">섹터' + sortIcon('sector',true,aId) + '</th>'
+        + '<th onclick="toggleColSort(\'qty\',true,\'' + aId + '\')" style="cursor:pointer">수량' + sortIcon('qty',true,aId) + '</th>'
+        + '<th onclick="toggleColSort(\'change_rate\',true,\'' + aId + '\')" style="cursor:pointer">등락률' + sortIcon('change_rate',true,aId) + '</th>'
+        + '<th style="text-align:center">등락 차트</th>'
+        + '<th onclick="toggleColSort(\'change_rate\',true,\'' + aId + '\')" style="cursor:pointer">등락액' + sortIcon('change_rate',true,aId) + '</th>'
+        + '<th onclick="toggleColSort(\'profit_pct\',true,\'' + aId + '\')" style="cursor:pointer">누적수익률' + sortIcon('profit_pct',true,aId) + '</th>'
+        + '<th onclick="toggleColSort(\'profit\',true,\'' + aId + '\')" style="cursor:pointer">평가손익' + sortIcon('profit',true,aId) + '</th>'
+        + '<th></th></tr></thead><tbody>';
+      sortedAcc.forEach(function(h) {
         const cr2  = h.change_rate || '0%';
         const p2   = parseFloat(String(cr2).replace('%','')) || 0;
         const c2   = p2 >= 0 ? 'var(--green)' : 'var(--red)';
@@ -2228,6 +2307,8 @@ function renderByAccount() {
       html += '</tbody></table>';
     } else {
       // ── PC 자산평가 모드 (기존)
+      var aId2 = String(acctId);
+      var sortedAcc2 = applyColSort(accHoldings, true, aId2);
       html += '<table style="table-layout:auto;width:100%;min-width:780px">'
         + '<colgroup>'
         + '<col style="width:24%"><col style="width:7%"><col style="width:6%">'
@@ -2236,11 +2317,17 @@ function renderByAccount() {
         + '<col style="width:12%"><col style="width:12%">'
         + '</colgroup>'
         + '<thead><tr>'
-        + '<th>종목명</th><th>섹터</th><th>시장</th>'
-        + '<th>수량</th><th>평단가</th><th>현재가</th>'
-        + '<th>매수금액</th><th>평가금액</th><th>손익(수익률)</th>'
+        + '<th onclick="toggleColSort(\'name\',true,\'' + aId2 + '\')" style="cursor:pointer">종목명' + sortIcon('name',true,aId2) + '</th>'
+        + '<th onclick="toggleColSort(\'sector\',true,\'' + aId2 + '\')" style="cursor:pointer">섹터' + sortIcon('sector',true,aId2) + '</th>'
+        + '<th>시장</th>'
+        + '<th onclick="toggleColSort(\'qty\',true,\'' + aId2 + '\')" style="cursor:pointer">수량' + sortIcon('qty',true,aId2) + '</th>'
+        + '<th onclick="toggleColSort(\'avg\',true,\'' + aId2 + '\')" style="cursor:pointer">평단가' + sortIcon('avg',true,aId2) + '</th>'
+        + '<th onclick="toggleColSort(\'price\',true,\'' + aId2 + '\')" style="cursor:pointer">현재가' + sortIcon('price',true,aId2) + '</th>'
+        + '<th onclick="toggleColSort(\'cost\',true,\'' + aId2 + '\')" style="cursor:pointer">매수금액' + sortIcon('cost',true,aId2) + '</th>'
+        + '<th onclick="toggleColSort(\'eval\',true,\'' + aId2 + '\')" style="cursor:pointer">평가금액' + sortIcon('eval',true,aId2) + '</th>'
+        + '<th onclick="toggleColSort(\'profit_pct\',true,\'' + aId2 + '\')" style="cursor:pointer">손익(수익률)' + sortIcon('profit_pct',true,aId2) + '</th>'
         + '</tr></thead><tbody>';
-      accHoldings.forEach(function(h) {
+      sortedAcc2.forEach(function(h) {
         const pct2  = h.profit_pct || 0;
         const col2  = pct2 >= 0 ? 'var(--green)' : 'var(--red)';
         const sign2 = pct2 >= 0 ? '+' : '';
