@@ -742,6 +742,16 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 .tag-summary-table tr:hover td { background:rgba(255,255,255,.04); }
 .tag-summary-table tr.active-tag td { background:rgba(74,158,255,.08); }
 
+/* ── 적립 관리 입력 필드 ───────────────────────────────────── */
+.plan-month-input {
+  width: 78px; background: transparent; border: 1px solid transparent;
+  color: var(--text); font-size: 11px; text-align: right;
+  padding: 3px 4px; border-radius: 4px; outline: none;
+}
+.plan-month-input:focus {
+  border-color: var(--blue); background: var(--bg3);
+}
+
 /* ── 실현손익 배당포함 토글 ─────────────────────────────────── */
 .sale-div-toggle { position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;cursor:pointer; }
 .sale-div-toggle input { opacity:0;width:0;height:0; }
@@ -854,6 +864,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   <div class="tab" onclick="switchTab('sector')">섹터 분석</div>
   <div class="tab" onclick="switchTab('charts')">차트 분석</div>
   <div class="tab" onclick="switchTab('trend')">추이 분석</div>
+  <div class="tab" onclick="switchTab('plan')">적립 관리</div>
   <div class="tab" onclick="switchTab('dividend')">배당</div>
   <div class="tab" onclick="switchTab('sale')">실현손익</div>
   <div class="tab" onclick="switchTab('settings')">설정</div>
@@ -1142,6 +1153,68 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 </div>
 
 <!-- ── 패널: 배당 ────────────────────────────────────────── -->
+<!-- ── 패널: 적립 관리 ──────────────────────────────────── -->
+<div class="panel" id="panel-plan">
+  <!-- 상단 버튼 -->
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px">
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="btn-refresh" onclick="reloadPlan()">↻ 새로 읽기</button>
+      <button id="planToggleInactive" class="btn-refresh" onclick="togglePlanInactive()" style="font-size:11px">비활성 종목 보기</button>
+    </div>
+    <button class="btn-primary" onclick="openPlanAddModal()">+ 종목 추가</button>
+  </div>
+
+  <!-- 요약 카드 -->
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap" id="planSummaryCards">
+    <div class="card"><div class="card-label">이번달 목표액</div><div class="card-value" id="planSumTarget">-</div></div>
+    <div class="card"><div class="card-label">이번달 실적</div><div class="card-value" id="planSumActual">-</div></div>
+    <div class="card"><div class="card-label">올해 누적</div><div class="card-value" id="planSumYtd">-</div></div>
+    <div class="card"><div class="card-label">달성률</div><div class="card-value" id="planSumRate">-</div></div>
+  </div>
+
+  <!-- 메인 테이블 -->
+  <div class="table-wrap" style="overflow-x:auto">
+    <div id="planTableContainer">
+      <div class="loading"><div class="spinner"></div><span>불러오는 중...</span></div>
+    </div>
+  </div>
+
+  <!-- 비활성 종목 섹션 -->
+  <div id="planInactiveSection" style="display:none;margin-top:16px">
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px;padding:8px 12px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border)">
+      📦 비활성 종목 (적립 중단 / 대기)
+    </div>
+    <div class="table-wrap" style="overflow-x:auto">
+      <div id="planInactiveTableContainer"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 적립 종목 추가/수정 모달 ──────────────────────────── -->
+<div class="modal-overlay" id="planModalOverlay" style="display:none" onclick="if(event.target===this)closePlanModal()">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-title" id="planModalTitle">적립 종목 추가</div>
+    <input type="hidden" id="planEditId">
+    <div class="form-row">
+      <label class="form-label">종목 선택</label>
+      <select class="form-select" id="planFormTicker"></select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">월 목표 적립액 (원)</label>
+      <input class="form-input" id="planFormTarget" type="number" placeholder="예: 173000">
+    </div>
+    <div class="form-row">
+      <label class="form-label">메모</label>
+      <input class="form-input" id="planFormMemo" placeholder="예: 어머니 ISA 월배당">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closePlanModal()">취소</button>
+      <button id="planDeleteBtn" class="btn-primary" style="background:var(--red);border-color:var(--red);display:none" onclick="deletePlanItem()">🗑️ 삭제</button>
+      <button class="btn-primary" id="planSaveBtn" onclick="savePlanItem()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="panel" id="panel-dividend">
 
   <!-- 상단: 버튼만 -->
@@ -3447,7 +3520,7 @@ async function deleteAccountGroup(encodedName) {
 function switchTab(tab) {
   state.activeTab = tab;
   document.querySelectorAll('.tab').forEach((el, i) => {
-    const tabs = ['overview','byAccount','sector','charts','trend','dividend','sale','settings'];
+    const tabs = ['overview','byAccount','sector','charts','trend','plan','dividend','sale','settings'];
     el.classList.toggle('active', tabs[i] === tab);
   });
   document.querySelectorAll('.panel').forEach(el => {
@@ -3457,9 +3530,258 @@ function switchTab(tab) {
   if (tab === 'sector')   initSectorTab();
   if (tab === 'charts')   requestAnimationFrame(function(){ requestAnimationFrame(renderCharts); });
   if (tab === 'trend')    initTrendTab();
+  if (tab === 'plan')     initPlanTab();
   if (tab === 'dividend') initDividendTab();
   if (tab === 'sale')     initSaleTab();
   if (tab === 'overview') requestAnimationFrame(setTableContainerHeight);
+}
+
+// ============================================================
+// 적립 관리 탭
+// ============================================================
+const planState = {
+  rows:         [],
+  loaded:       false,
+  showInactive: false,
+};
+
+function initPlanTab() {
+  if (!planState.loaded) loadPlan();
+  else renderPlan();
+}
+
+async function loadPlan() {
+  try {
+    const url = WORKER_URL ? WORKER_URL + '/api/plan' : GAS_URL + '?action=plan';
+    const res  = await fetch(url);
+    const data = await res.json();
+    planState.rows   = data.rows || [];
+    planState.loaded = true;
+    renderPlan();
+  } catch(e) {
+    const el = document.getElementById('planTableContainer');
+    if (el) el.innerHTML = '<div style="padding:20px;color:var(--text2)">불러오기 실패: ' + e.message + '</div>';
+  }
+}
+
+async function reloadPlan() {
+  planState.loaded = false; planState.rows = [];
+  await loadPlan();
+}
+
+function togglePlanInactive() {
+  planState.showInactive = !planState.showInactive;
+  const btn = document.getElementById('planToggleInactive');
+  if (btn) btn.textContent = planState.showInactive ? '비활성 종목 숨기기' : '비활성 종목 보기';
+  const sec = document.getElementById('planInactiveSection');
+  if (sec) sec.style.display = planState.showInactive ? 'block' : 'none';
+  renderPlan();
+}
+
+function getPlanMonths() {
+  const now = new Date(); const months = [];
+  for (let m = 0; m < 12; m++) {
+    const d = new Date(now.getFullYear(), m, 1);
+    months.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+  }
+  return months;
+}
+function getCurrentMonth() {
+  const now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+}
+
+function renderPlan() {
+  const months = getPlanMonths(), cur = getCurrentMonth();
+  const active   = planState.rows.filter(r => r.active !== false && r.active !== 'N');
+  const inactive = planState.rows.filter(r => r.active === false || r.active === 'N');
+  const fmt = v => Math.round(v).toLocaleString('ko-KR') + '원';
+  const s   = (id, t, c) => { const el = document.getElementById(id); if (el) { el.textContent = t; if (c) el.style.color = c; } };
+  let ts = 0, as = 0, ys = 0;
+  active.forEach(r => {
+    ts += Number(r.target || 0);
+    as += Number((r.monthly || {})[cur] || 0);
+    months.forEach(m => { ys += Number((r.monthly || {})[m] || 0); });
+  });
+  const rv = ts > 0 ? (as / ts * 100) : 0;
+  s('planSumTarget', fmt(ts));
+  s('planSumActual', fmt(as),  as >= ts ? 'var(--green)' : 'var(--text)');
+  s('planSumYtd',    fmt(ys),  'var(--blue)');
+  s('planSumRate',   rv.toFixed(1) + '%', rv >= 100 ? 'var(--green)' : rv >= 50 ? 'var(--yellow)' : 'var(--text2)');
+  const tc = document.getElementById('planTableContainer');
+  if (tc) tc.innerHTML = buildPlanTable(active, months, cur, true);
+  const itc = document.getElementById('planInactiveTableContainer');
+  if (itc) itc.innerHTML = buildPlanTable(inactive, months, cur, false);
+}
+
+function buildPlanTable(rows, months, curMonth, isActive) {
+  if (rows.length === 0) return '<div style="padding:16px;color:var(--text2);font-size:12px">종목이 없습니다.</div>';
+  let html = '<table style="width:100%;table-layout:auto;min-width:900px"><thead><tr style="background:var(--bg3)">'
+    + '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text2);white-space:nowrap">종목명</th>'
+    + '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text2);white-space:nowrap">계좌</th>'
+    + '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text2);white-space:nowrap">월목표액</th>';
+  months.forEach(m => {
+    const isCur = m === curMonth;
+    html += '<th style="padding:6px 8px;text-align:right;font-size:11px;color:' + (isCur ? 'var(--blue)' : 'var(--text2)') + ';white-space:nowrap">' + m.slice(5) + '월</th>';
+  });
+  html += '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text2);white-space:nowrap">누적합계</th>'
+    + '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text2);white-space:nowrap">현재가</th>'
+    + '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--blue);white-space:nowrap">이번달 매입수</th>'
+    + '<th style="padding:6px 8px"></th></tr></thead><tbody>';
+  rows.forEach(r => {
+    const monthly = r.monthly || {}, target = Number(r.target || 0);
+    let total = 0; months.forEach(m => { total += Number(monthly[m] || 0); });
+    const ticker = String(r.ticker || '').trim().toUpperCase();
+    const pm = state.priceMap ? state.priceMap[ticker] : null;
+    const cp = pm ? Number(pm.price || 0) : 0;
+    const isUS = String(r.market || '').toUpperCase() === 'US';
+    const usdKrw = state.usdKrw || 1500;
+    let buyQty = '-', buyTitle = '';
+    if (target > 0 && cp > 0) {
+      const priceKrw = isUS ? cp * usdKrw : cp;
+      const qty = Math.floor(target / priceKrw);
+      const cost = qty * priceKrw;
+      buyQty  = qty + '주';
+      buyTitle = '매수금액 ≈' + Math.round(cost).toLocaleString('ko-KR') + '원 / 잔여 ' + Math.round(target - cost).toLocaleString('ko-KR') + '원';
+    }
+    const priceDisp = cp > 0 ? (isUS ? '$' + cp.toFixed(2) : cp.toLocaleString('ko-KR') + '원') : '-';
+    html += '<tr style="border-bottom:1px solid var(--border)">'
+      + '<td style="padding:7px 10px"><strong style="font-size:13px">' + (r.name || ticker) + '</strong><br>'
+      + '<small style="color:var(--text2);font-size:11px">' + ticker + (r.memo ? ' · ' + r.memo : '') + '</small></td>'
+      + '<td style="padding:7px 10px;font-size:12px;color:var(--text2);white-space:nowrap">' + (r.account_name || '') + '</td>'
+      + '<td style="padding:7px 10px;text-align:right;font-size:12px;white-space:nowrap">' + (target > 0 ? target.toLocaleString('ko-KR') + '원' : '-') + '</td>';
+    months.forEach(m => {
+      const val = Number(monthly[m] || 0), isCur = m === curMonth, isPast = m < curMonth;
+      let bg = '';
+      if (isCur) bg = 'background:rgba(88,166,255,.08)';
+      else if (isPast && val > 0) bg = 'background:rgba(63,185,80,.05)';
+      html += '<td style="padding:4px 5px;' + bg + '">'
+        + '<input type="number" min="0" step="1000" value="' + (val || '') + '" placeholder="' + (m > curMonth ? '' : '0') + '"'
+        + ' onchange="updatePlanMonthly(\'' + r.id + '\',\'' + m + '\',this.value)"'
+        + ' class="plan-month-input"></td>';
+    });
+    html += '<td style="padding:7px 10px;text-align:right;font-size:12px;font-weight:600;white-space:nowrap">' + (total > 0 ? total.toLocaleString('ko-KR') + '원' : '-') + '</td>'
+      + '<td style="padding:7px 10px;text-align:right;font-size:12px;color:var(--text2);white-space:nowrap">' + priceDisp + '</td>'
+      + '<td style="padding:7px 10px;text-align:right;font-size:13px;font-weight:700;color:var(--blue);white-space:nowrap" title="' + buyTitle + '">' + buyQty + '</td>'
+      + '<td style="padding:7px 8px;text-align:center;white-space:nowrap">'
+      + '<button class="btn-icon" onclick="openPlanEditModal(\'' + r.id + '\')" title="수정">✏️</button>'
+      + (isActive ? '<button class="btn-icon" onclick="deactivatePlan(\'' + r.id + '\')" title="비활성화" style="opacity:.5">⏸</button>'
+                  : '<button class="btn-icon" onclick="activatePlan(\'' + r.id + '\')" title="활성화" style="color:var(--green)">▶</button>')
+      + '</td></tr>';
+  });
+  return html + '</tbody></table>';
+}
+
+async function updatePlanMonthly(id, month, value) {
+  const row = planState.rows.find(r => String(r.id) === String(id));
+  if (row) { if (!row.monthly) row.monthly = {}; row.monthly[month] = Number(value) || 0; }
+  const months = getPlanMonths(), cur = getCurrentMonth();
+  const active = planState.rows.filter(r => r.active !== false && r.active !== 'N');
+  let ts = 0, as = 0, ys = 0;
+  active.forEach(r => { ts += Number(r.target||0); as += Number((r.monthly||{})[cur]||0); months.forEach(m => { ys += Number((r.monthly||{})[m]||0); }); });
+  const fmt = v => Math.round(v).toLocaleString('ko-KR') + '원', rv = ts > 0 ? as/ts*100 : 0;
+  const ss = (id2, t, c) => { const el = document.getElementById(id2); if (el) { el.textContent = t; if (c) el.style.color = c; } };
+  ss('planSumTarget', fmt(ts)); ss('planSumActual', fmt(as), as>=ts?'var(--green)':'var(--text)');
+  ss('planSumYtd', fmt(ys), 'var(--blue)'); ss('planSumRate', rv.toFixed(1)+'%', rv>=100?'var(--green)':rv>=50?'var(--yellow)':'var(--text2)');
+  try {
+    const url = WORKER_URL ? WORKER_URL + '/api/plan' : GAS_URL;
+    await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action: 'update_plan_monthly', id, month, amount: Number(value) || 0 }) });
+  } catch(e) { console.error('적립 저장 실패:', e.message); }
+}
+
+async function deactivatePlan(id) {
+  const row = planState.rows.find(r => String(r.id) === String(id));
+  if (row) row.active = false;
+  try { const url = WORKER_URL ? WORKER_URL+'/api/plan' : GAS_URL; await fetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_plan_active',id,active:false})}); } catch(e) {}
+  renderPlan();
+}
+
+async function activatePlan(id) {
+  const row = planState.rows.find(r => String(r.id) === String(id));
+  if (row) row.active = true;
+  try { const url = WORKER_URL ? WORKER_URL+'/api/plan' : GAS_URL; await fetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_plan_active',id,active:true})}); } catch(e) {}
+  renderPlan();
+}
+
+function openPlanAddModal() {
+  document.getElementById('planModalTitle').textContent = '적립 종목 추가';
+  document.getElementById('planEditId').value = '';
+  document.getElementById('planFormTarget').value = '';
+  document.getElementById('planFormMemo').value   = '';
+  document.getElementById('planDeleteBtn').style.display = 'none';
+  const existing = new Set(planState.rows.map(r => r.ticker + '|' + r.account_id));
+  const sel = document.getElementById('planFormTicker');
+  sel.innerHTML = '<option value="">-- 종목 선택 --</option>';
+  sel.disabled = false;
+  getFilteredHoldings().forEach(h => {
+    if (h.is_cash) return;
+    const opt = document.createElement('option');
+    opt.value = JSON.stringify({ ticker: h.ticker, name: h.name, account_id: h.account_id, account_name: (h.broker||'') + ' ' + (h.account_type||''), market: h.market });
+    opt.textContent = (h.name||h.ticker) + ' (' + h.ticker + ') - ' + (h.broker||'') + ' ' + (h.account_type||'');
+    if (existing.has(h.ticker + '|' + h.account_id)) opt.disabled = true;
+    sel.appendChild(opt);
+  });
+  document.getElementById('planModalOverlay').style.display = 'flex';
+}
+
+function openPlanEditModal(id) {
+  const row = planState.rows.find(r => String(r.id) === String(id));
+  if (!row) return;
+  document.getElementById('planModalTitle').textContent = '적립 종목 수정';
+  document.getElementById('planEditId').value  = id;
+  document.getElementById('planFormTarget').value = row.target || '';
+  document.getElementById('planFormMemo').value   = row.memo   || '';
+  document.getElementById('planDeleteBtn').style.display = 'inline-flex';
+  const sel = document.getElementById('planFormTicker');
+  sel.innerHTML = '<option>' + (row.name||row.ticker) + ' (' + row.ticker + ')</option>';
+  sel.disabled  = true;
+  document.getElementById('planModalOverlay').style.display = 'flex';
+}
+
+function closePlanModal() {
+  document.getElementById('planModalOverlay').style.display = 'none';
+  document.getElementById('planFormTicker').disabled = false;
+}
+
+async function savePlanItem() {
+  const btn = document.getElementById('planSaveBtn'), orig = btnSaving(btn);
+  const editId = document.getElementById('planEditId').value;
+  const target = Number(document.getElementById('planFormTarget').value) || 0;
+  const memo   = document.getElementById('planFormMemo').value.trim();
+  try {
+    const url = WORKER_URL ? WORKER_URL + '/api/plan' : GAS_URL;
+    let body;
+    if (editId) {
+      body = { action: 'update_plan', id: editId, target, memo };
+      const row = planState.rows.find(r => String(r.id) === String(editId));
+      if (row) { row.target = target; row.memo = memo; }
+    } else {
+      const selVal = document.getElementById('planFormTicker').value;
+      if (!selVal) { btnError(btn, orig); alert('종목을 선택하세요'); return; }
+      const h = JSON.parse(selVal);
+      body = { action: 'add_plan', ticker: h.ticker, name: h.name, account_id: h.account_id, account_name: h.account_name, market: h.market, target, memo };
+    }
+    const res  = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    await btnDone(btn, orig, '저장 완료');
+    closePlanModal(); planState.loaded = false; await loadPlan();
+  } catch(e) { btnError(btn, orig); alert('저장 실패: ' + e.message); }
+}
+
+async function deletePlanItem() {
+  const id = document.getElementById('planEditId').value;
+  if (!id || !confirm('적립 목록에서 삭제할까요?')) return;
+  const btn = document.getElementById('planDeleteBtn'), orig = btnSaving(btn);
+  try {
+    const url = WORKER_URL ? WORKER_URL + '/api/plan' : GAS_URL;
+    const res  = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'delete_plan', id }) });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    await btnDone(btn, orig, '삭제 완료');
+    closePlanModal(); planState.loaded = false; await loadPlan();
+  } catch(e) { btnError(btn, orig); alert('삭제 실패: ' + e.message); }
 }
 
 // ============================================================
