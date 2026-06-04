@@ -1832,6 +1832,7 @@ function renderAll() {
   renderAccountGroupList();
   renderGroupAccountChecks();
   if (state.activeTab === 'sector')   initSectorTab();
+  if (state.activeTab === 'plan'  && planState.loaded) renderPlan();
   if (state.activeTab === 'trend'   && trendState.loaded)  renderTrendChart();
   if (state.activeTab === 'dividend' && divState.loaded)   renderDividend();
   if (state.activeTab === 'sale'     && saleState.loaded)  renderSale();
@@ -3593,8 +3594,18 @@ function getCurrentMonth() {
 
 function renderPlan() {
   const months = getPlanMonths(), cur = getCurrentMonth();
-  const active   = planState.rows.filter(r => r.active !== false && r.active !== 'N');
-  const inactive = planState.rows.filter(r => r.active === false || r.active === 'N');
+
+  // 전역 필터 적용 (소유자/계좌)
+  const filterRows = function(rows) {
+    return rows.filter(function(r) {
+      if (selectedOwners.size > 0 && !selectedOwners.has(r.owner)) return false;
+      if (selectedAccounts.size > 0 && !selectedAccounts.has(String(r.account_id))) return false;
+      return true;
+    });
+  };
+
+  const active   = filterRows(planState.rows.filter(r => r.active !== false && r.active !== 'N'));
+  const inactive = filterRows(planState.rows.filter(r => r.active === false || r.active === 'N'));
   const fmt = v => Math.round(v).toLocaleString('ko-KR') + '원';
   const s   = (id, t, c) => { const el = document.getElementById(id); if (el) { el.textContent = t; if (c) el.style.color = c; } };
   let ts = 0, as = 0, ys = 0;
@@ -3672,9 +3683,14 @@ function buildPlanTable(rows, months, curMonth, isActive) {
   return html + '</tbody></table>';
 }
 
+// 디바운스 타이머 (월별 입력 연속 호출 방지)
+const planMonthlyTimers = {};
+
 async function updatePlanMonthly(id, month, value) {
   const row = planState.rows.find(r => String(r.id) === String(id));
   if (row) { if (!row.monthly) row.monthly = {}; row.monthly[month] = Number(value) || 0; }
+
+  // 요약 카드 즉시 갱신
   const months = getPlanMonths(), cur = getCurrentMonth();
   const active = planState.rows.filter(r => r.active !== false && r.active !== 'N');
   let ts = 0, as = 0, ys = 0;
@@ -3683,11 +3699,18 @@ async function updatePlanMonthly(id, month, value) {
   const ss = (id2, t, c) => { const el = document.getElementById(id2); if (el) { el.textContent = t; if (c) el.style.color = c; } };
   ss('planSumTarget', fmt(ts)); ss('planSumActual', fmt(as), as>=ts?'var(--green)':'var(--text)');
   ss('planSumYtd', fmt(ys), 'var(--blue)'); ss('planSumRate', rv.toFixed(1)+'%', rv>=100?'var(--green)':rv>=50?'var(--yellow)':'var(--text2)');
-  try {
-    const url = WORKER_URL ? WORKER_URL + '/api/plan' : GAS_URL;
-    await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ action: 'update_plan_monthly', id, month, amount: Number(value) || 0 }) });
-  } catch(e) { console.error('적립 저장 실패:', e.message); }
+
+  // 디바운스: 300ms 내 연속 호출 시 마지막 1회만 GAS에 저장
+  const key = id + '|' + month;
+  if (planMonthlyTimers[key]) clearTimeout(planMonthlyTimers[key]);
+  planMonthlyTimers[key] = setTimeout(async function() {
+    delete planMonthlyTimers[key];
+    try {
+      const url = WORKER_URL ? WORKER_URL + '/api/plan' : GAS_URL;
+      await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'update_plan_monthly', id, month, amount: Number(value) || 0 }) });
+    } catch(e) { console.error('적립 저장 실패:', e.message); }
+  }, 300);
 }
 
 async function deactivatePlan(id) {
