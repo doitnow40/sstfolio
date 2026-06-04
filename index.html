@@ -3595,10 +3595,16 @@ function getCurrentMonth() {
 function renderPlan() {
   const months = getPlanMonths(), cur = getCurrentMonth();
 
-  // 전역 필터 적용 (소유자/계좌)
+  // 전역 필터 적용 (소유자/계좌) - planState.rows에 owner 없으므로 accounts에서 조회
+  const accountOwnerMap = {};
+  (state.accounts || []).forEach(function(a) {
+    accountOwnerMap[String(a.account_id)] = a.owner || '';
+  });
+
   const filterRows = function(rows) {
     return rows.filter(function(r) {
-      if (selectedOwners.size > 0 && !selectedOwners.has(r.owner)) return false;
+      const owner = accountOwnerMap[String(r.account_id)] || '';
+      if (selectedOwners.size > 0 && !selectedOwners.has(owner)) return false;
       if (selectedAccounts.size > 0 && !selectedAccounts.has(String(r.account_id))) return false;
       return true;
     });
