@@ -1459,7 +1459,8 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <!-- ── 입출금 추가 모달 ──────────────────────────────────── -->
 <div class="modal-overlay" id="cfModal" onclick="closeCashflowModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:400px">
-    <div class="modal-title">입출금 추가</div>
+    <div class="modal-title" id="cfModalTitle">입출금 추가</div>
+    <input type="hidden" id="cfModalId">
     <div class="form-group">
       <label class="form-label">날짜 *</label>
       <input type="date" class="form-input" id="cfModalDate">
@@ -1486,7 +1487,8 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <!-- ── 외부자산 추가 모달 ─────────────────────────────────── -->
 <div class="modal-overlay" id="cfExtModal" onclick="closeExternalAssetModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:400px">
-    <div class="modal-title">외부자산 추가</div>
+    <div class="modal-title" id="cfExtModalTitle">외부자산 추가</div>
+    <input type="hidden" id="cfExtModalId">
     <div class="form-group">
       <label class="form-label">자산명 *</label>
       <input type="text" class="form-input" id="cfExtModalName" placeholder="예: OK저축은행 예금">
@@ -1944,6 +1946,7 @@ function renderAll() {
   if (state.activeTab === 'trend'   && trendState.loaded)  renderTrendChart();
   if (state.activeTab === 'dividend' && divState.loaded)   renderDividend();
   if (state.activeTab === 'sale'     && saleState.loaded)  renderSale();
+  if (state.activeTab === 'cashflow' && cfState.loaded)    renderCashflow();
 }
 
 // ── 요약 카드 ────────────────────────────────────────────────
@@ -6298,6 +6301,7 @@ function openSaleEditModal(id) {
 // 입출금 관리 탭
 // ============================================================
 function fmtKrw(v) { return Math.round(Number(v)||0).toLocaleString('ko-KR') + '원'; }
+
 const cfState = {
   cashflows:      [],
   externalAssets: [],
@@ -6328,21 +6332,20 @@ async function loadCashflow() {
 }
 
 function populateCfFilters() {
-  // 계좌 필터
-  const accSel = document.getElementById('cfFilterAccount');
-  const savedAcct = accSel.value;
+  // 탭 내부 계좌 드롭다운
+  const accSel   = document.getElementById('cfFilterAccount');
+  const savedAcc = accSel.value;
   accSel.innerHTML = '<option value="">전체 계좌</option>';
-  const accts = state.accounts || [];
-  accts.forEach(a => {
+  (state.accounts || []).forEach(a => {
     const opt = document.createElement('option');
     opt.value = String(a.account_id);
     opt.textContent = (a.owner||'') + ' · ' + (a.broker||'') + ' · ' + (a.account_type||'');
     accSel.appendChild(opt);
   });
-  accSel.value = savedAcct;
+  accSel.value = savedAcc;
 
   // 연도 필터
-  const yearSel = document.getElementById('cfFilterYear');
+  const yearSel  = document.getElementById('cfFilterYear');
   const savedYear = yearSel.value;
   const years = [...new Set(cfState.cashflows.map(r => (r.date||'').slice(0,4)).filter(Boolean))].sort().reverse();
   yearSel.innerHTML = '<option value="">전체 기간</option>';
@@ -6356,13 +6359,14 @@ function populateCfFilters() {
 }
 
 function populateCfMonths() {
-  const year    = document.getElementById('cfFilterYear').value;
+  const year     = document.getElementById('cfFilterYear').value;
   const monthSel = document.getElementById('cfFilterMonth');
   const savedMon = monthSel.value;
   monthSel.innerHTML = '<option value="">전체 월</option>';
   if (!year) return;
   const months = [...new Set(
-    cfState.cashflows.filter(r=>(r.date||'').startsWith(year)).map(r=>(r.date||'').slice(5,7)).filter(Boolean)
+    cfState.cashflows.filter(r => (r.date||'').startsWith(year))
+                     .map(r => (r.date||'').slice(5,7)).filter(Boolean)
   )].sort();
   months.forEach(m => {
     const opt = document.createElement('option');
@@ -6377,16 +6381,31 @@ function onCfYearChange() {
   renderCashflow();
 }
 
+// ── 전역 필터 적용 헬퍼 ────────────────────────────────────
+function cfApplyGlobalFilter(rows) {
+  return rows.filter(function(r) {
+    // owner 필터 (selectedOwners는 전역 Set)
+    if (selectedOwners.size > 0) {
+      const acct = (state.accounts || []).find(a => String(a.account_id) === String(r.account_id));
+      const owner = acct ? (acct.owner || '') : '';
+      if (!selectedOwners.has(owner)) return false;
+    }
+    // account 필터 (selectedAccounts는 전역 Set)
+    if (selectedAccounts.size > 0 && !selectedAccounts.has(String(r.account_id))) return false;
+    return true;
+  });
+}
+
 function renderCashflow() {
-  const accountId = document.getElementById('cfFilterAccount').value;
+  const tabAcctId = document.getElementById('cfFilterAccount').value;
   const year      = document.getElementById('cfFilterYear').value;
   const month     = document.getElementById('cfFilterMonth').value;
 
-  // 필터링
-  let rows = cfState.cashflows.filter(r => {
-    if (accountId && String(r.account_id) !== accountId) return false;
+  // 전역 필터 먼저 적용 → 탭 내부 필터 추가 적용
+  let rows = cfApplyGlobalFilter(cfState.cashflows).filter(r => {
+    if (tabAcctId && String(r.account_id) !== tabAcctId) return false;
     const d = r.date || '';
-    if (year  && !d.startsWith(year))  return false;
+    if (year  && !d.startsWith(year))    return false;
     if (month && d.slice(5,7) !== month) return false;
     return true;
   });
@@ -6394,7 +6413,7 @@ function renderCashflow() {
 
   const totalOut = rows.reduce((s,r) => s + (Number(r.amount)||0), 0);
 
-  // 테이블
+  // 입출금 테이블
   const tbody = document.getElementById('cfTableBody');
   if (rows.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:24px">내역 없음</td></tr>';
@@ -6406,23 +6425,27 @@ function renderCashflow() {
         <td style="color:var(--text2);font-size:12px">${acct}</td>
         <td style="text-align:right;font-weight:600;color:var(--red)">${fmtKrw(r.amount)}</td>
         <td style="color:var(--text2)">${r.memo||''}</td>
-        <td><button onclick="deleteCashflowRow('${r.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px">🗑</button></td>
+        <td style="white-space:nowrap">
+          <button onclick="editCashflowRow(${JSON.stringify(r).replace(/"/g,'&quot;')})" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:13px" title="수정">✏️</button>
+          <button onclick="deleteCashflowRow('${r.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px" title="삭제">🗑</button>
+        </td>
       </tr>`;
     }).join('');
   }
-
   document.getElementById('cfTotalLabel').textContent = '총 ' + rows.length + '건 / ' + fmtKrw(totalOut);
 
-  // 외부자산 테이블
-  renderExternalAssets();
+  // 외부자산 (전역 필터만 적용, 탭 계좌 필터는 별도)
+  renderExternalAssets(tabAcctId);
 
   // 요약 카드 + 안전성 바
-  renderCfSummary(totalOut);
+  renderCfSummary(totalOut, tabAcctId);
 }
 
-function renderExternalAssets() {
+function renderExternalAssets(tabAcctId) {
+  let rows = cfApplyGlobalFilter(cfState.externalAssets);
+  if (tabAcctId) rows = rows.filter(r => String(r.account_id) === tabAcctId);
+
   const tbody = document.getElementById('cfExtTableBody');
-  const rows  = cfState.externalAssets;
   if (rows.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:16px">외부자산 없음</td></tr>';
     return;
@@ -6432,69 +6455,75 @@ function renderExternalAssets() {
     <td style="color:var(--text2);font-size:12px">${getAccountLabel(r.account_id)}</td>
     <td style="text-align:right;font-weight:600">${fmtKrw(r.amount)}</td>
     <td style="color:var(--text2)">${r.memo||''}</td>
-    <td><button onclick="deleteExternalAssetRow('${r.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px">🗑</button></td>
+    <td style="white-space:nowrap">
+      <button onclick="editExternalAssetRow(${JSON.stringify(r).replace(/"/g,'&quot;')})" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:13px" title="수정">✏️</button>
+      <button onclick="deleteExternalAssetRow('${r.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px" title="삭제">🗑</button>
+    </td>
   </tr>`).join('');
 }
 
-function renderCfSummary(totalOut) {
-  // 포트폴리오 데이터에서 수익 집계
-  const holdings = state.holdings || [];
-  const accountIdFilter = document.getElementById('cfFilterAccount').value;
+function renderCfSummary(totalOut, tabAcctId) {
+  // 전역 필터 + 탭 계좌 필터를 모두 반영한 account_id 집합 계산
+  function passFilter(accountId) {
+    const acct = (state.accounts || []).find(a => String(a.account_id) === String(accountId));
+    const owner = acct ? (acct.owner || '') : '';
+    if (selectedOwners.size > 0   && !selectedOwners.has(owner))            return false;
+    if (selectedAccounts.size > 0 && !selectedAccounts.has(String(accountId))) return false;
+    if (tabAcctId && String(accountId) !== tabAcctId)                        return false;
+    return true;
+  }
 
-  // 투자원금 (필터 계좌 or 전체)
+  // 투자원금
   let costTotal = 0;
-  holdings.forEach(h => {
-    if (accountIdFilter && String(h.account_id) !== accountIdFilter) return;
-    const qty = Number(h.quantity)  || 0;
-    const avg = Number(h.avg_price) || 0;
-    costTotal += qty * avg;
+  (state.holdings || []).forEach(h => {
+    if (!passFilter(h.account_id)) return;
+    costTotal += (Number(h.quantity)||0) * (Number(h.avg_price)||0);
   });
 
-  // 실현수익 합계 (필터 계좌 or 전체)
-  const saleRows = (typeof saleState !== 'undefined' && saleState.rows) ? saleState.rows : [];
+  // 실현수익
   let saleTotal = 0;
-  saleRows.forEach(r => {
-    if (accountIdFilter && String(r.account_id) !== accountIdFilter) return;
+  ((typeof saleState !== 'undefined' && saleState.rows) ? saleState.rows : []).forEach(r => {
+    if (!passFilter(r.account_id)) return;
     saleTotal += Number(r.profit) || 0;
   });
 
-  // 배당 합계 (필터 계좌 or 전체)
-  const divRows = (typeof divState !== 'undefined' && divState.rows) ? divState.rows : [];
+  // 배당총액
   let divTotal = 0;
-  divRows.forEach(r => {
-    if (accountIdFilter && String(r.account_id) !== accountIdFilter) return;
+  ((typeof divState !== 'undefined' && divState.rows) ? divState.rows : []).forEach(r => {
+    if (!passFilter(r.account_id)) return;
     divTotal += Number(r.amount) || 0;
   });
 
-  // 외부자산 합계
-  const extTotal = cfState.externalAssets.reduce((s,r)=> s + (Number(r.amount)||0), 0);
+  // 외부자산 합계 (전역+탭 필터 적용)
+  let extRows = cfApplyGlobalFilter(cfState.externalAssets);
+  if (tabAcctId) extRows = extRows.filter(r => String(r.account_id) === tabAcctId);
+  const extTotal = extRows.reduce((s,r) => s + (Number(r.amount)||0), 0);
 
-  const confirmedProfit = saleTotal + divTotal;   // 확정 수익
-  const remaining       = confirmedProfit - totalOut; // 잔여 여유
-  const pct = confirmedProfit > 0 ? Math.min(100, totalOut / confirmedProfit * 100) : 0;
+  const confirmedProfit = saleTotal + divTotal;
+  const remaining       = confirmedProfit - totalOut;
+  const pct      = confirmedProfit > 0 ? Math.min(100, totalOut / confirmedProfit * 100) : (totalOut > 0 ? 100 : 0);
+  const safeColor = remaining >= 0 ? 'var(--green)' : 'var(--red)';
+  const safeLabel = remaining >= 0 ? (pct < 50 ? '✅ 안전' : '⚠️ 주의') : '🚨 위험';
+  const barColor  = pct < 50 ? '#22c55e' : pct < 80 ? '#f59e0b' : '#ef4444';
 
-  const safeColor   = remaining >= 0 ? 'var(--green)' : 'var(--red)';
-  const safeLabel   = remaining >= 0 ? (pct < 50 ? '✅ 안전' : '⚠️ 주의') : '🚨 위험';
-  const barColor    = pct < 50 ? '#22c55e' : pct < 80 ? '#f59e0b' : '#ef4444';
-
-  // 카드 렌더링
   const cards = [
-    { label: '투자원금',   value: fmtKrw(costTotal),      color: 'var(--text1)' },
-    { label: '실현수익',   value: fmtKrw(saleTotal),      color: 'var(--green)' },
-    { label: '배당총액',   value: fmtKrw(divTotal),       color: 'var(--green)' },
-    { label: '확정수익',   value: fmtKrw(confirmedProfit),color: 'var(--blue)'  },
-    { label: '총 인출액',  value: fmtKrw(totalOut),       color: 'var(--red)'   },
-    { label: '잔여 여유',  value: fmtKrw(remaining),      color: safeColor,      badge: safeLabel },
-    { label: '외부자산',   value: fmtKrw(extTotal),       color: 'var(--yellow)'},
+    { label: '투자원금',  value: fmtKrw(costTotal),       color: 'var(--text1)' },
+    { label: '실현수익',  value: fmtKrw(saleTotal),       color: 'var(--green)' },
+    { label: '배당총액',  value: fmtKrw(divTotal),        color: 'var(--green)' },
+    { label: '확정수익',  value: fmtKrw(confirmedProfit), color: 'var(--blue)'  },
+    { label: '총 인출액', value: fmtKrw(totalOut),        color: 'var(--red)'   },
+    { label: '잔여 여유', value: fmtKrw(remaining),       color: safeColor, badge: safeLabel },
+    { label: '외부자산',  value: fmtKrw(extTotal),        color: 'var(--yellow)'},
   ];
 
   document.getElementById('cfSummaryCards').innerHTML = cards.map(c => `
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px">
-      <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${c.label}${c.badge ? ' <span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--bg3);color:'+safeColor+'">' + c.badge + '</span>' : ''}</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${c.label}${c.badge
+        ? ' <span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--bg3);color:' + safeColor + '">' + c.badge + '</span>'
+        : ''}</div>
       <div style="font-size:15px;font-weight:700;color:${c.color}">${c.value}</div>
     </div>`).join('');
 
-  // 안전성 진행바
   document.getElementById('cfSafetyBar').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <span style="font-size:13px;font-weight:600;color:var(--text1)">인출 안전성</span>
@@ -6511,50 +6540,52 @@ function renderCfSummary(totalOut) {
 
 function getAccountLabel(accountId) {
   if (!accountId) return '';
-  const accts = state.accounts || [];
-  const a = accts.find(a => String(a.account_id) === String(accountId));
+  const a = (state.accounts || []).find(a => String(a.account_id) === String(accountId));
   if (!a) return String(accountId);
   return (a.owner||'') + ' · ' + (a.broker||'') + ' · ' + (a.account_type||'');
 }
 
-// ── 입출금 추가 모달 ───────────────────────────────────────
-function openCashflowModal() {
-  document.getElementById('cfModalDate').value    = new Date().toISOString().slice(0,10);
-  document.getElementById('cfModalAccount').value = '';
-  document.getElementById('cfModalAmount').value  = '';
-  document.getElementById('cfModalMemo').value    = '';
-  populateCfModalAccounts();
+// ── 입출금 추가/수정 모달 ──────────────────────────────────
+function openCashflowModal(editData) {
+  const isEdit = !!editData;
+  document.getElementById('cfModalTitle').textContent = isEdit ? '입출금 수정' : '입출금 추가';
+  document.getElementById('cfModalId').value      = isEdit ? editData.id    : '';
+  document.getElementById('cfModalDate').value    = isEdit ? editData.date  : new Date().toISOString().slice(0,10);
+  document.getElementById('cfModalAmount').value  = isEdit ? editData.amount : '';
+  document.getElementById('cfModalMemo').value    = isEdit ? (editData.memo||'') : '';
+  populateCfModalAccounts(isEdit ? String(editData.account_id) : '');
   document.getElementById('cfModal').classList.add('open');
 }
 function closeCashflowModal() { document.getElementById('cfModal').classList.remove('open'); }
 
-function populateCfModalAccounts() {
-  const sel   = document.getElementById('cfModalAccount');
-  const accts = state.accounts || [];
+function editCashflowRow(r) { openCashflowModal(r); }
+
+function populateCfModalAccounts(selectId) {
+  const sel = document.getElementById('cfModalAccount');
   sel.innerHTML = '<option value="">계좌 선택</option>';
-  accts.forEach(a => {
+  (state.accounts || []).forEach(a => {
     const opt = document.createElement('option');
     opt.value = String(a.account_id);
     opt.textContent = (a.owner||'') + ' · ' + (a.broker||'') + ' · ' + (a.account_type||'');
     sel.appendChild(opt);
   });
+  if (selectId) sel.value = selectId;
 }
 
 async function saveCashflow() {
+  const id        = document.getElementById('cfModalId').value.trim();
   const date      = document.getElementById('cfModalDate').value.trim();
   const accountId = document.getElementById('cfModalAccount').value;
-  const amount    = parseInt(document.getElementById('cfModalAmount').value.replace(/[^0-9]/g,''),10);
+  const amount    = parseInt(document.getElementById('cfModalAmount').value.replace(/[^0-9]/g,''), 10);
   const memo      = document.getElementById('cfModalMemo').value.trim();
   if (!date || !accountId || !amount) { alert('날짜, 계좌, 금액은 필수입니다'); return; }
 
-  const accts = state.accounts || [];
-  const acct  = accts.find(a => String(a.account_id) === accountId) || {};
-
-  const base = WORKER_URL || GAS_URL;
-  const url  = WORKER_URL ? base + '/api/cashflow' : base;
-  const body = { action: 'add_cashflow', date, account_id: accountId,
-                 account_name: (acct.owner||'') + ' · ' + (acct.broker||'') + ' · ' + (acct.account_type||''),
-                 amount, memo };
+  const acct   = (state.accounts||[]).find(a => String(a.account_id) === accountId) || {};
+  const acctName = (acct.owner||'') + ' · ' + (acct.broker||'') + ' · ' + (acct.account_type||'');
+  const action = id ? 'update_cashflow' : 'add_cashflow';
+  const base   = WORKER_URL || GAS_URL;
+  const url    = WORKER_URL ? base + '/api/cashflow' : base;
+  const body   = { action, id, date, account_id: accountId, account_name: acctName, amount, memo };
   try {
     const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     const data = await res.json();
@@ -6569,9 +6600,8 @@ async function deleteCashflowRow(id) {
   if (!confirm('이 내역을 삭제하시겠습니까?')) return;
   const base = WORKER_URL || GAS_URL;
   const url  = WORKER_URL ? base + '/api/cashflow' : base;
-  const body = { action: 'delete_cashflow', id };
   try {
-    const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action: 'delete_cashflow', id }) });
     const data = await res.json();
     if (data.error) { alert('오류: ' + data.error); return; }
     cfState.loaded = false;
@@ -6579,44 +6609,47 @@ async function deleteCashflowRow(id) {
   } catch(e) { alert('삭제 실패: ' + e.message); }
 }
 
-// ── 외부자산 추가 모달 ─────────────────────────────────────
-function openExternalAssetModal() {
-  document.getElementById('cfExtModalName').value    = '';
-  document.getElementById('cfExtModalAccount').value = '';
-  document.getElementById('cfExtModalAmount').value  = '';
-  document.getElementById('cfExtModalMemo').value    = '';
-  populateCfExtModalAccounts();
+// ── 외부자산 추가/수정 모달 ────────────────────────────────
+function openExternalAssetModal(editData) {
+  const isEdit = !!editData;
+  document.getElementById('cfExtModalTitle').textContent = isEdit ? '외부자산 수정' : '외부자산 추가';
+  document.getElementById('cfExtModalId').value     = isEdit ? editData.id      : '';
+  document.getElementById('cfExtModalName').value   = isEdit ? (editData.name||'') : '';
+  document.getElementById('cfExtModalAmount').value = isEdit ? editData.amount  : '';
+  document.getElementById('cfExtModalMemo').value   = isEdit ? (editData.memo||'') : '';
+  populateCfExtModalAccounts(isEdit ? String(editData.account_id) : '');
   document.getElementById('cfExtModal').classList.add('open');
 }
 function closeExternalAssetModal() { document.getElementById('cfExtModal').classList.remove('open'); }
 
-function populateCfExtModalAccounts() {
-  const sel   = document.getElementById('cfExtModalAccount');
-  const accts = state.accounts || [];
+function editExternalAssetRow(r) { openExternalAssetModal(r); }
+
+function populateCfExtModalAccounts(selectId) {
+  const sel = document.getElementById('cfExtModalAccount');
   sel.innerHTML = '<option value="">계좌 없음 (독립 자산)</option>';
-  accts.forEach(a => {
+  (state.accounts || []).forEach(a => {
     const opt = document.createElement('option');
     opt.value = String(a.account_id);
     opt.textContent = (a.owner||'') + ' · ' + (a.broker||'') + ' · ' + (a.account_type||'');
     sel.appendChild(opt);
   });
+  if (selectId) sel.value = selectId;
 }
 
 async function saveExternalAsset() {
+  const id        = document.getElementById('cfExtModalId').value.trim();
   const name      = document.getElementById('cfExtModalName').value.trim();
   const accountId = document.getElementById('cfExtModalAccount').value;
-  const amount    = parseInt(document.getElementById('cfExtModalAmount').value.replace(/[^0-9]/g,''),10);
+  const amount    = parseInt(document.getElementById('cfExtModalAmount').value.replace(/[^0-9]/g,''), 10);
   const memo      = document.getElementById('cfExtModalMemo').value.trim();
   if (!name || !amount) { alert('자산명과 금액은 필수입니다'); return; }
 
-  const accts = state.accounts || [];
-  const acct  = accts.find(a => String(a.account_id) === accountId) || {};
-
-  const base = WORKER_URL || GAS_URL;
-  const url  = WORKER_URL ? base + '/api/external-asset' : base;
-  const body = { action: 'add_external_asset', name, account_id: accountId,
-                 account_name: accountId ? ((acct.owner||'') + ' · ' + (acct.broker||'')) : '',
-                 amount, memo };
+  const acct     = (state.accounts||[]).find(a => String(a.account_id) === accountId) || {};
+  const acctName = accountId ? ((acct.owner||'') + ' · ' + (acct.broker||'')) : '';
+  const action   = id ? 'update_external_asset' : 'add_external_asset';
+  const base     = WORKER_URL || GAS_URL;
+  const url      = WORKER_URL ? base + '/api/external-asset' : base;
+  const body     = { action, id, name, account_id: accountId, account_name: acctName, amount, memo };
   try {
     const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     const data = await res.json();
@@ -6631,9 +6664,8 @@ async function deleteExternalAssetRow(id) {
   if (!confirm('이 외부자산을 삭제하시겠습니까?')) return;
   const base = WORKER_URL || GAS_URL;
   const url  = WORKER_URL ? base + '/api/external-asset' : base;
-  const body = { action: 'delete_external_asset', id };
   try {
-    const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action: 'delete_external_asset', id }) });
     const data = await res.json();
     if (data.error) { alert('오류: ' + data.error); return; }
     cfState.loaded = false;
