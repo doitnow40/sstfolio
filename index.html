@@ -2361,6 +2361,11 @@ function renderTableMobile(rows, sort) {
 
 function sortHoldings(rows, sort) {
   return [...rows].sort((a, b) => {
+    // 예수금은 항상 최하단
+    if (a.is_cash && !b.is_cash) return 1;
+    if (!a.is_cash && b.is_cash) return -1;
+    if (a.is_cash && b.is_cash) return String(a.account_id).localeCompare(String(b.account_id));
+    // 일반 종목 기존 정렬
     switch (sort) {
       case 'profit_pct_desc': return (b.profit_pct || 0) - (a.profit_pct || 0);
       case 'profit_pct_asc':  return (a.profit_pct || 0) - (b.profit_pct || 0);
