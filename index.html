@@ -683,6 +683,20 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 }
 .btn-icon:hover { color:var(--text); }
 
+.btn-metric {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.btn-metric:hover { background: var(--bg2); color: var(--text1); }
+.btn-metric.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+
 /* ── 실현손익 탭 ─────────────────────────────────────────── */
 .sale-badge-kr  { background:rgba(74,158,255,.15); color:var(--blue); border:1px solid rgba(74,158,255,.3); font-size:10px; padding:1px 5px; border-radius:3px; }
 .sale-badge-us  { background:rgba(255,190,60,.12);  color:#ffbe3c;    border:1px solid rgba(255,190,60,.3);  font-size:10px; padding:1px 5px; border-radius:3px; }
@@ -1057,21 +1071,39 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   <!-- bar 차트 섹션 (전체 너비) -->
   <div style="display:flex;flex-direction:column;gap:16px;margin-top:16px">
 
-    <!-- 섹터별 수익률 -->
+    <!-- 섹터별 수익률/수익금 -->
     <div class="chart-card" id="card-bar-sector" style="width:100%">
-      <div class="chart-title">섹터별 수익률 (%)</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="chart-title" id="titleBarSector" style="margin-bottom:0">섹터별 수익률 (%)</div>
+        <div style="display:flex;gap:4px">
+          <button id="btnSectorPct" class="btn-metric active" onclick="setChartMetric('sector','pct')">수익률%</button>
+          <button id="btnSectorAmt" class="btn-metric"        onclick="setChartMetric('sector','amt')">수익금</button>
+        </div>
+      </div>
       <div id="wrapBarSector" style="position:relative;height:300px"><canvas id="chartBarSector"></canvas></div>
     </div>
 
-    <!-- 종목별 수익률 Top20 -->
+    <!-- 종목별 수익률/수익금 Top20 -->
     <div class="chart-card" id="card-bar-top20" style="width:100%">
-      <div class="chart-title">종목별 수익률 Top 20</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="chart-title" id="titleBarTop20" style="margin-bottom:0">종목별 수익률 Top 20</div>
+        <div style="display:flex;gap:4px">
+          <button id="btnTop20Pct" class="btn-metric active" onclick="setChartMetric('top20','pct')">수익률%</button>
+          <button id="btnTop20Amt" class="btn-metric"        onclick="setChartMetric('top20','amt')">수익금</button>
+        </div>
+      </div>
       <div id="wrapBarTop20" style="position:relative;height:300px"><canvas id="chartBarTop20"></canvas></div>
     </div>
 
-    <!-- 계좌별 수익률 — 전체 선택 시만 표시 -->
+    <!-- 계좌별 수익률/수익금 — 전체 선택 시만 표시 -->
     <div class="chart-card" id="card-bar-account" style="width:100%">
-      <div class="chart-title">계좌별 수익률 (%)</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="chart-title" id="titleBarAccount" style="margin-bottom:0">계좌별 수익률 (%)</div>
+        <div style="display:flex;gap:4px">
+          <button id="btnAccountPct" class="btn-metric active" onclick="setChartMetric('account','pct')">수익률%</button>
+          <button id="btnAccountAmt" class="btn-metric"        onclick="setChartMetric('account','amt')">수익금</button>
+        </div>
+      </div>
       <div id="wrapBarAccount" style="position:relative;height:300px"><canvas id="chartBarAccount"></canvas></div>
     </div>
 
@@ -3026,6 +3058,32 @@ function getFilteredHoldings() {
   return result;
 }
 
+// ── 차트 metric 상태 ──────────────────────────────────────────
+const chartMetric = { sector: 'pct', top20: 'pct', account: 'pct' };
+
+const CHART_TITLES = {
+  sector:  { pct: '섹터별 수익률 (%)',      amt: '섹터별 수익금' },
+  top20:   { pct: '종목별 수익률 Top 20',   amt: '종목별 수익금 Top 20' },
+  account: { pct: '계좌별 수익률 (%)',      amt: '계좌별 수익금' },
+};
+
+function setChartMetric(key, metric) {
+  chartMetric[key] = metric;
+  // 버튼 active 토글
+  const capKey = key.charAt(0).toUpperCase() + key.slice(1);
+  const btnPct = document.getElementById('btn' + capKey + 'Pct');
+  const btnAmt = document.getElementById('btn' + capKey + 'Amt');
+  if (btnPct) btnPct.classList.toggle('active', metric === 'pct');
+  if (btnAmt) btnAmt.classList.toggle('active', metric === 'amt');
+  // 차트 제목 변경
+  const titleEl = document.getElementById('titleBar' + capKey);
+  if (titleEl && CHART_TITLES[key]) titleEl.textContent = CHART_TITLES[key][metric];
+  // 해당 차트만 재렌더
+  if (key === 'sector')  renderBarChart('chartBarSector',  buildBarBySector(),  { horizontal: true, metric });
+  if (key === 'top20')   renderBarChart('chartBarTop20',   buildBarTop20(),     { horizontal: true, top20: true, metric });
+  if (key === 'account') renderBarChart('chartBarAccount', buildBarByAccount(), { horizontal: true, metric });
+}
+
 function renderCharts() {
   // 소유자별 비중 차트: 전체 선택 시만 표시
   const ownerCard = document.getElementById('card-owner');
@@ -3050,15 +3108,26 @@ function renderCharts() {
   renderChart('owner',   'chartOwner',   chartDataCache.owner);
 
   // bar 차트
-  renderBarChart('chartBarSector',  buildBarBySector(),  { horizontal: true });
-  renderBarChart('chartBarTop20',   buildBarTop20(),     { horizontal: true, top20: true });
-  renderBarChart('chartBarAccount', buildBarByAccount(), { horizontal: true });
+  // 제목 동기화 (전역 필터 변경 후에도 유지)
+  ['sector','top20','account'].forEach(key => {
+    const capKey  = key.charAt(0).toUpperCase() + key.slice(1);
+    const titleEl = document.getElementById('titleBar' + capKey);
+    if (titleEl && CHART_TITLES[key]) titleEl.textContent = CHART_TITLES[key][chartMetric[key]];
+    const btnPct = document.getElementById('btn' + capKey + 'Pct');
+    const btnAmt = document.getElementById('btn' + capKey + 'Amt');
+    if (btnPct) btnPct.classList.toggle('active', chartMetric[key] === 'pct');
+    if (btnAmt) btnAmt.classList.toggle('active', chartMetric[key] === 'amt');
+  });
+  renderBarChart('chartBarSector',  buildBarBySector(),  { horizontal: true, metric: chartMetric.sector });
+  renderBarChart('chartBarTop20',   buildBarTop20(),     { horizontal: true, top20: true, metric: chartMetric.top20 });
+  renderBarChart('chartBarAccount', buildBarByAccount(), { horizontal: true, metric: chartMetric.account });
   renderBarChart('chartBarOwner',   buildBarByOwner(),   { horizontal: true });
 }
 
 // ── bar 차트 데이터 빌더 ──────────────────────────────────────
 
 function buildBarBySector() {
+  const metric = chartMetric.sector;
   const map = {};
   getFilteredHoldings().forEach(h => {
     if (!h.cost_amount) return;
@@ -3068,19 +3137,25 @@ function buildBarBySector() {
     map[k].cost   += h.cost_amount   || 0;
   });
   return Object.entries(map)
-    .map(([k, v]) => ({ label: k, pct: v.cost > 0 ? Math.round(v.profit / v.cost * 1000) / 10 : 0 }))
-    .sort((a, b) => b.pct - a.pct);
+    .map(([k, v]) => ({
+      label: k,
+      pct: v.cost > 0 ? Math.round(v.profit / v.cost * 1000) / 10 : 0,
+      amt: Math.round(v.profit),
+    }))
+    .sort((a, b) => metric === 'amt' ? b.amt - a.amt : b.pct - a.pct);
 }
 
 function buildBarTop20() {
+  const metric = chartMetric.top20;
   return getFilteredHoldings()
     .filter(h => !h.is_cash && h.cost_amount > 0)
-    .map(h => ({ label: h.name || h.ticker, pct: h.profit_pct || 0 }))
-    .sort((a, b) => b.pct - a.pct)
+    .map(h => ({ label: h.name || h.ticker, pct: h.profit_pct || 0, amt: Math.round(h.profit_amount || 0) }))
+    .sort((a, b) => metric === 'amt' ? b.amt - a.amt : b.pct - a.pct)
     .slice(0, 20);
 }
 
 function buildBarByAccount() {
+  const metric = chartMetric.account;
   const map = {};
   const labelMap = {};
   getFilteredHoldings().forEach(h => {
@@ -3091,8 +3166,12 @@ function buildBarByAccount() {
     map[id].cost   += h.cost_amount   || 0;
   });
   return Object.entries(map)
-    .map(([id, v]) => ({ label: labelMap[id], pct: v.cost > 0 ? Math.round(v.profit / v.cost * 1000) / 10 : 0 }))
-    .sort((a, b) => b.pct - a.pct);
+    .map(([id, v]) => ({
+      label: labelMap[id],
+      pct: v.cost > 0 ? Math.round(v.profit / v.cost * 1000) / 10 : 0,
+      amt: Math.round(v.profit),
+    }))
+    .sort((a, b) => metric === 'amt' ? b.amt - a.amt : b.pct - a.pct);
 }
 
 function buildBarByOwner() {
@@ -3134,7 +3213,19 @@ function renderBarChart(canvasId, data, opts) {
   }
 
   const labels = data.map(d => d.label);
-  const values = data.map(d => d.pct);
+  const metric  = opts.metric || 'pct';
+  const isAmt   = metric === 'amt';
+  const values  = data.map(d => isAmt ? (d.amt || 0) : (d.pct || 0));
+
+  // 수익금 레이블 포맷 헬퍼
+  function fmtAmt(v) {
+    const abs = Math.abs(v);
+    const sign = v >= 0 ? '+' : '-';
+    if (abs >= 100000000) return sign + (abs / 100000000).toFixed(1) + '억';
+    if (abs >= 10000)     return sign + Math.round(abs / 10000) + '만';
+    return sign + abs.toLocaleString('ko-KR');
+  }
+
   const colors      = values.map(v => v >= 0 ? 'rgba(248,81,73,0.82)' : 'rgba(68,147,248,0.82)');
   const borderColors= values.map(v => v >= 0 ? '#f85149' : '#4493f8');
   const isHoriz     = !!opts.horizontal;
@@ -3152,7 +3243,7 @@ function renderBarChart(canvasId, data, opts) {
 
       meta.data.forEach(function(bar, i) {
         const val   = ds.data[i];
-        const label = (val >= 0 ? '+' : '') + val + '%';
+        const label = isAmt ? fmtAmt(val) : (val >= 0 ? '+' : '') + val + '%';
         const color = val >= 0 ? '#ff9a96' : '#80bfff';
         ctx2.fillStyle = color;
 
@@ -3201,7 +3292,9 @@ function renderBarChart(canvasId, data, opts) {
         tooltip: {
           callbacks: {
             title: ctx => ctx[0].label,
-            label: ctx => ' ' + (ctx.raw >= 0 ? '+' : '') + ctx.raw + '%'
+            label: ctx => isAmt
+              ? ' ' + fmtAmt(ctx.raw)
+              : ' ' + (ctx.raw >= 0 ? '+' : '') + ctx.raw + '%'
           }
         }
       },
@@ -3215,7 +3308,7 @@ function renderBarChart(canvasId, data, opts) {
             autoSkip: false,
             // 세로 bar: X축 레이블 (섹터명 등) 항상 표시
             callback: isHoriz
-              ? v => v + '%'
+              ? v => isAmt ? fmtAmt(v) : v + '%'
               : function(val) { return this.getLabelForValue(val); },
           },
           grid: { color: 'rgba(255,255,255,0.05)' },
@@ -3228,7 +3321,7 @@ function renderBarChart(canvasId, data, opts) {
             // 가로 bar: Y축 레이블 (종목명 등) 항상 표시
             callback: isHoriz
               ? function(val) { return this.getLabelForValue(val); }
-              : v => v + '%',
+              : v => isAmt ? fmtAmt(v) : v + '%',
           },
           grid: { color: 'rgba(255,255,255,0.05)' },
         }
