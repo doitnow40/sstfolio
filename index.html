@@ -1556,11 +1556,28 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
     <!-- 공통 필드 -->
     <div style="padding:16px 22px 0;flex-shrink:0">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
         <div class="form-group" style="margin-bottom:0">
           <label class="form-label">연도 *</label>
           <select class="form-input" id="histYear">
             <option value="">연도 선택</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">기준월 *</label>
+          <select class="form-input" id="histMonth">
+            <option value="12">연말 (12월)</option>
+            <option value="1">1월</option>
+            <option value="2">2월</option>
+            <option value="3">3월</option>
+            <option value="4">4월</option>
+            <option value="5">5월</option>
+            <option value="6">6월</option>
+            <option value="7">7월</option>
+            <option value="8">8월</option>
+            <option value="9">9월</option>
+            <option value="10">10월</option>
+            <option value="11">11월</option>
           </select>
         </div>
         <div class="form-group" style="margin-bottom:0">
@@ -5525,10 +5542,11 @@ function addHistRow() {
 
 async function saveHistoricalSales() {
   const year      = document.getElementById('histYear').value;
+  const month     = document.getElementById('histMonth').value;
   const owner     = document.getElementById('histOwner').value;
   const accountId = document.getElementById('histAccount').value;
-  if (!year || !owner || !accountId) {
-    alert('연도, 소유자, 계좌는 필수입니다'); return;
+  if (!year || !month || !owner || !accountId) {
+    alert('연도, 기준월, 소유자, 계좌는 필수입니다'); return;
   }
 
   const acct = (state.accounts||[]).find(a => String(a.account_id) === accountId) || {};
@@ -5548,7 +5566,7 @@ async function saveHistoricalSales() {
   const url  = WORKER_URL ? base + '/api/sale' : base;
   const body = {
     action: 'add_historical_sales',
-    year, account_id: accountId, owner, account_name: accountName,
+    year, month, account_id: accountId, owner, account_name: accountName,
     rows,
   };
 
