@@ -1354,6 +1354,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     </label>
     <span style="font-size:12px;color:var(--text2);flex:1" id="saleIncludeDividendLabel">배당 포함 <span style="color:var(--text2);font-size:11px">(OFF)</span></span>
     <button class="btn-refresh" style="font-size:12px" onclick="reloadSale()">↻ 새로 읽기</button>
+    <button class="btn-secondary" style="font-size:12px" onclick="openHistoricalSaleModal()">📋 과거내역 입력</button>
     <button class="btn-primary" style="font-size:12px" onclick="openSaleModal()">+ 매도 입력</button>
   </div>
 
@@ -1540,6 +1541,56 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <div style="display:flex;gap:8px;margin-top:16px">
       <button class="btn-primary" onclick="saveExternalAsset()" style="flex:1">저장</button>
       <button class="btn-secondary" onclick="closeExternalAssetModal()" style="flex:1">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 과거 실현손익 일괄입력 모달 ───────────────────────── -->
+<div class="modal-overlay" id="historicalSaleModal" onclick="closeHistoricalSaleModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:520px;overflow:hidden;display:flex;flex-direction:column;padding:0">
+
+    <!-- 헤더 -->
+    <div style="padding:18px 22px 14px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div class="modal-title" style="margin-bottom:0">📋 과거 실현손익 입력</div>
+    </div>
+
+    <!-- 공통 필드 -->
+    <div style="padding:16px 22px 0;flex-shrink:0">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">연도 *</label>
+          <select class="form-input" id="histYear">
+            <option value="">연도 선택</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">소유자 *</label>
+          <select class="form-input" id="histOwner" onchange="onHistOwnerChange()">
+            <option value="">소유자 선택</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">계좌 *</label>
+        <select class="form-input" id="histAccount"></select>
+      </div>
+    </div>
+
+    <!-- 태그별 입력 행 -->
+    <div style="padding:0 22px;flex:1;overflow-y:auto;max-height:320px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 32px;gap:6px;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--text2);font-weight:600">태그</span>
+        <span style="font-size:11px;color:var(--text2);font-weight:600">실현수익금 (원)</span>
+        <span></span>
+      </div>
+      <div id="histRows"></div>
+      <button onclick="addHistRow()" style="width:100%;margin:8px 0 4px;padding:6px;background:var(--bg3);border:1px dashed var(--border);border-radius:var(--radius);color:var(--text2);cursor:pointer;font-size:12px">＋ 행 추가</button>
+    </div>
+
+    <!-- 푸터 -->
+    <div style="padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">
+      <button class="btn-primary" onclick="saveHistoricalSales()" style="flex:1">저장</button>
+      <button class="btn-secondary" onclick="closeHistoricalSaleModal()" style="flex:1">취소</button>
     </div>
   </div>
 </div>
@@ -5417,6 +5468,100 @@ const saleState = {
   activeTag:        '',
   includeDividend:  false,
 };
+
+// ============================================================
+// 과거 실현손익 일괄입력
+// ============================================================
+function openHistoricalSaleModal() {
+  // 연도 채우기 (현재연도-1 ~ 2018)
+  const yearSel = document.getElementById('histYear');
+  const curYear = new Date().getFullYear();
+  yearSel.innerHTML = '<option value="">연도 선택</option>';
+  for (let y = curYear - 1; y >= 2018; y--) {
+    yearSel.innerHTML += `<option value="${y}">${y}년</option>`;
+  }
+
+  // 소유자 채우기
+  const owners = [...new Set((state.accounts||[]).map(a => a.owner).filter(Boolean))];
+  const ownerSel = document.getElementById('histOwner');
+  ownerSel.innerHTML = '<option value="">소유자 선택</option>';
+  owners.forEach(o => ownerSel.innerHTML += `<option value="${o}">${o}</option>`);
+  document.getElementById('histAccount').innerHTML = '<option value="">소유자 먼저 선택</option>';
+
+  // 초기 행 2개
+  document.getElementById('histRows').innerHTML = '';
+  addHistRow();
+  addHistRow();
+
+  document.getElementById('historicalSaleModal').classList.add('open');
+}
+
+function closeHistoricalSaleModal() {
+  document.getElementById('historicalSaleModal').classList.remove('open');
+}
+
+function onHistOwnerChange() {
+  const owner  = document.getElementById('histOwner').value;
+  const sel    = document.getElementById('histAccount');
+  const accts  = (state.accounts||[]).filter(a => a.owner === owner);
+  sel.innerHTML = '<option value="">계좌 선택</option>';
+  accts.forEach(a => {
+    sel.innerHTML += `<option value="${a.account_id}">${a.owner} · ${a.broker} ${a.account_type}</option>`;
+  });
+}
+
+let histRowSeq = 0;
+function addHistRow() {
+  const id  = 'histRow_' + (++histRowSeq);
+  const div = document.createElement('div');
+  div.id    = id;
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 32px;gap:6px;margin-bottom:6px;align-items:center';
+  div.innerHTML = `
+    <input type="text"   class="form-input" placeholder="태그 (예: 온투모)" style="margin:0">
+    <input type="number" class="form-input" placeholder="금액 (음수 가능)"  style="margin:0">
+    <button onclick="document.getElementById('${id}').remove()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0;line-height:1">×</button>`;
+  document.getElementById('histRows').appendChild(div);
+}
+
+async function saveHistoricalSales() {
+  const year      = document.getElementById('histYear').value;
+  const owner     = document.getElementById('histOwner').value;
+  const accountId = document.getElementById('histAccount').value;
+  if (!year || !owner || !accountId) {
+    alert('연도, 소유자, 계좌는 필수입니다'); return;
+  }
+
+  const acct = (state.accounts||[]).find(a => String(a.account_id) === accountId) || {};
+  const accountName = `${acct.owner||''} · ${acct.broker||''} ${acct.account_type||''}`;
+
+  // 태그별 행 수집
+  const rows = [];
+  document.querySelectorAll('#histRows > div').forEach(div => {
+    const inputs = div.querySelectorAll('input');
+    const tag    = inputs[0].value.trim();
+    const profit = parseInt(inputs[1].value.replace(/[^0-9\-]/g,''), 10);
+    if (tag && !isNaN(profit) && profit !== 0) rows.push({ tag, profit });
+  });
+  if (rows.length === 0) { alert('입력된 내역이 없습니다'); return; }
+
+  const base = WORKER_URL || GAS_URL;
+  const url  = WORKER_URL ? base + '/api/sale' : base;
+  const body = {
+    action: 'add_historical_sales',
+    year, account_id: accountId, owner, account_name: accountName,
+    rows,
+  };
+
+  try {
+    const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (data.error) { alert('오류: ' + data.error); return; }
+    closeHistoricalSaleModal();
+    alert(`✅ ${data.saved}건 저장 완료`);
+    saleState.loaded = false;
+    loadSale();
+  } catch(e) { alert('저장 실패: ' + e.message); }
+}
 
 function initSaleTab() {
   renderSaleAccountFilter();
