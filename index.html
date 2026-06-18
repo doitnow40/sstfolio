@@ -953,25 +953,21 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <div style="display:flex;align-items:center;margin-bottom:8px;gap:8px">
       <span class="table-title">종목별 합산</span>
       <span id="tickerTableCount" style="font-size:12px;color:var(--text2)"></span>
-      <div style="margin-left:auto;display:flex;gap:4px">
-        <button class="btn-secondary" style="font-size:11px;padding:3px 8px" id="tickerSortPct"  onclick="setTickerSort('pct')">수익률↓</button>
-        <button class="btn-secondary" style="font-size:11px;padding:3px 8px" id="tickerSortEval" onclick="setTickerSort('eval')">평가금액↓</button>
-      </div>
     </div>
     <div style="overflow-x:auto">
       <table class="tbl" id="tickerTable">
-        <thead><tr>
-          <th>종목명</th>
-          <th>섹터</th>
+        <thead><tr id="tickerTableHead">
+          <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('name')">종목명 <span id="tickerSortIcon_name"></span></th>
+          <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('sector')">섹터 <span id="tickerSortIcon_sector"></span></th>
           <th style="text-align:center">계좌</th>
-          <th style="text-align:right">수량</th>
+          <th style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('qty')">수량 <span id="tickerSortIcon_qty"></span></th>
           <th style="text-align:right">가중평단가</th>
           <th style="text-align:right">현재가</th>
-          <th style="text-align:right">총매수금액</th>
-          <th style="text-align:right">총평가금액</th>
-          <th style="text-align:right">총평가손익</th>
-          <th style="text-align:right">수익률</th>
-          <th style="text-align:right">비중</th>
+          <th style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('cost')">총매수금액 <span id="tickerSortIcon_cost"></span></th>
+          <th style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('eval')">총평가금액 <span id="tickerSortIcon_eval"></span></th>
+          <th style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('profit')">총평가손익 <span id="tickerSortIcon_profit"></span></th>
+          <th style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('pct')">수익률 <span id="tickerSortIcon_pct"></span></th>
+          <th style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('weight')">비중 <span id="tickerSortIcon_weight"></span></th>
         </tr></thead>
         <tbody id="tickerTableBody"></tbody>
       </table>
@@ -2559,7 +2555,7 @@ const tickerState = {
   barMode:      'top',     // 'top' | 'bottom'
   barMetric:    'pct',     // 'pct' | 'amt'
   treemapLabel: 'pct',     // 'pct' | 'weight' | 'eval' | 'profit'
-  sort:         'pct',     // 'pct' | 'eval'
+  colSort:      { col: 'pct', dir: 1 }, // 기본: 수익률 내림차순
 };
 
 function initTickerTab() {
@@ -2761,6 +2757,32 @@ function renderTickerBar(data) {
   const minVal = values.length ? Math.min(...values) : 0;
   const xMin   = minVal < 0 ? minVal * 1.4 : undefined;
 
+  // y축 너비 강제 확보 플러그인 (Chart.js 4.x afterFit options 미지원 우회)
+  const yWidthPlugin = {
+    id: 'tickerBarYWidth',
+    afterDatasetsDraw: function(chart) {
+      const yScale = chart.scales.y;
+      if (!yScale) return;
+      // 캔버스에 직접 종목명 텍스트 렌더링
+      const ctx2 = chart.ctx;
+      const labels = chart.data.labels || [];
+      ctx2.save();
+      ctx2.font = '10px system-ui, sans-serif';
+      ctx2.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text1') || '#e6edf3';
+      ctx2.textAlign = 'right';
+      ctx2.textBaseline = 'middle';
+      const ticks = yScale.ticks || [];
+      ticks.forEach(function(tick, i) {
+        const lbl = labels[tick.value] || '';
+        const short = lbl.length > 13 ? lbl.slice(0, 12) + '…' : lbl;
+        const y2 = yScale.getPixelForTick(i);
+        ctx2.clearRect(0, y2 - 9, yScale.left - 2, 18);
+        ctx2.fillText(short, yScale.left - 4, y2);
+      });
+      ctx2.restore();
+    }
+  };
+
   tickerState.barChart = new Chart(canvas, {
     type: 'bar',
     data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }] },
@@ -2783,7 +2805,8 @@ function renderTickerBar(data) {
           },
           color: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? '#ff9a96' : '#80bfff'; },
           font: { size: 10, weight: '600' },
-        }
+        },
+        tickerBarYWidth: yWidthPlugin
       },
       scales: {
         x: {
@@ -2794,45 +2817,56 @@ function renderTickerBar(data) {
           }
         },
         y: {
-          ticks: {
-            color: 'var(--text1)', font: { size: 10 },
-            callback: function(val) {
-              const label = this.getLabelForValue(val);
-              return label.length > 13 ? label.slice(0, 12) + '…' : label;
-            }
-          },
+          ticks: { display: false },  // 기본 tick 숨기고 afterDatasetsDraw에서 직접 그림
           grid: { display: false },
-          afterFit: function(scaleInstance) { scaleInstance.width = 148; }
+          afterFit: function(s) { s.width = 150; }
         }
       },
       layout: { padding: { right: 65 } }
     }
-  }, [{
-    // 인라인 플러그인: y축 너비 보정
-    id: 'tickerBarYWidth',
-    beforeLayout: function(chart) {
-      const y = chart.scales && chart.scales.y;
-      if (y && !y._widthPatched) {
-        const origAfterFit = y.afterFit && y.afterFit.bind(y);
-        y.afterFit = function() { this.width = 148; if (origAfterFit) origAfterFit(); };
-        y._widthPatched = true;
-      }
-    }
-  }]);
+  });
 }
 
 // ── 테이블 ───────────────────────────────────────────────────
-function setTickerSort(key) {
-  tickerState.sort = key;
-  document.getElementById('tickerSortPct') .classList.toggle('active', key === 'pct');
-  document.getElementById('tickerSortEval').classList.toggle('active', key === 'eval');
+function toggleTickerColSort(col) {
+  const s = tickerState.colSort;
+  if (s.col === col) {
+    s.dir = s.dir === 1 ? -1 : s.dir === -1 ? 0 : 1;
+    if (s.dir === 0) s.col = null;
+  } else { s.col = col; s.dir = 1; }
   renderTickerTable(buildTickerData());
 }
 
+function tickerSortIcon(col) {
+  const s = tickerState.colSort;
+  if (s.col !== col) return '<span style="opacity:.25;font-size:9px;margin-left:2px">⇅</span>';
+  return s.dir === 1
+    ? '<span style="color:var(--blue);font-size:9px;margin-left:2px">▼</span>'
+    : '<span style="color:var(--blue);font-size:9px;margin-left:2px">▲</span>';
+}
+
 function renderTickerTable(data) {
-  const sortKey = tickerState.sort;
+  const s = tickerState.colSort;
+  // 정렬 아이콘 업데이트
+  ['name','sector','qty','cost','eval','profit','pct','weight'].forEach(function(c) {
+    const el = document.getElementById('tickerSortIcon_' + c);
+    if (el) el.innerHTML = tickerSortIcon(c);
+  });
+  const numCols = { qty: true, cost: true, eval: true, profit: true, pct: true, weight: true };
   const sorted = [...data].sort(function(a, b) {
-    return sortKey === 'pct' ? b.profit_pct - a.profit_pct : b.eval - a.eval;
+    if (!s.col || s.dir === 0) return b.profit_pct - a.profit_pct; // 기본: 수익률 내림차순
+    const col = s.col;
+    let av, bv;
+    if (col === 'pct')    { av = a.profit_pct; bv = b.profit_pct; }
+    else if (col === 'eval')   { av = a.eval;       bv = b.eval; }
+    else if (col === 'cost')   { av = a.cost;       bv = b.cost; }
+    else if (col === 'profit') { av = a.profit;     bv = b.profit; }
+    else if (col === 'qty')    { av = a.qty;        bv = b.qty; }
+    else if (col === 'weight') { av = a.weight;     bv = b.weight; }
+    else if (col === 'name')   { av = a.name || ''; bv = b.name || ''; return s.dir * av.localeCompare(bv); }
+    else if (col === 'sector') { av = a.sector||''; bv = b.sector||''; return s.dir * av.localeCompare(bv); }
+    else { av = 0; bv = 0; }
+    return s.dir * (bv - av);
   });
 
   const countEl = document.getElementById('tickerTableCount');
