@@ -276,6 +276,16 @@ main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
 .chart-title { font-size:14px; font-weight:600; margin-bottom:16px; color:var(--text2); }
 .chart-wrap  { position:relative; height:280px; overflow:hidden; }
 .chart-wrap canvas { max-width:100% !important; }
+/* 차트 확대/축소 */
+.chart-card.chart-expanded { grid-column: 1 / -1; }
+.chart-card.chart-expanded .chart-wrap { height: 520px !important; }
+.chart-card.chart-hidden { display: none !important; }
+.btn-expand-chart {
+  background: none; border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text2); cursor: pointer; font-size: 12px; padding: 2px 5px;
+  line-height: 1; transition: color .15s, border-color .15s;
+}
+.btn-expand-chart:hover { color: var(--text1); border-color: var(--blue); }
 
 /* ── 차트 뷰 토글 ────────────────────────────────────────── */
 .chart-view-toggle {
@@ -916,10 +926,10 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <div class="panel" id="panel-ticker">
 
   <!-- 상단 차트 2개 좌우 -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+  <div id="tickerChartGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
 
     <!-- 좌: 종목별 트리맵 -->
-    <div class="table-wrap" style="padding:12px">
+    <div class="table-wrap" id="tickerTreemapCard" style="padding:12px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <span style="font-size:13px;font-weight:600;color:var(--text2)">종목별 비중 트리맵</span>
         <div style="margin-left:auto;display:flex;gap:4px">
@@ -927,13 +937,14 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
           <button class="chart-view-btn"        id="tickerTreemapWeight" onclick="setTickerTreemapLabel('weight')">비중%</button>
           <button class="chart-view-btn"        id="tickerTreemapEval"   onclick="setTickerTreemapLabel('eval')">총금액</button>
           <button class="chart-view-btn"        id="tickerTreemapProfit" onclick="setTickerTreemapLabel('profit')">수익금</button>
+          <button class="btn-expand-chart" id="expandBtn_tickerTreemap" onclick="toggleExpandTickerChart('treemap')" title="확대">⛶</button>
         </div>
       </div>
-      <div style="height:280px;position:relative"><canvas id="tickerTreemapCanvas"></canvas></div>
+      <div id="tickerTreemapWrap" style="height:280px;position:relative"><canvas id="tickerTreemapCanvas"></canvas></div>
     </div>
 
     <!-- 우: 종목 수익률 Top10 -->
-    <div class="table-wrap" style="padding:12px">
+    <div class="table-wrap" id="tickerBarCard" style="padding:12px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <span style="font-size:13px;font-weight:600;color:var(--text2)" id="tickerBarTitle">종목 수익률 Top10</span>
         <div style="margin-left:auto;display:flex;gap:4px">
@@ -942,6 +953,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
           <div style="width:1px;height:16px;background:var(--border);margin:0 2px;align-self:center"></div>
           <button class="chart-view-btn active" id="tickerBarPct" onclick="setTickerBarMetric('pct')">수익률</button>
           <button class="chart-view-btn"        id="tickerBarAmt" onclick="setTickerBarMetric('amt')">수익금</button>
+          <button class="btn-expand-chart" id="expandBtn_tickerBar" onclick="toggleExpandTickerChart('bar')" title="확대">⛶</button>
         </div>
       </div>
       <div style="height:280px;position:relative" id="tickerBarWrap"><canvas id="tickerBarCanvas"></canvas><div id="tickerBarLabels" style="position:absolute;top:0;left:0;pointer-events:none"></div></div>
@@ -994,21 +1006,22 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <!-- ── 패널: 섹터 분석 ──────────────────────────────────── -->
 <div class="panel" id="panel-sector">
   <!-- 상단 차트 2개 좌우 배치 -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+  <div id="sectorChartGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
     <!-- 좌: 섹터 트리맵 -->
-    <div class="table-wrap" style="padding:12px">
+    <div class="table-wrap" id="sectorTreemapCard" style="padding:12px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <span style="font-size:13px;font-weight:600;color:var(--text2)">섹터별 비중 맵</span>
         <div style="margin-left:auto;display:flex;gap:4px">
           <button class="chart-view-btn active" id="treemapLabelPct" onclick="setSectorTreemapLabel('pct')">수익률%</button>
           <button class="chart-view-btn" id="treemapLabelWeight" onclick="setSectorTreemapLabel('weight')">비중%</button>
           <button class="chart-view-btn" id="treemapLabelAmt" onclick="setSectorTreemapLabel('amt')">금액</button>
+          <button class="btn-expand-chart" id="expandBtn_sectorTreemap" onclick="toggleExpandSectorChart('treemap')" title="확대">⛶</button>
         </div>
       </div>
-      <div style="height:280px;position:relative"><canvas id="sectorAnalysisTreemap"></canvas></div>
+      <div id="sectorTreemapWrap" style="height:280px;position:relative"><canvas id="sectorAnalysisTreemap"></canvas></div>
     </div>
     <!-- 우: Top/Bottom 10 바차트 -->
-    <div class="table-wrap" style="padding:12px">
+    <div class="table-wrap" id="sectorBarCard" style="padding:12px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <span style="font-size:13px;font-weight:600;color:var(--text2)" id="sectorBarTitle">섹터 수익률 Top10</span>
         <div style="margin-left:auto;display:flex;gap:4px">
@@ -1017,9 +1030,10 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
           <div style="width:1px;height:16px;background:var(--border);margin:0 2px;align-self:center"></div>
           <button class="chart-view-btn active" id="sectorBarPct" onclick="setSectorBarMetric('pct')">수익률</button>
           <button class="chart-view-btn" id="sectorBarAmt" onclick="setSectorBarMetric('amt')">수익금</button>
+          <button class="btn-expand-chart" id="expandBtn_sectorBar" onclick="toggleExpandSectorChart('bar')" title="확대">⛶</button>
         </div>
       </div>
-      <div style="height:280px;position:relative"><canvas id="sectorAnalysisBar"></canvas></div>
+      <div id="sectorBarWrap" style="height:280px;position:relative"><canvas id="sectorAnalysisBar"></canvas></div>
     </div>
   </div>
 
@@ -1063,6 +1077,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
           <button class="chart-view-btn"        onclick="switchChartView('sector','donut',this)">도넛</button>
           <button class="chart-view-btn active" onclick="switchChartView('sector','treemap',this)">맵</button>
           </div>
+          <button class="btn-expand-chart" id="expandBtn_card-sector" onclick="toggleExpandChart('card-sector','chartSector')" title="확대">⛶</button>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chartSector"></canvas></div>
@@ -1079,6 +1094,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
           <button class="chart-view-btn"        onclick="switchChartView('account','donut',this)">도넛</button>
           <button class="chart-view-btn active" onclick="switchChartView('account','treemap',this)">맵</button>
           </div>
+          <button class="btn-expand-chart" id="expandBtn_card-account" onclick="toggleExpandChart('card-account','chartAccount')" title="확대">⛶</button>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chartAccount"></canvas></div>
@@ -1095,6 +1111,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
             <button class="chart-view-btn active" onclick="switchChartView('market','donut',this)">도넛</button>
             <button class="chart-view-btn"        onclick="switchChartView('market','treemap',this)">맵</button>
           </div>
+          <button class="btn-expand-chart" id="expandBtn_card-market" onclick="toggleExpandChart('card-market','chartMarket')" title="확대">⛶</button>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chartMarket"></canvas></div>
@@ -1111,6 +1128,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
             <button class="chart-view-btn active" onclick="switchChartView('asset','donut',this)">도넛</button>
             <button class="chart-view-btn"        onclick="switchChartView('asset','treemap',this)">맵</button>
           </div>
+          <button class="btn-expand-chart" id="expandBtn_card-asset" onclick="toggleExpandChart('card-asset','chartAsset')" title="확대">⛶</button>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chartAsset"></canvas></div>
@@ -1127,6 +1145,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
             <button class="chart-view-btn active" onclick="switchChartView('owner','donut',this)">도넛</button>
             <button class="chart-view-btn"        onclick="switchChartView('owner','treemap',this)">맵</button>
           </div>
+          <button class="btn-expand-chart" id="expandBtn_card-owner" onclick="toggleExpandChart('card-owner','chartOwner')" title="확대">⛶</button>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chartOwner"></canvas></div>
@@ -2741,9 +2760,10 @@ function renderTickerBar(data) {
     ? function(d) { return d.profit_pct; }
     : function(d) { return d.profit; };
 
+  const maxItems = (tickerState._expandedBar) ? 20 : 10;
   const sorted = [...data].filter(function(d) { return d.cost > 0; })
     .sort(function(a, b) { return isTop ? getValue(b) - getValue(a) : getValue(a) - getValue(b); })
-    .slice(0, 10);
+    .slice(0, maxItems);
 
   const labels = sorted.map(function(d) { return d.name || d.ticker; });
   const values = sorted.map(getValue);
@@ -2950,6 +2970,138 @@ function renderTickerTable(data) {
   }).join('');
 }
 
+
+// ============================================================
+// 차트 확대/축소 공통 기능
+// ============================================================
+
+// ── 차트분석 탭 확대/축소 ─────────────────────────────────────
+function toggleExpandChart(cardId, canvasId) {
+  const card = document.getElementById(cardId);
+  const btn  = document.getElementById('expandBtn_' + cardId);
+  if (!card) return;
+  const isExpanded = card.classList.contains('chart-expanded');
+  // 같은 그리드의 모든 chart-card 수집
+  const grid = card.parentElement;
+  const siblings = Array.from(grid.querySelectorAll('.chart-card'));
+
+  if (isExpanded) {
+    // 축소
+    card.classList.remove('chart-expanded');
+    siblings.forEach(function(s) { s.classList.remove('chart-hidden'); });
+    if (btn) btn.textContent = '⛶';
+  } else {
+    // 확대: 다른 카드 숨기고 현재 카드 전체 너비
+    siblings.forEach(function(s) {
+      if (s !== card) s.classList.add('chart-hidden');
+    });
+    card.classList.add('chart-expanded');
+    if (btn) btn.textContent = '⊡';
+  }
+  // chart-wrap 높이 반영 후 재렌더
+  requestAnimationFrame(function() {
+    renderCharts();
+  });
+}
+
+// ── 섹터분석 탭 확대/축소 ─────────────────────────────────────
+var sectorExpandState = null; // null | 'treemap' | 'bar'
+
+function toggleExpandSectorChart(which) {
+  const grid        = document.getElementById('sectorChartGrid');
+  const treemapCard = document.getElementById('sectorTreemapCard');
+  const barCard     = document.getElementById('sectorBarCard');
+  const treemapWrap = document.getElementById('sectorTreemapWrap');
+  const barWrap     = document.getElementById('sectorBarWrap');
+  const btnTreemap  = document.getElementById('expandBtn_sectorTreemap');
+  const btnBar      = document.getElementById('expandBtn_sectorBar');
+  if (!grid) return;
+
+  if (sectorExpandState === which) {
+    // 축소
+    sectorExpandState = null;
+    grid.style.gridTemplateColumns = '1fr 1fr';
+    treemapCard.style.display = '';
+    barCard.style.display     = '';
+    treemapWrap.style.height  = '280px';
+    barWrap.style.height      = '280px';
+    sectorState._expandMax    = null;
+    if (btnTreemap) btnTreemap.textContent = '⛶';
+    if (btnBar)     btnBar.textContent     = '⛶';
+    requestAnimationFrame(function() {
+      renderSectorTreemap(buildSectorData());
+      renderSectorBar();
+    });
+  } else {
+    // 확대
+    sectorExpandState = which;
+    grid.style.gridTemplateColumns = '1fr';
+    if (which === 'treemap') {
+      treemapCard.style.display = '';
+      barCard.style.display     = 'none';
+      treemapWrap.style.height  = '520px';
+      if (btnTreemap) btnTreemap.textContent = '⊡';
+      requestAnimationFrame(function() { renderSectorTreemap(buildSectorData()); });
+    } else {
+      barCard.style.display    = '';
+      treemapCard.style.display = 'none';
+      barWrap.style.height     = '520px';
+      if (btnBar) btnBar.textContent = '⊡';
+      sectorState._expandMax = 20;
+      requestAnimationFrame(function() { renderSectorBar(); });
+    }
+  }
+}
+
+// ── 종목별 탭 확대/축소 ──────────────────────────────────────
+var tickerExpandState = null; // null | 'treemap' | 'bar'
+
+function toggleExpandTickerChart(which) {
+  const grid        = document.getElementById('tickerChartGrid');
+  const treemapCard = document.getElementById('tickerTreemapCard');
+  const barCard     = document.getElementById('tickerBarCard');
+  const treemapWrap = document.getElementById('tickerTreemapWrap');
+  const barWrapEl   = document.getElementById('tickerBarWrap');
+  const btnTreemap  = document.getElementById('expandBtn_tickerTreemap');
+  const btnBar      = document.getElementById('expandBtn_tickerBar');
+  if (!grid) return;
+
+  if (tickerExpandState === which) {
+    // 축소
+    tickerExpandState = null;
+    grid.style.gridTemplateColumns = '1fr 1fr';
+    treemapCard.style.display = '';
+    barCard.style.display     = '';
+    treemapWrap.style.height  = '280px';
+    barWrapEl.style.height    = '280px';
+    if (btnTreemap) btnTreemap.textContent = '⛶';
+    if (btnBar)     btnBar.textContent     = '⛶';
+    tickerState._expandedBar = false;
+    requestAnimationFrame(function() {
+      renderTickerTreemap(buildTickerData());
+      renderTickerBar(buildTickerData());
+    });
+  } else {
+    // 확대
+    tickerExpandState = which;
+    grid.style.gridTemplateColumns = '1fr';
+    if (which === 'treemap') {
+      treemapCard.style.display = '';
+      barCard.style.display     = 'none';
+      treemapWrap.style.height  = '520px';
+      if (btnTreemap) btnTreemap.textContent = '⊡';
+      requestAnimationFrame(function() { renderTickerTreemap(buildTickerData()); });
+    } else {
+      barCard.style.display     = '';
+      treemapCard.style.display = 'none';
+      barWrapEl.style.height    = '580px';
+      if (btnBar) btnBar.textContent = '⊡';
+      tickerState._expandedBar = true;  // Top20 플래그
+      requestAnimationFrame(function() { renderTickerBar(buildTickerData()); });
+    }
+  }
+}
+
 const sectorState = {
   treemapChart: null,
   barChart:     null,
@@ -3123,9 +3275,10 @@ function renderSectorBar() {
   const isTop    = sectorState.barMode === 'top';
   const getValue = metric === 'pct' ? function(d) { return d.profit_pct; } : function(d) { return d.profit; };
 
+  const sectorBarMax = sectorState._expandMax || 10;
   const sorted = [...data].sort(function(a, b) {
     return isTop ? getValue(b) - getValue(a) : getValue(a) - getValue(b);
-  }).slice(0, 10);
+  }).slice(0, sectorBarMax);
 
   const labels = sorted.map(function(d) { return d.sector; });
   const values = sorted.map(getValue);
