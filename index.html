@@ -2677,7 +2677,15 @@ function renderTickerTreemap(data) {
             return [d.name, line2];
           },
           color: '#fff',
-          font: [{ size: 11, weight: '600' }, { size: 9 }],
+          font: function(ctx) {
+            // 셀 크기에 비례한 동적 폰트
+            const w = ctx.chart.width || 400;
+            const raw = ctx.raw || {};
+            const ratio = raw.v ? (raw.v / (ctx.dataset.tree.reduce(function(s,d){return s+(d.v||0);},0) || 1)) : 0;
+            const size1 = Math.max(7, Math.min(16, Math.round(ratio * 200)));
+            const size2 = Math.max(6, Math.min(13, Math.round(ratio * 160)));
+            return [{ size: size1, weight: '700' }, { size: size2 }];
+          },
         },
         backgroundColor: function(ctx) {
           if (!ctx.raw) return '#21262d';
@@ -2790,16 +2798,27 @@ function renderTickerBar(data) {
             color: 'var(--text1)', font: { size: 10 },
             callback: function(val) {
               const label = this.getLabelForValue(val);
-              return label.length > 14 ? label.slice(0, 13) + '…' : label;
+              return label.length > 13 ? label.slice(0, 12) + '…' : label;
             }
           },
           grid: { display: false },
-          afterFit: function(axis) { axis.width = 130; }
+          afterFit: function(scaleInstance) { scaleInstance.width = 148; }
         }
       },
-      layout: { padding: { right: 60 } }
+      layout: { padding: { right: 65 } }
     }
-  });
+  }, [{
+    // 인라인 플러그인: y축 너비 보정
+    id: 'tickerBarYWidth',
+    beforeLayout: function(chart) {
+      const y = chart.scales && chart.scales.y;
+      if (y && !y._widthPatched) {
+        const origAfterFit = y.afterFit && y.afterFit.bind(y);
+        y.afterFit = function() { this.width = 148; if (origAfterFit) origAfterFit(); };
+        y._widthPatched = true;
+      }
+    }
+  }]);
 }
 
 // ── 테이블 ───────────────────────────────────────────────────
