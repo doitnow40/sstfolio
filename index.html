@@ -3062,7 +3062,14 @@ function renderSectorTreemap(data) {
             return [d.sector, line2];
           },
           color: '#fff',
-          font: [{ size: 12, weight: '600' }, { size: 10 }]
+          font: function(ctx) {
+            const raw = ctx.raw || {};
+            const total = (ctx.dataset.tree || []).reduce(function(s,d){return s+(d.v||0);},0) || 1;
+            const ratio = raw.v ? raw.v / total : 0;
+            const s1 = Math.max(7, Math.min(16, Math.round(ratio * 200)));
+            const s2 = Math.max(6, Math.min(13, Math.round(ratio * 160)));
+            return [{ size: s1, weight: '700' }, { size: s2 }];
+          }
         },
         backgroundColor: function(ctx) {
           if (!ctx.raw) return '#21262d';
@@ -4085,7 +4092,14 @@ function renderTreemap(chartKey, canvasId, canvas, dataMap) {
             return [d.label, disp];
           },
           color: '#ffffff',
-          font: [{ size: 11, weight: 'bold' }, { size: 10 }],
+          font: function(ctx) {
+            const raw = ctx.raw || {};
+            const total = (ctx.dataset.tree || []).reduce(function(s,d){return s+(d.v||0);},0) || 1;
+            const ratio = raw.v ? raw.v / total : 0;
+            const s1 = Math.max(7, Math.min(16, Math.round(ratio * 200)));
+            const s2 = Math.max(6, Math.min(13, Math.round(ratio * 160)));
+            return [{ size: s1, weight: '700' }, { size: s2 }];
+          },
           overflow: 'fit',
         },
         backgroundColor: ctx => {
