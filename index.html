@@ -2698,12 +2698,13 @@ function renderTickerTreemap(data) {
           },
           color: '#fff',
           font: function(ctx) {
-            // 셀 크기에 비례한 동적 폰트
-            const w = ctx.chart.width || 400;
-            const raw = ctx.raw || {};
-            const ratio = raw.v ? (raw.v / (ctx.dataset.tree.reduce(function(s,d){return s+(d.v||0);},0) || 1)) : 0;
-            const size1 = Math.max(7, Math.min(16, Math.round(ratio * 200)));
-            const size2 = Math.max(6, Math.min(13, Math.round(ratio * 160)));
+            const raw   = ctx.raw || {};
+            const total = (ctx.dataset.tree || []).reduce(function(s,d){return s+(d.v||0);},0) || 1;
+            const ratio = raw.v ? raw.v / total : 0;
+            const w     = (ctx.chart && ctx.chart.width) || 700;
+            const scale = Math.max(1, w / 700);
+            const size1 = Math.max(7, Math.min(Math.round(16 * scale), Math.round(ratio * 200 * scale)));
+            const size2 = Math.max(6, Math.min(Math.round(13 * scale), Math.round(ratio * 160 * scale)));
             return [{ size: size1, weight: '700' }, { size: size2 }];
           },
         },
@@ -3231,11 +3232,13 @@ function renderSectorTreemap(data) {
           },
           color: '#fff',
           font: function(ctx) {
-            const raw = ctx.raw || {};
+            const raw   = ctx.raw || {};
             const total = (ctx.dataset.tree || []).reduce(function(s,d){return s+(d.v||0);},0) || 1;
             const ratio = raw.v ? raw.v / total : 0;
-            const s1 = Math.max(7, Math.min(16, Math.round(ratio * 200)));
-            const s2 = Math.max(6, Math.min(13, Math.round(ratio * 160)));
+            const w     = (ctx.chart && ctx.chart.width) || 700;
+            const scale = Math.max(1, w / 700);
+            const s1 = Math.max(7, Math.min(Math.round(16 * scale), Math.round(ratio * 200 * scale)));
+            const s2 = Math.max(6, Math.min(Math.round(13 * scale), Math.round(ratio * 160 * scale)));
             return [{ size: s1, weight: '700' }, { size: s2 }];
           }
         },
@@ -4262,11 +4265,16 @@ function renderTreemap(chartKey, canvasId, canvas, dataMap) {
           },
           color: '#ffffff',
           font: function(ctx) {
-            const raw = ctx.raw || {};
+            const raw   = ctx.raw || {};
             const total = (ctx.dataset.tree || []).reduce(function(s,d){return s+(d.v||0);},0) || 1;
             const ratio = raw.v ? raw.v / total : 0;
-            const s1 = Math.max(7, Math.min(16, Math.round(ratio * 200)));
-            const s2 = Math.max(6, Math.min(13, Math.round(ratio * 160)));
+            // 차트 너비에 비례해 최대 폰트 크기 동적 계산 (기준 700px → 16px)
+            const w     = (ctx.chart && ctx.chart.width) || 700;
+            const scale = Math.max(1, w / 700);
+            const maxS1 = Math.round(16 * scale);
+            const maxS2 = Math.round(13 * scale);
+            const s1 = Math.max(7, Math.min(maxS1, Math.round(ratio * 200 * scale)));
+            const s2 = Math.max(6, Math.min(maxS2, Math.round(ratio * 160 * scale)));
             return [{ size: s1, weight: '700' }, { size: s2 }];
           },
           overflow: 'fit',
