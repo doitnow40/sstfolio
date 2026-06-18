@@ -1198,15 +1198,20 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   <!-- 기간 선택 -->
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <span style="font-size:12px;color:var(--text2);margin-right:4px">기간:</span>
-    <div id="trendPeriodBtns" style="display:flex;gap:4px;flex-wrap:wrap">
-      <button class="trend-period-btn active" data-period="1M">1개월</button>
-      <button class="trend-period-btn" data-period="6M">6개월</button>
-      <button class="trend-period-btn" data-period="YTD">YTD</button>
-      <button class="trend-period-btn" data-period="1Y">1년</button>
-      <button class="trend-period-btn" data-period="2Y">2년</button>
-      <button class="trend-period-btn" data-period="3Y">3년</button>
-      <button class="trend-period-btn" data-period="5Y">5년</button>
-      <button class="trend-period-btn" data-period="10Y">10년</button>
+    <select class="form-select" id="trendPeriodSelect" style="width:auto;font-size:12px" onchange="onTrendPeriodSelectChange()">
+      <option value="1M"  selected>1개월</option>
+      <option value="6M">6개월</option>
+      <option value="YTD">YTD (올해)</option>
+      <option value="1Y">1년</option>
+      <option value="2Y">2년</option>
+      <option value="3Y">3년</option>
+      <option value="5Y">5년</option>
+      <option value="custom">직접입력</option>
+    </select>
+    <div id="trendCustomRange" style="display:none;gap:6px;align-items:center;flex-wrap:wrap">
+      <input type="date" class="form-input" id="trendCustomFrom" style="width:140px;font-size:12px" onchange="onTrendCustomChange()">
+      <span style="color:var(--text2);font-size:12px">~</span>
+      <input type="date" class="form-input" id="trendCustomTo"   style="width:140px;font-size:12px" onchange="onTrendCustomChange()">
     </div>
   </div>
 
@@ -4949,12 +4954,14 @@ function setViewMode(mode) {
 }
 
 const trendState = {
-  period:   '1M',
-  mode:     'total',
-  view:     'amount',   // 'amount' | 'yield'
-  rawRows:  [],
-  chart:    null,
-  loaded:   false,
+  period:     '1M',
+  customFrom: '',
+  customTo:   '',
+  mode:       'total',
+  view:       'amount',   // 'amount' | 'yield'
+  rawRows:    [],
+  chart:      null,
+  loaded:     false,
 };
 
 const TREND_COLORS = [
@@ -4978,15 +4985,9 @@ function setTrendView(view) {
 }
 
 function initTrendTab() {
-  // 버튼 이벤트
-  document.querySelectorAll('.trend-period-btn').forEach(function(btn) {
-    btn.onclick = function() {
-      document.querySelectorAll('.trend-period-btn').forEach(function(b) { b.classList.remove('active'); });
-      btn.classList.add('active');
-      trendState.period = btn.dataset.period;
-      renderTrendChart();
-    };
-  });
+  // 드롭다운 초기 동기화
+  var sel = document.getElementById('trendPeriodSelect');
+  if (sel) sel.value = trendState.period || '1M';
   document.querySelectorAll('.trend-mode-btn').forEach(function(btn) {
     btn.onclick = function() {
       document.querySelectorAll('.trend-mode-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -4996,6 +4997,34 @@ function initTrendTab() {
     };
   });
   loadTrendData();
+}
+
+function onTrendPeriodSelectChange() {
+  var sel = document.getElementById('trendPeriodSelect');
+  var customWrap = document.getElementById('trendCustomRange');
+  trendState.period = sel.value;
+  if (sel.value === 'custom') {
+    customWrap.style.display = 'flex';
+    // 기본값: 최근 1개월 ~ 오늘
+    if (!trendState.customFrom) {
+      var d = new Date(); d.setMonth(d.getMonth() - 1);
+      trendState.customFrom = d.toISOString().slice(0,10);
+    }
+    if (!trendState.customTo) {
+      trendState.customTo = new Date().toISOString().slice(0,10);
+    }
+    document.getElementById('trendCustomFrom').value = trendState.customFrom;
+    document.getElementById('trendCustomTo').value   = trendState.customTo;
+  } else {
+    customWrap.style.display = 'none';
+    renderTrendChart();
+  }
+}
+
+function onTrendCustomChange() {
+  trendState.customFrom = document.getElementById('trendCustomFrom').value;
+  trendState.customTo   = document.getElementById('trendCustomTo').value;
+  if (trendState.customFrom && trendState.customTo) renderTrendChart();
 }
 
 async function loadTrendData() {
@@ -5038,6 +5067,11 @@ function getTrendDateRange() {
     case '3Y':  from = new Date(now); from.setFullYear(from.getFullYear()-3); break;
     case '5Y':  from = new Date(now); from.setFullYear(from.getFullYear()-5); break;
     case '10Y': from = new Date(now); from.setFullYear(from.getFullYear()-10); break;
+    case 'custom':
+      return {
+        from: trendState.customFrom || new Date(now.setMonth(now.getMonth()-1)).toISOString().slice(0,10),
+        to:   trendState.customTo   || today
+      };
     default:    from = new Date(now); from.setMonth(from.getMonth() - 1);
   }
   return { from: from.toISOString().slice(0,10), to: today };
@@ -5406,10 +5440,14 @@ function updatePeriodBtnAvailability(minDate) {
     '5Y':  new Date(now.getFullYear()-5,  now.getMonth(), now.getDate()),
     '10Y': new Date(now.getFullYear()-10, now.getMonth(), now.getDate()),
   };
-  document.querySelectorAll('.trend-period-btn').forEach(function(btn) {
-    const t = thresholds[btn.dataset.period];
-    btn.disabled = t ? (t.toISOString().slice(0,10) < minDate) : false;
-  });
+  // 드롭다운 옵션 비활성화
+  var sel = document.getElementById('trendPeriodSelect');
+  if (sel) {
+    Array.from(sel.options).forEach(function(opt) {
+      var t = thresholds[opt.value];
+      opt.disabled = t ? (t.toISOString().slice(0,10) < minDate) : false;
+    });
+  }
 }
 
 function renderTrendSummary(rows, dates) {
