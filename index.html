@@ -944,7 +944,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
           <button class="chart-view-btn"        id="tickerBarAmt" onclick="setTickerBarMetric('amt')">수익금</button>
         </div>
       </div>
-      <div style="height:280px;position:relative"><canvas id="tickerBarCanvas"></canvas></div>
+      <div style="height:280px;position:relative" id="tickerBarWrap"><canvas id="tickerBarCanvas"></canvas><div id="tickerBarLabels" style="position:absolute;top:0;left:0;pointer-events:none"></div></div>
     </div>
   </div>
 
@@ -2757,45 +2757,27 @@ function renderTickerBar(data) {
   const minVal = values.length ? Math.min(...values) : 0;
   const xMin   = minVal < 0 ? minVal * 1.4 : undefined;
 
-  // y축 너비 강제 확보 플러그인 (Chart.js 4.x afterFit options 미지원 우회)
-  const yWidthPlugin = {
-    id: 'tickerBarYWidth',
-    afterDatasetsDraw: function(chart) {
-      const yScale = chart.scales.y;
-      if (!yScale) return;
-      // 캔버스에 직접 종목명 텍스트 렌더링
-      const ctx2 = chart.ctx;
-      const labels = chart.data.labels || [];
-      ctx2.save();
-      ctx2.font = '10px system-ui, sans-serif';
-      ctx2.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text1') || '#e6edf3';
-      ctx2.textAlign = 'right';
-      ctx2.textBaseline = 'middle';
-      const ticks = yScale.ticks || [];
-      ticks.forEach(function(tick, i) {
-        const lbl = labels[tick.value] || '';
-        const short = lbl.length > 13 ? lbl.slice(0, 12) + '…' : lbl;
-        const y2 = yScale.getPixelForTick(i);
-        ctx2.clearRect(0, y2 - 9, yScale.left - 2, 18);
-        ctx2.fillText(short, yScale.left - 4, y2);
-      });
-      ctx2.restore();
-    }
-  };
-
   tickerState.barChart = new Chart(canvas, {
     type: 'bar',
     data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }] },
     options: {
       indexAxis: 'y',
       responsive: true, maintainAspectRatio: false,
+      animation: {
+        onComplete: function() { renderTickerBarLabels(sorted); }
+      },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: function(ctx) {
-          return metric === 'pct'
-            ? (ctx.raw >= 0 ? '+' : '') + ctx.raw.toFixed(1) + '%'
-            : fmtAmt(ctx.raw);
-        }}},
+        tooltip: {
+          callbacks: {
+            title: function(ctx) { return labels[ctx[0].dataIndex]; },
+            label: function(ctx) {
+              return metric === 'pct'
+                ? (ctx.raw >= 0 ? '+' : '') + ctx.raw.toFixed(1) + '%'
+                : fmtAmt(ctx.raw);
+            }
+          }
+        },
         datalabels: {
           display: true,
           anchor: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'end' : 'start'; },
@@ -2805,8 +2787,7 @@ function renderTickerBar(data) {
           },
           color: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? '#ff9a96' : '#80bfff'; },
           font: { size: 10, weight: '600' },
-        },
-        tickerBarYWidth: yWidthPlugin
+        }
       },
       scales: {
         x: {
@@ -2817,13 +2798,48 @@ function renderTickerBar(data) {
           }
         },
         y: {
-          ticks: { display: false },  // 기본 tick 숨기고 afterDatasetsDraw에서 직접 그림
-          grid: { display: false },
-          afterFit: function(s) { s.width = 150; }
+          ticks: { display: false },
+          grid:  { display: false },
+          afterFit: function(s) { s.width = 148; }
         }
       },
-      layout: { padding: { right: 65 } }
+      layout: { padding: { right: 65, left: 0 } }
     }
+  });
+}
+
+function renderTickerBarLabels(sorted) {
+  const chart   = tickerState.barChart;
+  const overlay = document.getElementById('tickerBarLabels');
+  if (!chart || !overlay) return;
+  const yScale  = chart.scales.y;
+  if (!yScale) return;
+
+  const left  = yScale.left;   // 바 시작 x 위치
+  overlay.innerHTML = '';
+
+  sorted.forEach(function(d, i) {
+    const tick = yScale.getPixelForTick(i);
+    const lbl  = (d.name || d.ticker || '');
+    const short = lbl.length > 13 ? lbl.slice(0, 12) + '…' : lbl;
+
+    const span = document.createElement('div');
+    span.style.cssText = [
+      'position:absolute',
+      'right:' + (chart.width - left + 6) + 'px',
+      'top:' + (tick - 8) + 'px',
+      'height:16px',
+      'line-height:16px',
+      'font-size:10px',
+      'color:var(--text1)',
+      'white-space:nowrap',
+      'text-align:right',
+      'max-width:145px',
+      'overflow:hidden',
+      'text-overflow:ellipsis',
+    ].join(';');
+    span.textContent = short;
+    overlay.appendChild(span);
   });
 }
 
