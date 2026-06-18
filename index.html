@@ -5241,6 +5241,37 @@ function renderTrendChart() {
   const minDate = trendState.rawRows.reduce(function(m, r) { return r.date < m ? r.date : m; }, '9999');
   updatePeriodBtnAvailability(minDate);
 
+  // ── 신고가 감지 (total 모드 + 금액 뷰 한정) ───────────────
+  var isAllTimeHigh = false;
+  var athIdx        = -1;   // 전고점 인덱스
+  var athValue      = 0;    // 전고점 값
+  if (mode === 'total' && !isYield && datasets.length > 0) {
+    const mainData = datasets[0].data;
+    const lastVal  = mainData[mainData.length - 1];
+    var   maxVal   = -Infinity;
+    for (var di = 0; di < mainData.length; di++) {
+      if ((mainData[di] || 0) > maxVal) { maxVal = mainData[di]; athIdx = di; }
+    }
+    athValue     = maxVal;
+    // 마지막 포인트가 최댓값이면 신고가
+    isAllTimeHigh = (athIdx === mainData.length - 1) && lastVal >= maxVal;
+    if (isAllTimeHigh) {
+      // 주 라인: 신고가 붉은 테마
+      datasets[0].borderColor     = '#f85149';
+      datasets[0].backgroundColor = function(ctx) {
+        const chart = ctx.chart;
+        const {ctx: c, chartArea} = chart;
+        if (!chartArea) return 'rgba(248,81,73,.2)';
+        const grad = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+        grad.addColorStop(0, 'rgba(248,81,73,.45)');
+        grad.addColorStop(1, 'rgba(248,81,73,.03)');
+        return grad;
+      };
+      // 매수금액 점선: 형광 초록으로
+      if (datasets.length > 1) datasets[1].borderColor = '#39ff14';
+    }
+  }
+
   // Chart.js 렌더링
   const canvas = document.getElementById('trendChart');
   if (trendState.chart) { trendState.chart.destroy(); trendState.chart = null; }
@@ -5277,23 +5308,55 @@ function renderTrendChart() {
         } : {},
         datalabels: {
           display: function(ctx) {
-            // 마지막 데이터 포인트에만 표시 (점선 데이터셋 제외)
             const ds = ctx.dataset;
             if (ds.borderDash && ds.borderDash.length > 0) return false;
-            return ctx.dataIndex === dates.length - 1;
+            // 마지막 포인트 항상 표시
+            if (ctx.dataIndex === dates.length - 1) return true;
+            // 신고가 모드: 전고점 포인트도 표시 (단, 첫 번째 데이터셋이고 마지막 포인트가 아닌 최고점)
+            if (isAllTimeHigh && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx
+                && athIdx !== dates.length - 1) return true;
+            return false;
           },
-          anchor: 'end',
-          align: 'right',
-          offset: 6,
-          color: function(ctx) { return ctx.dataset.borderColor || '#e6edf3'; },
-          font: { size: 10, weight: '700' },
-          formatter: function(v) {
-            if (isYield) return (v >= 0 ? '+' : '') + parseFloat(v).toFixed(1) + '%';
-            const abs = Math.abs(v);
-            if (abs >= 100000000) return (v/100000000).toFixed(2) + '억';
-            if (abs >= 10000000)  return (v/10000000).toFixed(1) + '천만';
-            if (abs >= 10000)     return (v/10000).toFixed(0) + '만';
-            return Math.round(v).toLocaleString();
+          anchor: function(ctx) {
+            // 전고점은 위쪽에 표시
+            if (isAllTimeHigh && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx
+                && athIdx !== dates.length - 1) return 'end';
+            return 'end';
+          },
+          align: function(ctx) {
+            if (isAllTimeHigh && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx
+                && athIdx !== dates.length - 1) return 'top';
+            return 'right';
+          },
+          offset: function(ctx) {
+            if (isAllTimeHigh && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx
+                && athIdx !== dates.length - 1) return 4;
+            return 6;
+          },
+          color: function(ctx) {
+            // 전고점 레이블: 노란색으로 구분
+            if (isAllTimeHigh && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx
+                && athIdx !== dates.length - 1) return '#f0c000';
+            return ctx.dataset.borderColor || '#e6edf3';
+          },
+          font: function(ctx) {
+            if (isAllTimeHigh && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx
+                && athIdx !== dates.length - 1) return { size: 10, weight: '700' };
+            return { size: 10, weight: '700' };
+          },
+          formatter: function(v, ctx) {
+            // 전고점 레이블: '전고점' 접두어 추가
+            const isAthLabel = isAllTimeHigh && ctx.datasetIndex === 0
+              && ctx.dataIndex === athIdx && athIdx !== dates.length - 1;
+            function fmtVal(val) {
+              if (isYield) return (val >= 0 ? '+' : '') + parseFloat(val).toFixed(1) + '%';
+              const abs = Math.abs(val);
+              if (abs >= 100000000) return (val/100000000).toFixed(2) + '억';
+              if (abs >= 10000000)  return (val/10000000).toFixed(1) + '천만';
+              if (abs >= 10000)     return (val/10000).toFixed(0) + '만';
+              return Math.round(val).toLocaleString();
+            }
+            return isAthLabel ? ['전고점', fmtVal(v)] : fmtVal(v);
           },
           clip: false,
         }
