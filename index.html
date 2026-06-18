@@ -874,6 +874,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 <div>
 <div class="tabs">
   <div class="tab active" onclick="switchTab('overview')">전체 현황</div>
+  <div class="tab" onclick="switchTab('ticker')">종목별</div>
   <div class="tab" onclick="switchTab('byAccount')">계좌별</div>
   <div class="tab" onclick="switchTab('sector')">섹터 분석</div>
   <div class="tab" onclick="switchTab('charts')">차트 분석</div>
@@ -911,6 +912,74 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 </div>
 
 <!-- ── 패널: 계좌별 ────────────────────────────────────── -->
+<!-- ── 패널: 종목별 ─────────────────────────────────────── -->
+<div class="panel" id="panel-ticker">
+
+  <!-- 상단 차트 2개 좌우 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+
+    <!-- 좌: 종목별 트리맵 -->
+    <div class="table-wrap" style="padding:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:600;color:var(--text2)">종목별 비중 트리맵</span>
+        <div style="margin-left:auto;display:flex;gap:4px">
+          <button class="chart-view-btn active" id="tickerTreemapPct"    onclick="setTickerTreemapLabel('pct')">수익률%</button>
+          <button class="chart-view-btn"        id="tickerTreemapWeight" onclick="setTickerTreemapLabel('weight')">비중%</button>
+          <button class="chart-view-btn"        id="tickerTreemapEval"   onclick="setTickerTreemapLabel('eval')">총금액</button>
+          <button class="chart-view-btn"        id="tickerTreemapProfit" onclick="setTickerTreemapLabel('profit')">수익금</button>
+        </div>
+      </div>
+      <div style="height:280px;position:relative"><canvas id="tickerTreemapCanvas"></canvas></div>
+    </div>
+
+    <!-- 우: 종목 수익률 Top10 -->
+    <div class="table-wrap" style="padding:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:600;color:var(--text2)" id="tickerBarTitle">종목 수익률 Top10</span>
+        <div style="margin-left:auto;display:flex;gap:4px">
+          <button class="chart-view-btn active" id="tickerBarTop" onclick="setTickerBarMode('top')">Top10</button>
+          <button class="chart-view-btn"        id="tickerBarBot" onclick="setTickerBarMode('bottom')">Bottom10</button>
+          <div style="width:1px;height:16px;background:var(--border);margin:0 2px;align-self:center"></div>
+          <button class="chart-view-btn active" id="tickerBarPct" onclick="setTickerBarMetric('pct')">수익률</button>
+          <button class="chart-view-btn"        id="tickerBarAmt" onclick="setTickerBarMetric('amt')">수익금</button>
+        </div>
+      </div>
+      <div style="height:280px;position:relative"><canvas id="tickerBarCanvas"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 하단 테이블 -->
+  <div class="table-wrap">
+    <div style="display:flex;align-items:center;margin-bottom:8px;gap:8px">
+      <span class="table-title">종목별 합산</span>
+      <span id="tickerTableCount" style="font-size:12px;color:var(--text2)"></span>
+      <div style="margin-left:auto;display:flex;gap:4px">
+        <button class="btn-secondary" style="font-size:11px;padding:3px 8px" id="tickerSortPct"  onclick="setTickerSort('pct')">수익률↓</button>
+        <button class="btn-secondary" style="font-size:11px;padding:3px 8px" id="tickerSortEval" onclick="setTickerSort('eval')">평가금액↓</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="tbl" id="tickerTable">
+        <thead><tr>
+          <th>종목명</th>
+          <th>섹터</th>
+          <th style="text-align:center">계좌</th>
+          <th style="text-align:right">수량</th>
+          <th style="text-align:right">가중평단가</th>
+          <th style="text-align:right">현재가</th>
+          <th style="text-align:right">총매수금액</th>
+          <th style="text-align:right">총평가금액</th>
+          <th style="text-align:right">총평가손익</th>
+          <th style="text-align:right">수익률</th>
+          <th style="text-align:right">비중</th>
+        </tr></thead>
+        <tbody id="tickerTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /panel-ticker -->
+
 <div class="panel" id="panel-byAccount">
   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
     <button class="btn-refresh" onclick="collapseAllAccounts(true)">▲ 전체 접기</button>
@@ -2041,6 +2110,7 @@ function renderAll() {
   renderAccountList();
   renderAccountGroupList();
   renderGroupAccountChecks();
+  if (state.activeTab === 'ticker')   renderByTickerTab();
   if (state.activeTab === 'sector')   initSectorTab();
   if (state.activeTab === 'plan'  && planState.loaded) renderPlan();
   if (state.activeTab === 'trend'   && trendState.loaded)  renderTrendChart();
@@ -2480,6 +2550,310 @@ function sortHoldings(rows, sort) {
 // ============================================================
 // 섹터 분석 탭
 // ============================================================
+// ============================================================
+// 종목별 탭
+// ============================================================
+const tickerState = {
+  treemapChart: null,
+  barChart:     null,
+  barMode:      'top',     // 'top' | 'bottom'
+  barMetric:    'pct',     // 'pct' | 'amt'
+  treemapLabel: 'pct',     // 'pct' | 'weight' | 'eval' | 'profit'
+  sort:         'pct',     // 'pct' | 'eval'
+};
+
+function initTickerTab() {
+  requestAnimationFrame(function() { renderByTickerTab(); });
+}
+
+// ── 데이터 빌드 ───────────────────────────────────────────────
+function buildTickerData() {
+  const holdings = getFilteredHoldings().filter(h => !h.is_cash);
+  const totalEval = holdings.reduce((s, h) => s + (h.eval_amount || 0), 0);
+
+  const map = {};
+  holdings.forEach(function(h) {
+    const key = h.ticker || h.name || '?';
+    if (!map[key]) {
+      map[key] = {
+        ticker:      h.ticker || '',
+        name:        h.name   || h.ticker || '',
+        market:      h.market || 'KR',
+        sector:      h.sector || '기타',
+        current_price: h.current_price || 0,
+        is_fund:     h.is_fund || false,
+        qty:         0, cost: 0, eval: 0, profit: 0,
+        accounts:    [],
+      };
+    }
+    const d = map[key];
+    d.qty    += Number(h.quantity)     || 0;
+    d.cost   += Number(h.cost_amount)  || 0;
+    d.eval   += Number(h.eval_amount)  || 0;
+    d.profit += Number(h.profit_amount)|| 0;
+    // 계좌 정보 수집
+    const acctLabel = (h.owner || '') + ' · ' + (h.broker || '') + ' ' + (h.account_type || '');
+    if (!d.accounts.includes(acctLabel)) d.accounts.push(acctLabel);
+  });
+
+  return Object.values(map).map(function(d) {
+    const pct    = d.cost > 0 ? d.profit / d.cost * 100 : 0;
+    const weight = totalEval > 0 ? d.eval / totalEval * 100 : 0;
+    const wavg   = d.qty  > 0 ? d.cost  / d.qty  : 0;
+    return Object.assign(d, {
+      profit_pct: Math.round(pct * 100) / 100,
+      weight:     Math.round(weight * 100) / 100,
+      wavg_price: Math.round(wavg),
+    });
+  });
+}
+
+// ── 메인 렌더 ─────────────────────────────────────────────────
+function renderByTickerTab() {
+  const data = buildTickerData();
+  renderTickerTreemap(data);
+  renderTickerBar(data);
+  renderTickerTable(data);
+}
+
+// ── 트리맵 ───────────────────────────────────────────────────
+function setTickerTreemapLabel(mode) {
+  tickerState.treemapLabel = mode;
+  ['Pct','Weight','Eval','Profit'].forEach(function(k) {
+    const el = document.getElementById('tickerTreemap' + k);
+    if (el) el.classList.toggle('active', k.toLowerCase() === mode);
+  });
+  renderTickerTreemap(buildTickerData());
+}
+
+function renderTickerTreemap(data) {
+  const canvas = document.getElementById('tickerTreemapCanvas');
+  if (!canvas) return;
+  if (tickerState.treemapChart) { tickerState.treemapChart.destroy(); tickerState.treemapChart = null; }
+
+  const labelMode = tickerState.treemapLabel;
+
+  function getColor(pct, alpha) {
+    const a = alpha || '.85';
+    if (pct >  20) return 'rgba(248,81,73,'  + a + ')';
+    if (pct >   5) return 'rgba(248,81,73,.6)';
+    if (pct >   0) return 'rgba(248,81,73,.35)';
+    if (pct > - 5) return 'rgba(68,147,248,.35)';
+    if (pct > -20) return 'rgba(68,147,248,.6)';
+    return 'rgba(68,147,248,' + a + ')';
+  }
+  function fmtShort(v) {
+    const abs = Math.abs(v);
+    if (abs >= 100000000) return (v/100000000).toFixed(1) + '억';
+    if (abs >= 10000000)  return (v/10000000).toFixed(1) + '천만';
+    if (abs >= 10000)     return Math.round(v/10000) + '만';
+    return Math.round(v).toLocaleString();
+  }
+
+  // 트리맵 크기 기준: profit 모드는 |profit|, 나머지는 eval
+  const treeData = data
+    .filter(function(d) { return d.eval > 0 || (labelMode === 'profit' && Math.abs(d.profit) > 0); })
+    .map(function(d) {
+      const v = labelMode === 'profit' ? Math.max(Math.abs(d.profit), 1) : Math.max(d.eval, 1);
+      return { v, name: d.name, pct: d.profit_pct, eval: d.eval, weight: d.weight, profit: d.profit };
+    });
+
+  tickerState.treemapChart = new Chart(canvas, {
+    type: 'treemap',
+    data: {
+      datasets: [{
+        label: '종목',
+        tree: treeData,
+        key: 'v',
+        labels: {
+          display: true,
+          formatter: function(ctx) {
+            const d = ctx.raw._data;
+            let line2;
+            if (labelMode === 'pct')    line2 = (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%';
+            else if (labelMode === 'weight') line2 = d.weight.toFixed(1) + '%';
+            else if (labelMode === 'eval')   line2 = fmtShort(d.eval);
+            else                             line2 = (d.profit >= 0 ? '+' : '') + fmtShort(d.profit);
+            return [d.name, line2];
+          },
+          color: '#fff',
+          font: [{ size: 11, weight: '600' }, { size: 9 }],
+        },
+        backgroundColor: function(ctx) {
+          if (!ctx.raw) return '#21262d';
+          const d = ctx.raw._data;
+          if (labelMode === 'weight' || labelMode === 'eval') return 'rgba(68,147,248,.6)';
+          return getColor(d.pct || 0);
+        },
+        borderColor: 'rgba(0,0,0,.2)', borderWidth: 1, spacing: 1,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: function(ctx) {
+          const d = ctx.raw._data;
+          return [
+            '종목: ' + d.name,
+            '평가금액: ' + Math.round(d.eval).toLocaleString('ko-KR') + '원',
+            '수익률: ' + (d.pct >= 0 ? '+' : '') + d.pct.toFixed(1) + '%',
+            '수익금: ' + (d.profit >= 0 ? '+' : '') + Math.round(d.profit).toLocaleString('ko-KR') + '원',
+          ];
+        }}},
+        datalabels: { display: false },
+      }
+    }
+  });
+}
+
+// ── 바 차트 ──────────────────────────────────────────────────
+function setTickerBarMode(mode) {
+  tickerState.barMode = mode;
+  document.getElementById('tickerBarTop').classList.toggle('active', mode === 'top');
+  document.getElementById('tickerBarBot').classList.toggle('active', mode === 'bottom');
+  renderTickerBar(buildTickerData());
+}
+function setTickerBarMetric(metric) {
+  tickerState.barMetric = metric;
+  document.getElementById('tickerBarPct').classList.toggle('active', metric === 'pct');
+  document.getElementById('tickerBarAmt').classList.toggle('active', metric === 'amt');
+  renderTickerBar(buildTickerData());
+}
+
+function renderTickerBar(data) {
+  const canvas = document.getElementById('tickerBarCanvas');
+  if (!canvas) return;
+  if (tickerState.barChart) { tickerState.barChart.destroy(); tickerState.barChart = null; }
+
+  const metric   = tickerState.barMetric;
+  const isTop    = tickerState.barMode === 'top';
+  const getValue = metric === 'pct'
+    ? function(d) { return d.profit_pct; }
+    : function(d) { return d.profit; };
+
+  const sorted = [...data].filter(function(d) { return d.cost > 0; })
+    .sort(function(a, b) { return isTop ? getValue(b) - getValue(a) : getValue(a) - getValue(b); })
+    .slice(0, 10);
+
+  const labels = sorted.map(function(d) { return d.name || d.ticker; });
+  const values = sorted.map(getValue);
+  const colors = values.map(function(v) { return v >= 0 ? 'rgba(248,81,73,.8)' : 'rgba(68,147,248,.8)'; });
+
+  const titleEl = document.getElementById('tickerBarTitle');
+  if (titleEl) titleEl.textContent = '종목 ' + (metric === 'pct' ? '수익률' : '수익금') + ' ' + (isTop ? 'Top10' : 'Bottom10');
+
+  function fmtAmt(v) {
+    const abs = Math.abs(v), sign = v >= 0 ? '+' : '-';
+    if (abs >= 100000000) return sign + (abs/100000000).toFixed(1) + '억';
+    if (abs >= 10000) return sign + Math.round(abs/10000) + '만';
+    return (v >= 0 ? '+' : '') + Math.round(v).toLocaleString('ko-KR');
+  }
+
+  const minVal = values.length ? Math.min(...values) : 0;
+  const xMin   = minVal < 0 ? minVal * 1.4 : undefined;
+
+  tickerState.barChart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }] },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: function(ctx) {
+          return metric === 'pct'
+            ? (ctx.raw >= 0 ? '+' : '') + ctx.raw.toFixed(1) + '%'
+            : fmtAmt(ctx.raw);
+        }}},
+        datalabels: {
+          display: true,
+          anchor: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'end' : 'start'; },
+          align:  function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? 'end' : 'start'; },
+          formatter: function(v) {
+            return metric === 'pct' ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : fmtAmt(v);
+          },
+          color: function(ctx) { return ctx.dataset.data[ctx.dataIndex] >= 0 ? '#ff9a96' : '#80bfff'; },
+          font: { size: 10, weight: '600' },
+        }
+      },
+      scales: {
+        x: {
+          min: xMin,
+          grid: { color: 'rgba(255,255,255,.05)' },
+          ticks: { color: 'var(--text2)', font: { size: 10 },
+            callback: function(v) { return metric === 'pct' ? v + '%' : fmtAmt(v); }
+          }
+        },
+        y: { ticks: { color: 'var(--text1)', font: { size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ── 테이블 ───────────────────────────────────────────────────
+function setTickerSort(key) {
+  tickerState.sort = key;
+  document.getElementById('tickerSortPct') .classList.toggle('active', key === 'pct');
+  document.getElementById('tickerSortEval').classList.toggle('active', key === 'eval');
+  renderTickerTable(buildTickerData());
+}
+
+function renderTickerTable(data) {
+  const sortKey = tickerState.sort;
+  const sorted = [...data].sort(function(a, b) {
+    return sortKey === 'pct' ? b.profit_pct - a.profit_pct : b.eval - a.eval;
+  });
+
+  const countEl = document.getElementById('tickerTableCount');
+  if (countEl) countEl.textContent = sorted.length + '개 종목';
+
+  function fmtKrw(v) { return Math.round(v).toLocaleString('ko-KR') + '원'; }
+  function fmtPct(v) {
+    const s = v >= 0 ? '+' : '';
+    return '<span style="color:' + (v >= 0 ? 'var(--red)' : 'var(--blue)') + ';font-weight:700">'
+      + s + v.toFixed(1) + '%</span>';
+  }
+  function fmtProfit(v) {
+    const s = v >= 0 ? '+' : '';
+    return '<span style="color:' + (v >= 0 ? 'var(--red)' : 'var(--blue)') + '">'
+      + s + Math.round(v).toLocaleString('ko-KR') + '원</span>';
+  }
+  function mktBadge(m) {
+    const cls = m === 'US' ? 'badge-us' : m === 'COIN' ? 'badge-coin' : 'badge-kr';
+    const lbl = m === 'US' ? 'US' : m === 'COIN' ? '🪙' : 'KR';
+    return '<span class="badge ' + cls + '">' + lbl + '</span>';
+  }
+
+  const tbody = document.getElementById('tickerTableBody');
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text2)">데이터 없음</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sorted.map(function(d) {
+    const acctCount = d.accounts.length;
+    const acctTitle = d.accounts.join('\n');
+    const acctLabel = acctCount + '개 계좌';
+    const profitColor = d.profit_pct >= 0 ? 'var(--red)' : 'var(--blue)';
+    return '<tr>'
+      + '<td><div style="font-weight:600">' + (d.name || d.ticker) + ' ' + mktBadge(d.market) + '</div>'
+      + '<div style="font-size:11px;color:var(--text2)">' + d.ticker + '</div></td>'
+      + '<td style="color:var(--text2);font-size:12px">' + (d.sector || '') + '</td>'
+      + '<td style="text-align:center"><span title="' + acctTitle + '" style="cursor:help;font-size:12px;color:var(--blue);border-bottom:1px dotted var(--border)">'
+      + acctLabel + '</span></td>'
+      + '<td style="text-align:right">' + (d.qty % 1 === 0 ? d.qty.toLocaleString('ko-KR') : d.qty.toFixed(4)) + '</td>'
+      + '<td style="text-align:right;font-size:12px">' + (d.wavg_price ? fmtKrw(d.wavg_price) : '-') + '</td>'
+      + '<td style="text-align:right;font-size:12px">' + (d.current_price ? fmtKrw(d.current_price) : '-') + '</td>'
+      + '<td style="text-align:right">' + fmtKrw(d.cost) + '</td>'
+      + '<td style="text-align:right">' + fmtKrw(d.eval) + '</td>'
+      + '<td style="text-align:right">' + fmtProfit(d.profit) + '</td>'
+      + '<td style="text-align:right">' + fmtPct(d.profit_pct) + '</td>'
+      + '<td style="text-align:right;color:var(--text2);font-size:12px">' + d.weight.toFixed(1) + '%</td>'
+      + '</tr>';
+  }).join('');
+}
+
 const sectorState = {
   treemapChart: null,
   barChart:     null,
@@ -3798,13 +4172,14 @@ async function deleteAccountGroup(encodedName) {
 function switchTab(tab) {
   state.activeTab = tab;
   document.querySelectorAll('.tab').forEach((el, i) => {
-    const tabs = ['overview','byAccount','sector','charts','trend','plan','dividend','sale','cashflow','settings'];
+    const tabs = ['overview','ticker','byAccount','sector','charts','trend','plan','dividend','sale','cashflow','settings'];
     el.classList.toggle('active', tabs[i] === tab);
   });
   document.querySelectorAll('.panel').forEach(el => {
     el.classList.toggle('active', el.id === 'panel-' + tab);
   });
 
+  if (tab === 'ticker')   initTickerTab();
   if (tab === 'sector')   initSectorTab();
   if (tab === 'charts')   requestAnimationFrame(function(){ requestAnimationFrame(renderCharts); });
   if (tab === 'trend')    initTrendTab();
