@@ -5241,31 +5241,28 @@ function renderTrendChart() {
   const minDate = trendState.rawRows.reduce(function(m, r) { return r.date < m ? r.date : m; }, '9999');
   updatePeriodBtnAvailability(minDate);
 
-  // ── 신고가 감지 (total 모드 + 금액 뷰 한정) ───────────────
+  // ── 신고가 감지 + 전고점 탐색 (total 모드 + 금액 뷰 한정) ──
   var isAllTimeHigh = false;
-  var athIdx        = -1;   // 전고점 인덱스
+  var athIdx        = -1;   // 전고점 인덱스 (마지막 포인트 제외 최댓값)
   var athValue      = 0;    // 전고점 값
   if (mode === 'total' && !isYield && datasets.length > 0) {
     const mainData = datasets[0].data;
-    const lastVal  = mainData[mainData.length - 1];
+    const lastIdx  = mainData.length - 1;
+    const lastVal  = mainData[lastIdx] || 0;
     // 전체 최댓값 탐색
-    var maxVal = -Infinity;
+    var maxVal = -Infinity, maxIdx = -1;
     for (var di = 0; di < mainData.length; di++) {
-      if ((mainData[di] || 0) > maxVal) { maxVal = mainData[di]; athIdx = di; }
+      if ((mainData[di] || 0) > maxVal) { maxVal = mainData[di]; maxIdx = di; }
     }
-    athValue = maxVal;
-    // 마지막 포인트가 최댓값이면 신고가
-    isAllTimeHigh = (athIdx === mainData.length - 1) && lastVal >= maxVal;
-    // 신고가 시: 이전 고점(마지막 포인트 제외한 구간의 최댓값) 탐색
-    if (isAllTimeHigh && mainData.length > 1) {
-      var prevMax = -Infinity;
-      var prevIdx = -1;
-      for (var pi = 0; pi < mainData.length - 1; pi++) {
-        if ((mainData[pi] || 0) > prevMax) { prevMax = mainData[pi]; prevIdx = pi; }
-      }
-      athIdx  = prevIdx;   // 전고점 = 이전 최고점
-      athValue = prevMax;
+    // 신고가: 마지막 포인트가 전체 최댓값
+    isAllTimeHigh = (maxIdx === lastIdx) && lastVal >= maxVal;
+    // 전고점 = 마지막 포인트 제외 구간의 최댓값 (항상 탐색)
+    var prevMax = -Infinity, prevIdx = -1;
+    for (var pi = 0; pi < lastIdx; pi++) {
+      if ((mainData[pi] || 0) > prevMax) { prevMax = mainData[pi]; prevIdx = pi; }
     }
+    athIdx  = prevIdx;   // 항상 이전 고점 저장
+    athValue = prevMax;
     if (isAllTimeHigh) {
       // 주 라인: 신고가 붉은 테마
       datasets[0].borderColor     = '#f85149';
@@ -5323,41 +5320,29 @@ function renderTrendChart() {
             if (ds.borderDash && ds.borderDash.length > 0) return false;
             // 마지막 포인트 항상 표시
             if (ctx.dataIndex === dates.length - 1) return true;
-            // 신고가 모드: 전고점 포인트도 표시 (단, 첫 번째 데이터셋이고 마지막 포인트가 아닌 최고점)
-            if (isAllTimeHigh && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx
-               ) return true;
+            // 전고점 포인트 표시 (신고가 여부 무관, 첫 번째 데이터셋만)
+            if (athIdx >= 0 && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx) return true;
             return false;
           },
-          anchor: function(ctx) {
-            // 전고점은 위쪽에 표시
-            if (isAllTimeHigh && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx
-               ) return 'end';
-            return 'end';
-          },
+          anchor: 'end',
           align: function(ctx) {
-            if (isAllTimeHigh && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx
-               ) return 'top';
+            // 전고점은 위쪽에, 나머지는 오른쪽에
+            if (athIdx >= 0 && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx) return 'top';
             return 'right';
           },
           offset: function(ctx) {
-            if (isAllTimeHigh && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx
-               ) return 4;
+            if (athIdx >= 0 && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx) return 4;
             return 6;
           },
           color: function(ctx) {
             // 전고점 레이블: 노란색으로 구분
-            if (isAllTimeHigh && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx
-               ) return '#f0c000';
+            if (athIdx >= 0 && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx) return '#f0c000';
             return ctx.dataset.borderColor || '#e6edf3';
           },
-          font: function(ctx) {
-            if (isAllTimeHigh && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx
-               ) return { size: 10, weight: '700' };
-            return { size: 10, weight: '700' };
-          },
+          font: { size: 10, weight: '700' },
           formatter: function(v, ctx) {
             // 전고점 레이블: '전고점' 접두어 추가
-            const isAthLabel = isAllTimeHigh && ctx.datasetIndex === 0
+            const isAthLabel = athIdx >= 0 && ctx.datasetIndex === 0
               && ctx.dataIndex === athIdx;
             function fmtVal(val) {
               if (isYield) return (val >= 0 ? '+' : '') + parseFloat(val).toFixed(1) + '%';
