@@ -2917,7 +2917,18 @@ function renderTickerTable(data) {
     const acctLabel = acctCount + '개 계좌';
     const profitColor = d.profit_pct >= 0 ? 'var(--red)' : 'var(--blue)';
     return '<tr>'
-      + '<td><div style="font-weight:600">' + (d.name || d.ticker) + ' ' + mktBadge(d.market) + '</div>'
+      + '<td><div style="font-weight:600">'
+      + (function() {
+          const t = d.ticker || '';
+          const m = d.market || 'KR';
+          const isCash = (t === 'CASH_KR' || t === 'CASH_US');
+          const nameStr = d.name || t;
+          if (isCash || !t) return nameStr;
+          const nameStyle = 'cursor:pointer;text-decoration:underline dotted rgba(255,255,255,.4)';
+          const nameClick = "openStockLink('" + t.replace(/'/g, "\\'") + "','" + m + "','" + (m === 'US' ? 'NASDAQ' : 'KR') + "',event)";
+          return '<span onclick="' + nameClick + '" style="' + nameStyle + '" title="' + (m === 'US' ? 'TradingView' : '네이버 증권') + '">' + nameStr + '</span>';
+        })()
+      + ' ' + mktBadge(d.market) + '</div>'
       + '<div style="font-size:11px;color:var(--text2)">' + d.ticker + '</div></td>'
       + '<td style="color:var(--text2);font-size:12px">' + (d.sector || '') + '</td>'
       + '<td style="text-align:center"><span title="' + acctTitle + '" style="cursor:help;font-size:12px;color:var(--blue);border-bottom:1px dotted var(--border)">'
