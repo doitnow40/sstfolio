@@ -979,6 +979,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
           <th style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('eval')">총평가금액 <span id="tickerSortIcon_eval"></span></th>
           <th style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('profit')">총평가손익 <span id="tickerSortIcon_profit"></span></th>
           <th style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('pct')">수익률 <span id="tickerSortIcon_pct"></span></th>
+          <th style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('change_rate')">오늘등락 <span id="tickerSortIcon_change_rate"></span></th>
           <th style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleTickerColSort('weight')">비중 <span id="tickerSortIcon_weight"></span></th>
         </tr></thead>
         <tbody id="tickerTableBody"></tbody>
@@ -2596,12 +2597,13 @@ function buildTickerData() {
     const key = h.ticker || h.name || '?';
     if (!map[key]) {
       map[key] = {
-        ticker:      h.ticker || '',
-        name:        h.name   || h.ticker || '',
-        market:      h.market || 'KR',
-        sector:      h.sector || '기타',
+        ticker:        h.ticker || '',
+        name:          h.name   || h.ticker || '',
+        market:        h.market || 'KR',
+        sector:        h.sector || '기타',
         current_price: h.current_price || 0,
-        is_fund:     h.is_fund || false,
+        change_rate:   h.change_rate   || 0,
+        is_fund:       h.is_fund || false,
         qty:         0, cost: 0, eval: 0, profit: 0,
         accounts:    [],
       };
@@ -2893,7 +2895,7 @@ function tickerSortIcon(col) {
 function renderTickerTable(data) {
   const s = tickerState.colSort;
   // 정렬 아이콘 업데이트
-  ['name','sector','qty','cost','eval','profit','pct','weight'].forEach(function(c) {
+  ['name','sector','qty','cost','eval','profit','pct','change_rate','weight'].forEach(function(c) {
     const el = document.getElementById('tickerSortIcon_' + c);
     if (el) el.innerHTML = tickerSortIcon(c);
   });
@@ -2902,12 +2904,13 @@ function renderTickerTable(data) {
     if (!s.col || s.dir === 0) return b.profit_pct - a.profit_pct; // 기본: 수익률 내림차순
     const col = s.col;
     let av, bv;
-    if (col === 'pct')    { av = a.profit_pct; bv = b.profit_pct; }
-    else if (col === 'eval')   { av = a.eval;       bv = b.eval; }
-    else if (col === 'cost')   { av = a.cost;       bv = b.cost; }
-    else if (col === 'profit') { av = a.profit;     bv = b.profit; }
-    else if (col === 'qty')    { av = a.qty;        bv = b.qty; }
-    else if (col === 'weight') { av = a.weight;     bv = b.weight; }
+    if (col === 'pct')          { av = a.profit_pct;       bv = b.profit_pct; }
+    else if (col === 'eval')        { av = a.eval;             bv = b.eval; }
+    else if (col === 'cost')        { av = a.cost;             bv = b.cost; }
+    else if (col === 'profit')      { av = a.profit;           bv = b.profit; }
+    else if (col === 'qty')         { av = a.qty;              bv = b.qty; }
+    else if (col === 'weight')      { av = a.weight;           bv = b.weight; }
+    else if (col === 'change_rate') { av = a.change_rate || 0; bv = b.change_rate || 0; }
     else if (col === 'name')   { av = a.name || ''; bv = b.name || ''; return s.dir * av.localeCompare(bv); }
     else if (col === 'sector') { av = a.sector||''; bv = b.sector||''; return s.dir * av.localeCompare(bv); }
     else { av = 0; bv = 0; }
@@ -2969,6 +2972,13 @@ function renderTickerTable(data) {
       + '<td style="text-align:right">' + fmtKrw(d.eval) + '</td>'
       + '<td style="text-align:right">' + fmtProfit(d.profit) + '</td>'
       + '<td style="text-align:right">' + fmtPct(d.profit_pct) + '</td>'
+      + (function() {
+          const cr = Number(d.change_rate) || 0;
+          if (cr === 0) return '<td style="text-align:right;color:var(--text3);font-size:12px">-</td>';
+          const col  = cr >= 0 ? 'var(--green)' : 'var(--red)';
+          const sign = cr >= 0 ? '+' : '';
+          return '<td style="text-align:right;font-size:12px;color:' + col + ';font-weight:600">' + sign + cr.toFixed(2) + '%</td>';
+        })()
       + '<td style="text-align:right;color:var(--text2);font-size:12px">' + d.weight.toFixed(1) + '%</td>'
       + '</tr>';
   }).join('');
