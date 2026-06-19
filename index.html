@@ -2973,7 +2973,7 @@ function renderTickerTable(data) {
       + '<td style="text-align:right">' + fmtProfit(d.profit) + '</td>'
       + '<td style="text-align:right">' + fmtPct(d.profit_pct) + '</td>'
       + (function() {
-          const cr = Number(d.change_rate) || 0;
+          const cr = parseFloat(String(d.change_rate || '').replace('%', '')) || 0;
           if (cr === 0) return '<td style="text-align:right;color:var(--text3);font-size:12px">-</td>';
           const col  = cr >= 0 ? 'var(--green)' : 'var(--red)';
           const sign = cr >= 0 ? '+' : '';
