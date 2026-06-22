@@ -816,6 +816,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <div class="header-right">
       <span class="last-updated" id="lastUpdated">–</span>
       <button class="btn-refresh" onclick="loadData()">⟳ 새로고침</button>
+      <button class="btn-refresh" id="btnFetchNow" onclick="triggerFetchNow()" title="GitHub Actions로 현재가 즉시 수집 (~30초)">⚡ 지금 수집</button>
       <button class="btn-refresh" onclick="openModal()">+ 종목 추가</button>
       <button class="btn-refresh" onclick="openHelp()" style="background:rgba(88,166,255,.15);border-color:var(--blue);color:var(--blue)" title="도움말">❓</button>
     </div>
@@ -2045,6 +2046,45 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================================
 // 데이터 로드
 // ============================================================
+// ── 지금 수집 버튼 ────────────────────────────────────────────
+async function triggerFetchNow() {
+  const btn = document.getElementById('btnFetchNow');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ 수집 중...';
+  try {
+    const base = WORKER_URL || GAS_URL;
+    let ok = false;
+    if (WORKER_URL) {
+      // Worker 경유
+      const res  = await fetch(WORKER_URL + '/api/trigger-fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Sstfolio-Secret': SSTFOLIO_SECRET || '' },
+        body: JSON.stringify({ force: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      ok = data.success;
+      if (!ok) throw new Error(data.error || '실패');
+    } else {
+      // GAS 직접 호출 (Worker 없을 때)
+      const res  = await fetch(GAS_URL + '?action=trigger_actions&force=true');
+      const data = await res.json().catch(() => ({}));
+      ok = data.ok;
+      if (!ok) throw new Error(data.error || '실패');
+    }
+    btn.textContent = '✅ 트리거 완료';
+    setTimeout(function() {
+      alert('GitHub Actions 실행 시작!\n약 30초 후 "새로고침" 버튼을 누르세요.');
+      btn.textContent = '⚡ 지금 수집';
+      btn.disabled = false;
+    }, 500);
+  } catch(e) {
+    alert('수집 트리거 실패: ' + e.message + '\n\nGAS Script Properties에 GITHUB_TOKEN, GITHUB_REPO가 설정됐는지 확인하세요.');
+    btn.textContent = '⚡ 지금 수집';
+    btn.disabled = false;
+  }
+}
+
 async function loadData() {
   showLoading();
   try {
