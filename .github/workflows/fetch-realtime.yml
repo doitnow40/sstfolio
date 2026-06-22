@@ -1,0 +1,54 @@
+# .github/workflows/fetch-realtime.yml
+#
+# SSTfolio 현재가 수집 → Cloudflare KV 갱신
+#
+# ── KR 장중: KST 09:00~15:40 (UTC 00:00~06:40) 평일 5분 ──
+# ── US 장중: ET  09:30~17:00 (UTC 13:30~21:00) 평일 5분 ──
+
+name: SSTfolio Fetch Realtime Prices
+
+on:
+  schedule:
+    # KR 장중: UTC 00:00~07:55 평일 5분
+    - cron: '*/5 0-7 * * 1-5'
+    # US 장중+장마감 후 1시간: UTC 13:30~21:00 평일 5분
+    - cron: '*/5 13-21 * * 1-5'
+
+  workflow_dispatch:
+    inputs:
+      force_fetch:
+        description: '장외여도 강제 수집 (지금수집 버튼용)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run fetch_naver.py
+        env:
+          GAS_WEBAPP_URL:     ${{ secrets.GAS_WEBAPP_URL }}
+          CF_ACCOUNT_ID:      ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN:       ${{ secrets.CF_API_TOKEN }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          SSTFOLIO_SECRET:    ${{ secrets.SSTFOLIO_SECRET }}
+          WORKER_URL:         ${{ secrets.WORKER_URL }}
+          FORCE_FETCH:        ${{ github.event.inputs.force_fetch || 'false' }}
+        run: python scripts/fetch_naver.py
