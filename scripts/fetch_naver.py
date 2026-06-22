@@ -161,11 +161,29 @@ def fetch_portfolio_from_gas():
     print('[1] GAS 포트폴리오 데이터 조회 중...')
     resp = requests.get(GAS_URL, params={'action': 'portfolio'}, timeout=30)
     resp.raise_for_status()
-    return resp.json()
+    text = resp.text
+    print(f'  → GAS 응답 크기: {len(text)} bytes')
+    try:
+        data = resp.json()
+        if isinstance(data, dict) and 'holdings' in data:
+            print(f'  → 정상 JSON: holdings {len(data.get("holdings",[]))}개')
+            return data
+        else:
+            raise ValueError(f'예상치 못한 응답 구조: {str(data)[:200]}')
+    except Exception as e:
+        print(f'GAS JSON 파싱 실패: {e}')
+        print(f'응답 앞 500자: {text[:500]}')
+        raise
 
 # ── KV에 저장 ───────────────────────────────────────────────
 def write_to_kv(key, value, ttl):
     print(f'[KV] 저장: {key} (TTL={ttl}s)')
+    # value가 dict이면 JSON 직렬화, 이미 문자열이면 그대로
+    if isinstance(value, (dict, list)):
+        data_str = json.dumps(value, ensure_ascii=False)
+    else:
+        data_str = str(value)
+    print(f'  → 저장 크기: {len(data_str)} bytes')
     resp = requests.put(
         KV_WRITE_URL.format(key=key),
         headers={
@@ -173,7 +191,7 @@ def write_to_kv(key, value, ttl):
             'Content-Type': 'application/json',
         },
         params={'expiration_ttl': ttl},
-        data=json.dumps(value, ensure_ascii=False),
+        data=data_str.encode('utf-8'),
         timeout=15,
     )
     if not resp.ok:
@@ -182,44 +200,39 @@ def write_to_kv(key, value, ttl):
 
 # ── 포트폴리오 데이터에 현재가 덮어쓰기 ────────────────────
 def apply_prices(portfolio, kr_map, us_map):
-    """GAS 포트폴리오 데이터의 현재가/등락률을 Python 수집값으로 업데이트"""
+    """
+    GAS 원본 JSON 구조를 완전히 보존하면서
+    holdings[].current_price, change_rate 와
+    prices[] 배열만 덮어씀
+    """
+    # ── holdings 업데이트 ──────────────────────────────────
     holdings = portfolio.get('holdings', [])
     updated = 0
     for h in holdings:
         ticker = h.get('ticker', '')
-        market = h.get('market', 'KR').upper()
+        market = (h.get('market') or 'KR').upper()
         if not ticker or h.get('is_cash'):
             continue
-        if market == 'KR' and ticker in kr_map:
-            p = kr_map[ticker]
-            h['current_price']  = p['price']
-            h['change_rate']    = p['change_rate']
-            # 평가금액/손익 재계산
-            qty  = float(h.get('quantity') or 0)
-            avg  = float(h.get('avg_price') or 0)
-            cost = qty * avg
-            ev   = p['price'] * qty
-            h['eval_amount']   = ev
-            h['cost_amount']   = cost
-            h['profit_amount'] = ev - cost
-            h['profit_pct']    = round((ev / cost - 1) * 100, 2) if cost > 0 else 0
-            updated += 1
-        elif market == 'US' and ticker in us_map:
-            p = us_map[ticker]
-            h['current_price'] = p['price']
-            h['change_rate']   = p['change_rate']
-            qty  = float(h.get('quantity') or 0)
-            avg  = float(h.get('avg_price') or 0)
-            usd_krw = float(portfolio.get('usd_krw') or 1)
-            cost = qty * avg * usd_krw
-            ev   = p['price'] * qty * usd_krw
-            h['eval_amount']   = ev
-            h['cost_amount']   = cost
-            h['profit_amount'] = ev - cost
-            h['profit_pct']    = round((ev / cost - 1) * 100, 2) if cost > 0 else 0
-            updated += 1
-    print(f'  → {updated}/{len(holdings)}개 종목 현재가 업데이트')
-    return portfolio
+        p = kr_map.get(ticker) if market == 'KR' else us_map.get(ticker)
+        if not p:
+            continue
+        h['current_price'] = p['price']
+        h['change_rate']   = p['change_rate']
+        updated += 1
+
+    # ── prices 배열 업데이트 ───────────────────────────────
+    # GAS가 반환한 prices 배열에서 현재가만 패치
+    prices = portfolio.get('prices', [])
+    for pr in prices:
+        ticker = pr.get('ticker', '')
+        market = (pr.get('market') or 'KR').upper()
+        p = kr_map.get(ticker) if market == 'KR' else us_map.get(ticker)
+        if p:
+            pr['price']       = p['price']
+            pr['change_rate'] = p['change_rate']
+
+    print(f'  → holdings {updated}개 / prices {len(prices)}개 현재가 패치 완료')
+    return portfolio  # GAS 원본 구조 그대로 반환
 
 # ── 장중 여부 ───────────────────────────────────────────────
 def is_kr_open():
