@@ -2059,7 +2059,7 @@ async function triggerFetchNow() {
       // Worker 경유
       const res  = await fetch(WORKER_URL + '/api/trigger-fetch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Sstfolio-Secret': SSTFOLIO_SECRET || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ force: true }),
       });
       const data = await res.json().catch(() => ({}));
