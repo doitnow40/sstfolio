@@ -97,10 +97,15 @@ async def fetch_kr_one(session, code):
                 price = parse_price(data)
                 chg   = parse_kr_chg(data)
                 if price > 0:
+                    if chg is None:
+                        debug = {k: data.get(k) for k in
+                            ['fluctuationsRatio','closePrice','compareToPreviousClosePrice',
+                             'stockEndPrice','currentPrice','changeRate','rate']}
+                        print(f'  [WARN] {code} 등락률 파싱 실패: {debug}')
                     chg_str = (f'+{chg:.2f}%' if chg >= 0 else f'{chg:.2f}%') if chg is not None else ''
                     return code, price, chg_str
-    except:
-        pass
+    except Exception as e:
+        print(f'  [ERR] {code} 조회 실패: {e}')
     return code, 0, ''
 
 async def fetch_kr_all(codes):
@@ -117,7 +122,10 @@ async def fetch_kr_all(codes):
             if i + BATCH < len(codes):
                 await asyncio.sleep(0.2)
     ok = len(results)
+    failed = [c for c in codes if c not in results]
     print(f'  [KR] {ok}/{len(codes)}개 성공')
+    if failed:
+        print(f'  [KR] 실패 종목: {failed}')
     return results
 
 # ── US 병렬 조회 (Yahoo Finance) ───────────────────────────
@@ -153,7 +161,10 @@ async def fetch_us_all(tickers):
             if i + BATCH < len(tickers):
                 await asyncio.sleep(0.3)
     ok = len(results)
+    failed = [t for t in tickers if t not in results]
     print(f'  [US] {ok}/{len(tickers)}개 성공')
+    if failed:
+        print(f'  [US] 실패 종목: {failed}')
     return results
 
 # ── GAS에서 포트폴리오 데이터 가져오기 ─────────────────────
