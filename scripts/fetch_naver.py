@@ -245,22 +245,6 @@ def apply_prices(portfolio, kr_map, us_map):
     print(f'  → holdings {updated}개 / prices {len(prices)}개 현재가 패치 완료')
     return portfolio  # GAS 원본 구조 그대로 반환
 
-# ── 장중 여부 ───────────────────────────────────────────────
-def is_kr_open():
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
-    if now.weekday() >= 5:
-        return False
-    hhmm = now.hour * 100 + now.minute
-    return 900 <= hhmm <= 1540
-
-def is_us_open():
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
-    now_et  = now_utc - datetime.timedelta(hours=4)
-    if now_et.weekday() >= 5:
-        return False
-    hhmm = now_et.hour * 100 + now_et.minute
-    return 930 <= hhmm <= 1700
-
 # ── 메인 ────────────────────────────────────────────────────
 async def main():
     start      = time.time()
@@ -269,13 +253,8 @@ async def main():
     print(f'=== SSTfolio fetch_naver.py 시작: {updated_at} KST ===')
 
     force = os.environ.get('FORCE_FETCH', '').lower() in ('1', 'true', 'yes')
-    kr_open = force or is_kr_open()
-    us_open = force or is_us_open()
-    print(f'  KR장중: {kr_open}, US장중: {us_open}, FORCE: {force}')
-
-    if not kr_open and not us_open:
-        print('=== KR/US 모두 장외 — 스킵 ===')
-        return
+    # 장중 여부 무관하게 항상 수집 — 종가/등락률은 장마감 후에도 네이버에 유지됨
+    print(f'  FORCE: {force} (항상 KR+US 수집)')
 
     # GAS에서 포트폴리오 데이터 가져오기
     try:
@@ -299,12 +278,11 @@ async def main():
 
     print(f'  KR종목: {len(kr_tickers)}개, US종목: {len(us_tickers)}개')
 
-    # 현재가 병렬 조회
+    # 현재가 병렬 조회 (항상 실행)
     kr_map, us_map = {}, {}
-    tasks = []
-    if kr_open and kr_tickers:
+    if kr_tickers:
         kr_map = await fetch_kr_all(kr_tickers)
-    if us_open and us_tickers:
+    if us_tickers:
         us_map = await fetch_us_all(us_tickers)
 
     # 포트폴리오 데이터에 현재가 반영
