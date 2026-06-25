@@ -213,8 +213,14 @@ def write_to_kv(key, value, ttl):
 def apply_prices(portfolio, kr_map, us_map):
     """
     GAS 원본 JSON 구조를 완전히 보존하면서
-    holdings[].current_price, change_rate 와
-    prices[] 배열만 덮어씀
+    holdings[].current_price, change_rate, eval_amount, cost_amount,
+    change_amount 를 현재가 기준으로 갱신.
+
+    eval_amount / cost_amount 는 항상 원화(KRW) 기준:
+      KR 종목: price(원) × quantity
+      US 종목: price(USD) × quantity × usd_krw
+    이렇게 갱신해야 프론트의 상단카드/추이차트/요약카드가
+    동일한 원화 기준값을 공유한다.
     """
     # ── holdings 업데이트 ──────────────────────────────────
     holdings = portfolio.get('holdings', [])
@@ -227,21 +233,30 @@ def apply_prices(portfolio, kr_map, us_map):
         p = kr_map.get(ticker) if market == 'KR' else us_map.get(ticker)
         if not p:
             continue
-        price      = p['price']
+        price       = p['price']
         change_rate = p['change_rate']
+        qty         = float(h.get('quantity') or 0)
+        avg_price   = float(h.get('avg_price') or 0)
+        usd_krw     = float(h.get('usd_krw') or 1)
+
         h['current_price'] = price
         h['change_rate']   = change_rate
-        # 등락액 재계산: 현재가 × 수량 × 등락률%
+
+        # eval_amount / cost_amount — 원화 환산
+        if market == 'US':
+            h['eval_amount'] = round(price     * qty * usd_krw)
+            h['cost_amount'] = round(avg_price * qty * usd_krw)
+        else:
+            h['eval_amount'] = round(price     * qty)
+            h['cost_amount'] = round(avg_price * qty)
+
+        # 등락액: 원화 평가금액 × 등락률%
         try:
             pct = float(str(change_rate).replace('%', ''))
-            qty = float(h.get('quantity') or 0)
-            usd_krw = float(h.get('usd_krw') or 1)
-            if market == 'US':
-                h['change_amount'] = round(price * qty * usd_krw * pct / 100)
-            else:
-                h['change_amount'] = round(price * qty * pct / 100)
+            h['change_amount'] = round(h['eval_amount'] * pct / 100)
         except:
             h['change_amount'] = 0
+
         updated += 1
 
     # ── prices 배열 업데이트 ───────────────────────────────
