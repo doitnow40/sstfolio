@@ -2291,7 +2291,7 @@ function renderTableChangePc(rows, sort) {
     + '<th onclick="toggleColSort(\'qty\',false)" style="cursor:pointer">수량' + sortIcon('qty',false) + '</th>'
     + '<th onclick="toggleColSort(\'change_rate\',false)" style="cursor:pointer">등락률' + sortIcon('change_rate',false) + '</th>'
     + '<th style="text-align:center">등락 차트</th>'
-    + '<th onclick="toggleColSort(\'change_rate\',false)" style="cursor:pointer">등락액' + sortIcon('change_rate',false) + '</th>'
+    + '<th onclick="toggleColSort(\'change_amount\',false)" style="cursor:pointer">등락액' + sortIcon('change_amount',false) + '</th>'
     + '<th onclick="toggleColSort(\'profit_pct\',false)" style="cursor:pointer">누적수익률' + sortIcon('profit_pct',false) + '</th>'
     + '<th onclick="toggleColSort(\'profit\',false)" style="cursor:pointer">평가손익' + sortIcon('profit',false) + '</th>'
     + '<th></th>'
@@ -2420,6 +2420,7 @@ function applyColSort(rows, isAcc, accId) {
       case 'profit':       return dir * ((b.profit_amount||0) - (a.profit_amount||0));
       case 'profit_pct':   return dir * ((b.profit_pct||0) - (a.profit_pct||0));
       case 'weight':       return dir * ((b.eval_amount||0) - (a.eval_amount||0));
+      case 'change_amount': return dir * ((b.change_amount||0) - (a.change_amount||0));
       case 'change_rate': {
         av = parseFloat(String(a.change_rate||'0').replace('%',''))||0;
         bv = parseFloat(String(b.change_rate||'0').replace('%',''))||0;
@@ -3626,7 +3627,7 @@ function renderByAccount() {
         + '<th onclick="toggleColSort(\'qty\',true,\'' + aId + '\')" style="cursor:pointer">수량' + sortIcon('qty',true,aId) + '</th>'
         + '<th onclick="toggleColSort(\'change_rate\',true,\'' + aId + '\')" style="cursor:pointer">등락률' + sortIcon('change_rate',true,aId) + '</th>'
         + '<th style="text-align:center">등락 차트</th>'
-        + '<th onclick="toggleColSort(\'change_rate\',true,\'' + aId + '\')" style="cursor:pointer">등락액' + sortIcon('change_rate',true,aId) + '</th>'
+        + '<th onclick="toggleColSort(\'change_amount\',true,\'' + aId + '\')" style="cursor:pointer">등락액' + sortIcon('change_amount',true,aId) + '</th>'
         + '<th onclick="toggleColSort(\'profit_pct\',true,\'' + aId + '\')" style="cursor:pointer">누적수익률' + sortIcon('profit_pct',true,aId) + '</th>'
         + '<th onclick="toggleColSort(\'profit\',true,\'' + aId + '\')" style="cursor:pointer">평가손익' + sortIcon('profit',true,aId) + '</th>'
         + '<th></th></tr></thead><tbody>';
