@@ -5315,16 +5315,21 @@ function renderTrendChart() {
 
   // ── 오늘 실시간 포인트 주입 ────────────────────────────────
   // state.holdings 현재가 데이터를 오늘 날짜 스냅샷 행으로 합성
+  var livePointLabel = ''; // '(장중)' | '(장마감)' | ''
   (function() {
     if (!state || !state.holdings || state.holdings.length === 0) return;
     const today = new Date().toISOString().slice(0, 10);
-    // KST 기준 영업일 여부 체크 (토0→6, 일0→0 아님, 월~금)
+    // KST 기준 평일 + 장중/장마감 판단
     const nowKST = new Date(new Date().getTime() + 9 * 3600 * 1000);
-    const dow = nowKST.getUTCDay(); // 0=일,6=토
+    const dow    = nowKST.getUTCDay(); // 0=일, 6=토
     if (dow === 0 || dow === 6) return; // 주말 제외
-    // 이미 오늘 데이터가 스냅샷에 있으면 skip
+    const hhmm = nowKST.getUTCHours() * 100 + nowKST.getUTCMinutes();
+    if (hhmm < 900) return; // 장 시작 전(오전 9시 이전) 제외
+    // 이미 오늘 스냅샷이 있으면 skip (장마감 후 saveSnapshot 실행된 경우)
     const alreadyHasToday = trendState.rawRows.some(function(r) { return r.date === today; });
     if (alreadyHasToday) return;
+    // 장중(09:00~15:29) vs 장마감(15:30 이후)
+    livePointLabel = hhmm < 1530 ? '(장중)' : '(장마감)';
     // holdings에서 계좌별로 합산하여 가상 행 생성
     const byAccount = {};
     (state.holdings || []).forEach(function(h) {
@@ -5342,12 +5347,11 @@ function renderTrendChart() {
         owner:       a.owner,
         eval_amount: a.eval,
         cost_amount: a.cost,
-        _isLive:     true,  // 구분 마커
+        _isLive:     true,
       };
     });
     if (todayRows.length > 0) {
       rows = rows.concat(todayRows);
-      // 날짜 기준 재정렬을 위해 rawRows에 임시 주입하지 않고 rows에만 추가
     }
   })();
 
@@ -5687,7 +5691,7 @@ function renderTrendChart() {
               return Math.round(val).toLocaleString();
             }
             if (isAthLabel)  return ['전고점', fmtVal(v)];
-            if (isLiveLabel) return [fmtVal(v), '(장중)'];
+            if (isLiveLabel) return [fmtVal(v), livePointLabel];
             return fmtVal(v);
           },
           clip: false,
