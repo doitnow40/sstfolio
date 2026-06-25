@@ -2184,8 +2184,16 @@ function renderAll() {
 // ── 요약 카드 ────────────────────────────────────────────────
 function updateSummaryCards() {
   const h = getFilteredHoldings();
-  const totalEval   = h.reduce((s, x) => s + (x.eval_amount || 0), 0);
-  const totalCost   = h.reduce((s, x) => s + (x.cost_amount || 0), 0);
+  // eval_amount: GAS 스프레드시트 기준값 (Python이 current_price만 갱신, eval_amount는 미갱신)
+  // → current_price * quantity 우선 사용해야 실시간 현재가 반영
+  const totalEval   = h.reduce((s, x) => {
+    const cp = x.current_price || 0, qty = x.quantity || 0;
+    return s + (cp > 0 ? cp * qty : (x.eval_amount || 0));
+  }, 0);
+  const totalCost   = h.reduce((s, x) => {
+    const ap = x.avg_price || 0, qty = x.quantity || 0;
+    return s + (ap > 0 ? ap * qty : (x.cost_amount || 0));
+  }, 0);
   const totalProfit = totalEval - totalCost;
   const totalPct    = totalCost > 0 ? (totalProfit / totalCost * 100) : 0;
 
@@ -5313,54 +5321,23 @@ function renderTrendChart() {
   const isYield  = trendState.view === 'yield';
   const isProfit = trendState.view === 'profit';
 
-  // ── 오늘 실시간 포인트 주입 ────────────────────────────────
-  // state.holdings 현재가 데이터를 오늘 날짜 스냅샷 행으로 합성
-  var livePointLabel = ''; // '(장중)' | '(장마감)' | ''
+  // ── 오늘 실시간 포인트: 장중/장마감 여부만 판단 ─────────────
+  // 실제 주입은 필터 적용 이후에 수행 (필터 일관성 보장)
+  var livePointLabel = '';  // '(장중)' | '(장마감)' | ''
+  var todayStr = '';
   (function() {
-    if (!state || !state.holdings || state.holdings.length === 0) return;
-    const today = new Date().toISOString().slice(0, 10);
-    // KST 기준 평일 + 장중/장마감 판단
     const nowKST = new Date(new Date().getTime() + 9 * 3600 * 1000);
-    const dow    = nowKST.getUTCDay(); // 0=일, 6=토
-    if (dow === 0 || dow === 6) return; // 주말 제외
+    const dow    = nowKST.getUTCDay();
+    if (dow === 0 || dow === 6) return;
     const hhmm = nowKST.getUTCHours() * 100 + nowKST.getUTCMinutes();
-    if (hhmm < 900) return; // 장 시작 전(오전 9시 이전) 제외
-    // 이미 오늘 스냅샷이 있으면 skip (장마감 후 saveSnapshot 실행된 경우)
-    const alreadyHasToday = trendState.rawRows.some(function(r) { return r.date === today; });
-    if (alreadyHasToday) return;
-    // 장중(09:00~15:29) vs 장마감(15:30 이후)
+    if (hhmm < 900) return;
+    todayStr = nowKST.toISOString().slice(0, 10);
+    // 이미 오늘 스냅샷이 있으면 skip
+    if (trendState.rawRows.some(function(r) { return r.date === todayStr; })) {
+      todayStr = '';
+      return;
+    }
     livePointLabel = hhmm < 1530 ? '(장중)' : '(장마감)';
-    // holdings에서 계좌별로 합산 — 상단 필터(소유자/계좌) + 추이 모드 필터 반영
-    let liveHoldings = (state.holdings || []).filter(function(h) { return !h.is_cash; });
-    // 소유자 필터 (total/owner 모드에서만, account/group 모드는 rows 필터로 처리)
-    if (selectedOwners.size > 0 && mode !== 'account' && mode !== 'group') {
-      liveHoldings = liveHoldings.filter(function(h) { return selectedOwners.has(h.owner); });
-    }
-    // 계좌 필터 (account/group 모드 제외)
-    if (selectedAccounts.size > 0 && mode !== 'account' && mode !== 'group') {
-      liveHoldings = liveHoldings.filter(function(h) { return selectedAccounts.has(String(h.account_id)); });
-    }
-    const byAccount = {};
-    liveHoldings.forEach(function(h) {
-      const aid   = String(h.account_id || '');
-      const owner = h.owner || '';
-      if (!byAccount[aid]) byAccount[aid] = { account_id: aid, owner: owner, eval: 0, cost: 0 };
-      byAccount[aid].eval += (h.eval_amount  || h.current_price * h.quantity || 0);
-      byAccount[aid].cost += (h.cost_amount  || h.avg_price     * h.quantity || 0);
-    });
-    const todayRows = Object.values(byAccount).map(function(a) {
-      return {
-        date:        today,
-        account_id:  a.account_id,
-        owner:       a.owner,
-        eval_amount: a.eval,
-        cost_amount: a.cost,
-        _isLive:     true,
-      };
-    });
-    if (todayRows.length > 0) {
-      rows = rows.concat(todayRows);
-    }
   })();
 
   // ── 필터 배지 갱신 ─────────────────────────────────────────
@@ -5394,6 +5371,36 @@ function renderTrendChart() {
   }
   // ────────────────────────────────────────────────────────────
 
+  // ── 오늘 실시간 포인트 주입 (필터 적용 완료 후) ──────────────
+  // 이 시점의 rows는 소유자/계좌 필터가 모두 적용된 상태.
+  // rows에 존재하는 account_id 목록 기준으로만 holdings를 합산 →
+  // 차트/요약/상단카드가 동일한 필터 범위를 공유함.
+  if (todayStr && state && state.holdings && state.holdings.length > 0) {
+    // 필터 통과한 rows에서 account_id 집합 추출
+    const filteredAids = new Set(rows.map(function(r) { return String(r.account_id); }));
+    // 해당 account_id 에 속하는 holdings만 합산
+    const byAcc = {};
+    (state.holdings || []).forEach(function(h) {
+      if (h.is_cash) return;
+      const aid = String(h.account_id || '');
+      if (!filteredAids.has(aid)) return; // 필터 범위 밖 계좌 제외
+      if (!byAcc[aid]) byAcc[aid] = { account_id: aid, owner: h.owner || '', eval: 0, cost: 0 };
+      // eval_amount: GAS가 내려준 평가금액 (최신 current_price 기준으로 Python이 갱신 안 함)
+      // → current_price * quantity 를 우선 사용해야 상단 카드와 일치
+      const cp  = h.current_price || 0;
+      const qty = h.quantity      || 0;
+      const ap  = h.avg_price     || 0;
+      byAcc[aid].eval += cp > 0 ? cp * qty : (h.eval_amount || 0);
+      byAcc[aid].cost += ap > 0 ? ap * qty : (h.cost_amount || 0);
+    });
+    const todayRows = Object.values(byAcc).map(function(a) {
+      return { date: todayStr, account_id: a.account_id, owner: a.owner,
+               eval_amount: a.eval, cost_amount: a.cost, _isLive: true };
+    });
+    if (todayRows.length > 0) rows = rows.concat(todayRows);
+  }
+  // ────────────────────────────────────────────────────────────
+
   if (rows.length === 0) { showTrendNoData(); return; }
   document.getElementById('trendNoData').style.display = 'none';
   document.getElementById('trendChart').style.display  = 'block';
@@ -5401,9 +5408,8 @@ function renderTrendChart() {
   // 날짜 목록 (중복 제거, 정렬)
   const dates = [...new Set(rows.map(function(r) { return r.date; }))].sort();
   // 오늘 실시간 포인트 여부 (마지막 날짜가 오늘이고 _isLive 행이 있을 때)
-  const todayStr   = new Date().toISOString().slice(0, 10);
-  const hasLive    = rows.some(function(r) { return r._isLive; });
-  const liveIdx    = hasLive ? dates.indexOf(todayStr) : -1;
+  const hasLive = rows.some(function(r) { return r._isLive; });
+  const liveIdx = hasLive ? dates.indexOf(todayStr) : -1;
 
   // 수익률 계산 헬퍼
   function calcYield(evalAmt, costAmt) {
