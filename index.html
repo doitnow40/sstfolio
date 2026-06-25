@@ -2184,16 +2184,11 @@ function renderAll() {
 // ── 요약 카드 ────────────────────────────────────────────────
 function updateSummaryCards() {
   const h = getFilteredHoldings();
-  // eval_amount: GAS 스프레드시트 기준값 (Python이 current_price만 갱신, eval_amount는 미갱신)
-  // → current_price * quantity 우선 사용해야 실시간 현재가 반영
-  const totalEval   = h.reduce((s, x) => {
-    const cp = x.current_price || 0, qty = x.quantity || 0;
-    return s + (cp > 0 ? cp * qty : (x.eval_amount || 0));
-  }, 0);
-  const totalCost   = h.reduce((s, x) => {
-    const ap = x.avg_price || 0, qty = x.quantity || 0;
-    return s + (ap > 0 ? ap * qty : (x.cost_amount || 0));
-  }, 0);
+  // eval_amount / cost_amount: Python(fetch_naver.py)이 현재가 기준 원화로 갱신한 값
+  // is_cash(현금성 자산)는 평가손익 계산에서 제외
+  const inv = h.filter(x => !x.is_cash);
+  const totalEval   = inv.reduce((s, x) => s + (x.eval_amount  || 0), 0);
+  const totalCost   = inv.reduce((s, x) => s + (x.cost_amount  || 0), 0);
   const totalProfit = totalEval - totalCost;
   const totalPct    = totalCost > 0 ? (totalProfit / totalCost * 100) : 0;
 
@@ -5377,21 +5372,18 @@ function renderTrendChart() {
   // 차트/요약/상단카드가 동일한 필터 범위를 공유함.
   if (todayStr && state && state.holdings && state.holdings.length > 0) {
     // 필터 통과한 rows에서 account_id 집합 추출
-    const filteredAids = new Set(rows.map(function(r) { return String(r.account_id); }));
+    const filteredAids = new Set(rows.map(function(r) { return String(r.account_id); })); // rawRows.account_id=number 대응
     // 해당 account_id 에 속하는 holdings만 합산
     const byAcc = {};
     (state.holdings || []).forEach(function(h) {
       if (h.is_cash) return;
       const aid = String(h.account_id || '');
-      if (!filteredAids.has(aid)) return; // 필터 범위 밖 계좌 제외
+      // account_id 타입 불일치 대응: rawRows=number, holdings=string → String() 통일
+      if (!filteredAids.has(aid)) return;
       if (!byAcc[aid]) byAcc[aid] = { account_id: aid, owner: h.owner || '', eval: 0, cost: 0 };
-      // eval_amount: GAS가 내려준 평가금액 (최신 current_price 기준으로 Python이 갱신 안 함)
-      // → current_price * quantity 를 우선 사용해야 상단 카드와 일치
-      const cp  = h.current_price || 0;
-      const qty = h.quantity      || 0;
-      const ap  = h.avg_price     || 0;
-      byAcc[aid].eval += cp > 0 ? cp * qty : (h.eval_amount || 0);
-      byAcc[aid].cost += ap > 0 ? ap * qty : (h.cost_amount || 0);
+      // eval_amount / cost_amount: Python이 현재가 기준 원화로 갱신한 값 사용
+      byAcc[aid].eval += (h.eval_amount || 0);
+      byAcc[aid].cost += (h.cost_amount || 0);
     });
     const todayRows = Object.values(byAcc).map(function(a) {
       return { date: todayStr, account_id: a.account_id, owner: a.owner,
