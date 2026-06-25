@@ -227,8 +227,21 @@ def apply_prices(portfolio, kr_map, us_map):
         p = kr_map.get(ticker) if market == 'KR' else us_map.get(ticker)
         if not p:
             continue
-        h['current_price'] = p['price']
-        h['change_rate']   = p['change_rate']
+        price      = p['price']
+        change_rate = p['change_rate']
+        h['current_price'] = price
+        h['change_rate']   = change_rate
+        # 등락액 재계산: 현재가 × 수량 × 등락률%
+        try:
+            pct = float(str(change_rate).replace('%', ''))
+            qty = float(h.get('quantity') or 0)
+            usd_krw = float(h.get('usd_krw') or 1)
+            if market == 'US':
+                h['change_amount'] = round(price * qty * usd_krw * pct / 100)
+            else:
+                h['change_amount'] = round(price * qty * pct / 100)
+        except:
+            h['change_amount'] = 0
         updated += 1
 
     # ── prices 배열 업데이트 ───────────────────────────────
