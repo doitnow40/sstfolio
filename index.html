@@ -1247,7 +1247,8 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     </div>
     <div style="margin-left:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:20px;overflow:hidden">
-        <button id="trendViewAmount" class="trend-view-btn active" onclick="setTrendView('amount')">금액</button>
+        <button id="trendViewAmount" class="trend-view-btn active" onclick="setTrendView('amount')">평가액</button>
+        <button id="trendViewProfit" class="trend-view-btn"        onclick="setTrendView('profit')">수익금</button>
         <button id="trendViewYield"  class="trend-view-btn"        onclick="setTrendView('yield')">수익률</button>
       </div>
       <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer" id="trendShowCostWrap">
@@ -5177,7 +5178,7 @@ const trendState = {
   customFrom: '',
   customTo:   '',
   mode:       'total',
-  view:       'amount',   // 'amount' | 'yield'
+  view:       'amount',   // 'amount' | 'profit' | 'yield'
   rawRows:    [],
   chart:      null,
   loaded:     false,
@@ -5197,9 +5198,10 @@ function clearTrendFilter() {
 function setTrendView(view) {
   trendState.view = view;
   document.getElementById('trendViewAmount').classList.toggle('active', view === 'amount');
+  document.getElementById('trendViewProfit').classList.toggle('active', view === 'profit');
   document.getElementById('trendViewYield').classList.toggle('active',  view === 'yield');
-  // 수익률 모드에서는 매수금액 라인 숨기기
-  document.getElementById('trendShowCostWrap').style.display = view === 'yield' ? 'none' : 'flex';
+  // 수익률/수익금 모드에서는 매수금액 라인 숨기기
+  document.getElementById('trendShowCostWrap').style.display = (view === 'yield' || view === 'profit') ? 'none' : 'flex';
   renderTrendChart();
 }
 
@@ -5309,6 +5311,45 @@ function renderTrendChart() {
   const showCost = document.getElementById('trendShowCost').checked;
   const mode     = trendState.mode;
   const isYield  = trendState.view === 'yield';
+  const isProfit = trendState.view === 'profit';
+
+  // ── 오늘 실시간 포인트 주입 ────────────────────────────────
+  // state.holdings 현재가 데이터를 오늘 날짜 스냅샷 행으로 합성
+  (function() {
+    if (!state || !state.holdings || state.holdings.length === 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    // KST 기준 영업일 여부 체크 (토0→6, 일0→0 아님, 월~금)
+    const nowKST = new Date(new Date().getTime() + 9 * 3600 * 1000);
+    const dow = nowKST.getUTCDay(); // 0=일,6=토
+    if (dow === 0 || dow === 6) return; // 주말 제외
+    // 이미 오늘 데이터가 스냅샷에 있으면 skip
+    const alreadyHasToday = trendState.rawRows.some(function(r) { return r.date === today; });
+    if (alreadyHasToday) return;
+    // holdings에서 계좌별로 합산하여 가상 행 생성
+    const byAccount = {};
+    (state.holdings || []).forEach(function(h) {
+      if (h.is_cash) return;
+      const aid   = String(h.account_id || '');
+      const owner = h.owner || '';
+      if (!byAccount[aid]) byAccount[aid] = { account_id: aid, owner: owner, eval: 0, cost: 0 };
+      byAccount[aid].eval += (h.eval_amount  || h.current_price * h.quantity || 0);
+      byAccount[aid].cost += (h.cost_amount  || h.avg_price     * h.quantity || 0);
+    });
+    const todayRows = Object.values(byAccount).map(function(a) {
+      return {
+        date:        today,
+        account_id:  a.account_id,
+        owner:       a.owner,
+        eval_amount: a.eval,
+        cost_amount: a.cost,
+        _isLive:     true,  // 구분 마커
+      };
+    });
+    if (todayRows.length > 0) {
+      rows = rows.concat(todayRows);
+      // 날짜 기준 재정렬을 위해 rawRows에 임시 주입하지 않고 rows에만 추가
+    }
+  })();
 
   // ── 필터 배지 갱신 ─────────────────────────────────────────
   (function() {
@@ -5347,18 +5388,25 @@ function renderTrendChart() {
 
   // 날짜 목록 (중복 제거, 정렬)
   const dates = [...new Set(rows.map(function(r) { return r.date; }))].sort();
+  // 오늘 실시간 포인트 여부 (마지막 날짜가 오늘이고 _isLive 행이 있을 때)
+  const todayStr   = new Date().toISOString().slice(0, 10);
+  const hasLive    = rows.some(function(r) { return r._isLive; });
+  const liveIdx    = hasLive ? dates.indexOf(todayStr) : -1;
 
   // 수익률 계산 헬퍼
   function calcYield(evalAmt, costAmt) {
     return costAmt > 0 ? ((evalAmt - costAmt) / costAmt * 100) : 0;
   }
 
-  // 금액/수익률 데이터셋 생성 헬퍼
+  // 금액/수익률/수익금 데이터셋 생성 헬퍼
   function makeDataset(label, evalByDate, costByDate, colorIdx, isFill, opts) {
     const color = TREND_COLORS[colorIdx % TREND_COLORS.length];
     const bw    = (opts && opts.borderWidth) || 1.5;
     const dash  = (opts && opts.borderDash)  || [];
-    const pr    = (opts && opts.pointRadius !== undefined) ? opts.pointRadius : (dates.length > 60 ? 0 : 3);
+    const baseR = (opts && opts.pointRadius !== undefined) ? opts.pointRadius : (dates.length > 60 ? 0 : 3);
+    // 오늘 실시간 포인트는 크게 + 테두리 강조
+    const prArr = dates.map(function(_, i) { return (liveIdx >= 0 && i === liveIdx) ? 6 : baseR; });
+    const phArr = dates.map(function(_, i) { return (liveIdx >= 0 && i === liveIdx) ? 8 : Math.max(baseR, 6); });
     if (isYield) {
       return {
         label: label,
@@ -5378,7 +5426,27 @@ function renderTrendChart() {
             }
           : 'transparent',
         fill: isFill ? 'origin' : false,
-        tension: 0.3, pointRadius: pr,
+        tension: 0.3, pointRadius: prArr, pointHoverRadius: phArr,
+      };
+    } else if (isProfit) {
+      // 수익금 = eval - cost
+      return {
+        label: label,
+        data:  dates.map(function(d) { return (evalByDate[d]||0) - (costByDate[d]||0); }),
+        borderColor: color, borderWidth: bw, borderDash: dash,
+        backgroundColor: isFill
+          ? function(ctx) {
+              const chart = ctx.chart;
+              const {ctx: c, chartArea} = chart;
+              if (!chartArea) return color + '33';
+              const grad = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+              grad.addColorStop(0, '#3fb95055');
+              grad.addColorStop(1, '#3fb95011');
+              return grad;
+            }
+          : 'transparent',
+        fill: isFill ? 'origin' : false,
+        tension: 0.3, pointRadius: prArr, pointHoverRadius: phArr,
       };
     } else {
       return {
@@ -5386,7 +5454,7 @@ function renderTrendChart() {
         data:  dates.map(function(d) { return evalByDate[d] || 0; }),
         borderColor: color, borderWidth: bw, borderDash: dash,
         backgroundColor: isFill ? color + '33' : 'transparent',
-        fill: isFill, tension: 0.3, pointRadius: pr,
+        fill: isFill, tension: 0.3, pointRadius: prArr, pointHoverRadius: phArr,
       };
     }
   }
@@ -5410,8 +5478,8 @@ function renderTrendChart() {
       evalByDate[r.date] += Number(r.eval_amount || 0);
       costByDate[r.date] += Number(r.cost_amount || 0);
     });
-    datasets.push(makeDataset('전체 ' + (isYield ? '수익률' : '평가금액'), evalByDate, costByDate, 0, true));
-    if (showCost && !isYield) datasets.push(makeCostDataset('전체 매수금액', costByDate, 1));
+    datasets.push(makeDataset('전체 ' + (isYield ? '수익률' : isProfit ? '수익금' : '평가금액'), evalByDate, costByDate, 0, true));
+    if (showCost && !isYield && !isProfit) datasets.push(makeCostDataset('전체 매수금액', costByDate, 1));
 
   } else if (mode === 'owner') {
     // 소유자 필터 적용 시 선택된 소유자만, 아니면 전체
@@ -5426,8 +5494,8 @@ function renderTrendChart() {
         evalByDate[r.date] += Number(r.eval_amount || 0);
         costByDate[r.date] += Number(r.cost_amount || 0);
       });
-      datasets.push(makeDataset(owner + (isYield ? ' 수익률' : ' 평가금액'), evalByDate, costByDate, i, false));
-      if (showCost && !isYield) datasets.push(makeCostDataset(owner + ' 매수금액', costByDate, i));
+      datasets.push(makeDataset(owner + (isYield ? ' 수익률' : isProfit ? ' 수익금' : ' 평가금액'), evalByDate, costByDate, i, false));
+      if (showCost && !isYield && !isProfit) datasets.push(makeCostDataset(owner + ' 매수금액', costByDate, i));
     });
 
   } else if (mode === 'account') {
@@ -5452,11 +5520,11 @@ function renderTrendChart() {
           });
       // 굵은 실선으로 그룹 합산 선 추가
       datasets.push(makeDataset(
-        '🗂 ' + g.name + (isYield ? ' 합산 수익률' : ' 합산'),
+        '🗂 ' + g.name + (isYield ? ' 합산 수익률' : isProfit ? ' 합산 수익금' : ' 합산'),
         evalByDate, costByDate, colorOffset++, false,
         { borderWidth: 3, pointRadius: dates.length > 60 ? 0 : 4 }
       ));
-      if (showCost && !isYield) datasets.push(makeCostDataset('🗂 ' + g.name + ' 매수', costByDate, colorOffset - 1));
+      if (showCost && !isYield && !isProfit) datasets.push(makeCostDataset('🗂 ' + g.name + ' 매수', costByDate, colorOffset - 1));
       matchedIds.forEach(function(id) { drawnGroupIds.add(id); });
     });
 
@@ -5474,13 +5542,13 @@ function renderTrendChart() {
         costByDate[r.date] += Number(r.cost_amount || 0);
       });
       datasets.push(makeDataset(
-        label + (isYield ? ' 수익률' : ''),
+        label + (isYield ? ' 수익률' : isProfit ? ' 수익금' : ''),
         evalByDate, costByDate, colorOffset + i, false,
         inGroup
-          ? { borderWidth: 1, borderDash: [4, 3], pointRadius: 0 }  // 그룹 내 계좌: 가는 점선
-          : { borderWidth: 1.5 }                                      // 일반 계좌: 보통 실선
+          ? { borderWidth: 1, borderDash: [4, 3], pointRadius: 0 }
+          : { borderWidth: 1.5 }
       ));
-      if (showCost && !isYield) datasets.push(makeCostDataset(label + ' 매수', costByDate, colorOffset + i));
+      if (showCost && !isYield && !isProfit) datasets.push(makeCostDataset(label + ' 매수', costByDate, colorOffset + i));
     });
 
   } else if (mode === 'group') {
@@ -5496,8 +5564,8 @@ function renderTrendChart() {
         evalByDate[r.date] += Number(r.eval_amount || 0);
         costByDate[r.date] += Number(r.cost_amount || 0);
       });
-      datasets.push(makeDataset('🗂 ' + g.name + (isYield ? ' 수익률' : ''), evalByDate, costByDate, i, false));
-      if (showCost && !isYield) datasets.push(makeCostDataset('🗂 ' + g.name + ' 매수', costByDate, i));
+      datasets.push(makeDataset('🗂 ' + g.name + (isYield ? ' 수익률' : isProfit ? ' 수익금' : ''), evalByDate, costByDate, i, false));
+      if (showCost && !isYield && !isProfit) datasets.push(makeCostDataset('🗂 ' + g.name + ' 매수', costByDate, i));
     });
   }
 
@@ -5505,10 +5573,10 @@ function renderTrendChart() {
   const minDate = trendState.rawRows.reduce(function(m, r) { return r.date < m ? r.date : m; }, '9999');
   updatePeriodBtnAvailability(minDate);
 
-  // ── 신고가 감지 + 전고점 탐색 (total 모드 + 금액 뷰 한정) ──
+  // ── 신고가 감지 + 전고점 탐색 (total 모드 + 평가액/수익금 뷰 한정) ──
   var isAllTimeHigh = false;
-  var athIdx        = -1;   // 전고점 인덱스 (마지막 포인트 제외 최댓값)
-  var athValue      = 0;    // 전고점 값
+  var athIdx        = -1;
+  var athValue      = 0;
   if (mode === 'total' && !isYield && datasets.length > 0) {
     const mainData = datasets[0].data;
     const lastIdx  = mainData.length - 1;
@@ -5564,7 +5632,7 @@ function renderTrendChart() {
                 const v = ctx.parsed.y;
                 return ' ' + ctx.dataset.label + ': ' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
               }
-              return ' ' + ctx.dataset.label + ': ' + Math.round(ctx.parsed.y).toLocaleString('ko-KR') + '원';
+              return ' ' + ctx.dataset.label + ': ' + (ctx.parsed.y >= 0 ? '+' : '') + Math.round(ctx.parsed.y).toLocaleString('ko-KR') + '원';
             }
           }
         },
@@ -5584,6 +5652,8 @@ function renderTrendChart() {
             if (ds.borderDash && ds.borderDash.length > 0) return false;
             // 마지막 포인트 항상 표시
             if (ctx.dataIndex === dates.length - 1) return true;
+            // 오늘 실시간 포인트 표시 (첫 번째 데이터셋만)
+            if (liveIdx >= 0 && ctx.datasetIndex === 0 && ctx.dataIndex === liveIdx) return true;
             // 전고점 포인트 표시 (신고가 여부 무관, 첫 번째 데이터셋만)
             if (athIdx >= 0 && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx) return true;
             return false;
@@ -5606,8 +5676,8 @@ function renderTrendChart() {
           font: { size: 10, weight: '700' },
           formatter: function(v, ctx) {
             // 전고점 레이블: '전고점' 접두어 추가
-            const isAthLabel = athIdx >= 0 && ctx.datasetIndex === 0
-              && ctx.dataIndex === athIdx;
+            const isAthLabel  = athIdx >= 0 && ctx.datasetIndex === 0 && ctx.dataIndex === athIdx;
+            const isLiveLabel = liveIdx >= 0 && ctx.dataIndex === liveIdx && ctx.datasetIndex === 0;
             function fmtVal(val) {
               if (isYield) return (val >= 0 ? '+' : '') + parseFloat(val).toFixed(1) + '%';
               const abs = Math.abs(val);
@@ -5616,7 +5686,9 @@ function renderTrendChart() {
               if (abs >= 10000)     return (val/10000).toFixed(0) + '만';
               return Math.round(val).toLocaleString();
             }
-            return isAthLabel ? ['전고점', fmtVal(v)] : fmtVal(v);
+            if (isAthLabel)  return ['전고점', fmtVal(v)];
+            if (isLiveLabel) return [fmtVal(v), '(장중)'];
+            return fmtVal(v);
           },
           clip: false,
         }
@@ -5631,8 +5703,9 @@ function renderTrendChart() {
             color:'#8b949e', font:{size:10},
             callback: function(v) {
               if (isYield) return (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
-              if (v >= 100000000) return (v/100000000).toFixed(1) + '억';
-              if (v >= 10000)     return (v/10000).toFixed(0) + '만';
+              const sign = (isProfit && v >= 0) ? '+' : '';
+              if (Math.abs(v) >= 100000000) return sign + (v/100000000).toFixed(1) + '억';
+              if (Math.abs(v) >= 10000)     return sign + (v/10000).toFixed(0) + '만';
               return v.toLocaleString('ko-KR');
             }
           },
@@ -5673,6 +5746,7 @@ function renderTrendSummary(rows, dates) {
   const el = document.getElementById('trendSummary');
   if (!el || dates.length < 2) { if(el) el.innerHTML = ''; return; }
   const isYield   = trendState.view === 'yield';
+  const isProfit  = trendState.view === 'profit';
   const firstDate = dates[0], lastDate = dates[dates.length-1];
   const firstRows = rows.filter(function(r) { return r.date === firstDate; });
   const lastRows  = rows.filter(function(r) { return r.date === lastDate;  });
@@ -5687,6 +5761,8 @@ function renderTrendSummary(rows, dates) {
   const firstYield = firstCost > 0 ? ((firstEval - firstCost) / firstCost * 100) : 0;
   const lastYield  = lastCost  > 0 ? ((lastEval  - lastCost)  / lastCost  * 100) : 0;
   const yieldChange = lastYield - firstYield;
+  const firstProfit = firstEval - firstCost;
+  const profitChange = profit - firstProfit;
   const pos    = function(v) { return v >= 0 ? 'pos' : 'neg'; };
   const fmt    = function(v) { return (v>=0?'+':'') + Math.round(v).toLocaleString('ko-KR') + '원'; };
   const fmtPct = function(v) { return (v>=0?'+':'') + v.toFixed(2) + '%'; };
@@ -5706,6 +5782,28 @@ function renderTrendSummary(rows, dates) {
       <div class="trend-summary-card">
         <div class="label">현재 수익금</div>
         <div class="value ${pos(profit)}">${fmt(profit)}</div>
+        <div class="sub">매수 ${Math.round(lastCost).toLocaleString('ko-KR')}원 대비</div>
+      </div>
+      <div class="trend-summary-card">
+        <div class="label">데이터 기간</div>
+        <div class="value" style="font-size:13px">${dates.length}일</div>
+        <div class="sub">${firstDate} ~ ${lastDate}</div>
+      </div>`;
+  } else if (isProfit) {
+    el.innerHTML = `
+      <div class="trend-summary-card">
+        <div class="label">현재 수익금</div>
+        <div class="value ${pos(profit)}">${fmt(profit)}</div>
+        <div class="sub">${fmtPct(profitPct)} · ${lastDate} 기준</div>
+      </div>
+      <div class="trend-summary-card">
+        <div class="label">기간 수익금 변화</div>
+        <div class="value ${pos(profitChange)}">${fmt(profitChange)}</div>
+        <div class="sub">${firstDate}: ${fmt(firstProfit)}</div>
+      </div>
+      <div class="trend-summary-card">
+        <div class="label">현재 수익률</div>
+        <div class="value ${pos(profitPct)}">${fmtPct(profitPct)}</div>
         <div class="sub">매수 ${Math.round(lastCost).toLocaleString('ko-KR')}원 대비</div>
       </div>
       <div class="trend-summary-card">
