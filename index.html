@@ -2185,10 +2185,9 @@ function renderAll() {
 function updateSummaryCards() {
   const h = getFilteredHoldings();
   // eval_amount / cost_amount: Python(fetch_naver.py)이 현재가 기준 원화로 갱신한 값
-  // is_cash(현금성 자산)는 평가손익 계산에서 제외
-  const inv = h.filter(x => !x.is_cash);
-  const totalEval   = inv.reduce((s, x) => s + (x.eval_amount  || 0), 0);
-  const totalCost   = inv.reduce((s, x) => s + (x.cost_amount  || 0), 0);
+  // 현금(CASH)도 내 자산이므로 포함 — 계좌별 탭 합계와 일치해야 함
+  const totalEval   = h.reduce((s, x) => s + (x.eval_amount  || 0), 0);
+  const totalCost   = h.reduce((s, x) => s + (x.cost_amount  || 0), 0);
   const totalProfit = totalEval - totalCost;
   const totalPct    = totalCost > 0 ? (totalProfit / totalCost * 100) : 0;
 
@@ -5376,12 +5375,11 @@ function renderTrendChart() {
     // 해당 account_id 에 속하는 holdings만 합산
     const byAcc = {};
     (state.holdings || []).forEach(function(h) {
-      if (h.is_cash) return;
       const aid = String(h.account_id || '');
       // account_id 타입 불일치 대응: rawRows=number, holdings=string → String() 통일
       if (!filteredAids.has(aid)) return;
       if (!byAcc[aid]) byAcc[aid] = { account_id: aid, owner: h.owner || '', eval: 0, cost: 0 };
-      // eval_amount / cost_amount: Python이 현재가 기준 원화로 갱신한 값 사용
+      // 현금 포함 — 상단카드/계좌별 탭과 동일한 기준
       byAcc[aid].eval += (h.eval_amount || 0);
       byAcc[aid].cost += (h.cost_amount || 0);
     });
