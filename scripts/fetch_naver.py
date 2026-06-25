@@ -261,9 +261,11 @@ def apply_prices(portfolio, kr_map, us_map):
 # ── 메인 ────────────────────────────────────────────────────
 async def main():
     start      = time.time()
-    now_kst    = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
-    updated_at = now_kst.strftime('%Y-%m-%d %H:%M')
-    print(f'=== SSTfolio fetch_naver.py 시작: {updated_at} KST ===')
+    now_utc    = datetime.datetime.now(datetime.timezone.utc)
+    now_kst    = now_utc + datetime.timedelta(hours=9)
+    updated_at = now_utc.strftime('%Y-%m-%dT%H:%M:%S.000Z')  # ISO 8601 UTC — JS new Date() 호환
+    updated_at_kst = now_kst.strftime('%Y-%m-%d %H:%M')
+    print(f'=== SSTfolio fetch_naver.py 시작: {updated_at_kst} KST ===')
 
     force = os.environ.get('FORCE_FETCH', '').lower() in ('1', 'true', 'yes')
     # 장중 여부 무관하게 항상 수집 — 종가/등락률은 장마감 후에도 네이버에 유지됨
