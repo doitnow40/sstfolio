@@ -5330,10 +5330,18 @@ function renderTrendChart() {
     if (alreadyHasToday) return;
     // 장중(09:00~15:29) vs 장마감(15:30 이후)
     livePointLabel = hhmm < 1530 ? '(장중)' : '(장마감)';
-    // holdings에서 계좌별로 합산하여 가상 행 생성
+    // holdings에서 계좌별로 합산 — 상단 필터(소유자/계좌) + 추이 모드 필터 반영
+    let liveHoldings = (state.holdings || []).filter(function(h) { return !h.is_cash; });
+    // 소유자 필터 (total/owner 모드에서만, account/group 모드는 rows 필터로 처리)
+    if (selectedOwners.size > 0 && mode !== 'account' && mode !== 'group') {
+      liveHoldings = liveHoldings.filter(function(h) { return selectedOwners.has(h.owner); });
+    }
+    // 계좌 필터 (account/group 모드 제외)
+    if (selectedAccounts.size > 0 && mode !== 'account' && mode !== 'group') {
+      liveHoldings = liveHoldings.filter(function(h) { return selectedAccounts.has(String(h.account_id)); });
+    }
     const byAccount = {};
-    (state.holdings || []).forEach(function(h) {
-      if (h.is_cash) return;
+    liveHoldings.forEach(function(h) {
       const aid   = String(h.account_id || '');
       const owner = h.owner || '';
       if (!byAccount[aid]) byAccount[aid] = { account_id: aid, owner: owner, eval: 0, cost: 0 };
