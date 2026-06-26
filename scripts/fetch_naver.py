@@ -44,17 +44,12 @@ KV_WRITE_URL = (
 
 # ── TTL 계산 ────────────────────────────────────────────────
 def calc_ttl():
-    """장중: 10분 / 장마감 후: 다음 영업일 10:00까지"""
+    """장중: 10분 / 장마감 후: 1주일 (KV 만료로 인한 데이터 공백 방지)"""
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
     hhmm = now.hour * 100 + now.minute
     if 900 <= hhmm <= 1540 and now.weekday() < 5:
-        return 600
-    candidate = now.replace(hour=10, minute=0, second=0, microsecond=0)
-    if now >= candidate:
-        candidate += datetime.timedelta(days=1)
-    while candidate.weekday() >= 5:
-        candidate += datetime.timedelta(days=1)
-    return max(int((candidate - now).total_seconds()), 600)
+        return 600       # 장중: 10분
+    return 7 * 86400     # 장마감 후: 1주일
 
 # ── 등락률 파싱 ─────────────────────────────────────────────
 def parse_kr_chg(data):
