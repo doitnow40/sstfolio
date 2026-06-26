@@ -257,6 +257,10 @@ def apply_prices(portfolio, kr_map, us_map):
         except:
             h['change_amount'] = 0
 
+        # 평가손익 / 수익률 갱신 (eval_amount, cost_amount 갱신 후 재계산)
+        h['profit_amount'] = h['eval_amount'] - h['cost_amount']
+        h['profit_pct']    = round(h['profit_amount'] / h['cost_amount'] * 100, 1) if h['cost_amount'] > 0 else 0
+
         updated += 1
 
     # ── prices 배열 업데이트 ───────────────────────────────
