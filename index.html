@@ -2646,7 +2646,7 @@ function buildTickerData() {
         market:        h.market || 'KR',
         sector:        h.sector || '기타',
         current_price: h.current_price || 0,
-        change_rate:   h.change_rate   || 0,
+        change_rate:   parseFloat(String(h.change_rate||'0').replace('%','')) || 0,
         is_fund:       h.is_fund || false,
         qty:         0, cost: 0, eval: 0, profit: 0,
         accounts:    [],
@@ -2954,7 +2954,7 @@ function renderTickerTable(data) {
     else if (col === 'profit')      { av = a.profit;           bv = b.profit; }
     else if (col === 'qty')         { av = a.qty;              bv = b.qty; }
     else if (col === 'weight')      { av = a.weight;           bv = b.weight; }
-    else if (col === 'change_rate') { av = a.change_rate || 0; bv = b.change_rate || 0; }
+    else if (col === 'change_rate') { av = parseFloat(String(a.change_rate||'0').replace('%','')||0); bv = parseFloat(String(b.change_rate||'0').replace('%','')||0); }
     else if (col === 'name')   { av = a.name || ''; bv = b.name || ''; return s.dir * av.localeCompare(bv); }
     else if (col === 'sector') { av = a.sector||''; bv = b.sector||''; return s.dir * av.localeCompare(bv); }
     else { av = 0; bv = 0; }
