@@ -1763,8 +1763,9 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
       <!-- 실현수익금 -->
       <div class="form-group" style="margin-bottom:10px">
-        <label class="form-label">실현수익금 <span style="font-size:11px;color:var(--text2)">(자동계산·직접입력 가능)</span></label>
+        <label class="form-label">실현수익금 <span style="font-size:11px;color:var(--text2)">(원화기준 · 자동계산·직접입력 가능)</span></label>
         <input type="number" class="form-input" id="saleInputProfit" placeholder="1,300,000" style="font-weight:700">
+        <div id="saleProfitHint" style="display:none;margin-top:4px;font-size:11px;color:var(--text2)"></div>
       </div>
 
       <!-- 태그 + 메모 — 2열 -->
@@ -7322,24 +7323,43 @@ function selectSaleItem(i) {
 
 // 수익금 자동계산
 function calcSaleProfit() {
-  const qty   = parseFloat(document.getElementById('saleInputQty').value)       || 0;
-  const sell  = parseFloat(document.getElementById('saleInputSellPrice').value)  || 0;
-  const buy   = parseFloat(document.getElementById('saleInputBuyPrice').value)   || 0;
+  const qty    = parseFloat(document.getElementById('saleInputQty').value)       || 0;
+  const sell   = parseFloat(document.getElementById('saleInputSellPrice').value)  || 0;
+  const buy    = parseFloat(document.getElementById('saleInputBuyPrice').value)   || 0;
+  const market = (document.getElementById('saleInputMarket').value || 'KR').toUpperCase();
   const rateEl = document.getElementById('saleCalcRate');
+  const hintEl = document.getElementById('saleProfitHint');
+
+  // US 종목: 달러→원화 환산 (state.config.USD_KRW 우선, 없으면 1543 기본값)
+  const usdKrw = market === 'US'
+    ? (parseFloat(String((state.config && state.config.USD_KRW) || '').replace(/,/g,'')) || 1543)
+    : 1;
 
   if (qty > 0 && sell > 0 && buy > 0) {
-    const profit = (sell - buy) * qty;
-    const rate   = ((sell - buy) / buy) * 100;
-    document.getElementById('saleInputProfit').value = Math.round(profit);
+    const profitRaw = (sell - buy) * qty;        // 입력 통화 기준
+    const profit    = Math.round(profitRaw * usdKrw); // 항상 원화
+    const rate      = ((sell - buy) / buy) * 100;
+    document.getElementById('saleInputProfit').value = profit;
     rateEl.textContent = (rate >= 0 ? '+' : '') + rate.toFixed(2) + '%';
     rateEl.style.color = rate >= 0 ? 'var(--green)' : 'var(--red)';
+    if (hintEl) {
+      if (market === 'US') {
+        const sign = profitRaw >= 0 ? '+' : '';
+        hintEl.textContent = sign + '$' + Math.round(profitRaw).toLocaleString() + ' × ' + usdKrw.toLocaleString() + '원 = ' + (profit >= 0 ? '+' : '') + profit.toLocaleString() + '원';
+        hintEl.style.display = '';
+      } else {
+        hintEl.style.display = 'none';
+      }
+    }
   } else if (sell > 0 && buy > 0) {
     const rate = ((sell - buy) / buy) * 100;
     rateEl.textContent = (rate >= 0 ? '+' : '') + rate.toFixed(2) + '%';
     rateEl.style.color = rate >= 0 ? 'var(--green)' : 'var(--red)';
+    if (hintEl) hintEl.style.display = 'none';
   } else {
     rateEl.textContent = '–';
     rateEl.style.color = '';
+    if (hintEl) hintEl.style.display = 'none';
   }
 }
 
