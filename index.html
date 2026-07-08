@@ -6527,10 +6527,12 @@ async function loadSale(silent) {
 // ── 기간 계산 ───────────────────────────────────────────────
 function getSaleDateRange() {
   const period = document.getElementById('saleFilterPeriod')?.value || 'ytd';
+  // KST 기준으로 오늘 날짜 계산 (UTC+9)
+  const nowKST = new Date(new Date().getTime() + 9 * 3600 * 1000);
   const now = new Date();
-  const y   = now.getFullYear();
+  const y   = nowKST.getUTCFullYear();
   const pad = n => String(n).padStart(2,'0');
-  const todayStr = y + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
+  const todayStr = y + '-' + pad(nowKST.getUTCMonth()+1) + '-' + pad(nowKST.getUTCDate());
 
   if (period === 'this_month') {
     return { from: y + '-' + pad(now.getMonth()+1) + '-01', to: todayStr };
@@ -6692,11 +6694,13 @@ function getDivRowsAsSale() {
 
 function renderSale() {
   const { from, to } = getSaleDateRange();
+  // KST 기준 오늘 날짜
+  const nowKST = new Date(new Date().getTime() + 9 * 3600 * 1000);
   const now = new Date();
-  const y   = now.getFullYear();
-  const mo  = now.getMonth() + 1;
+  const y   = nowKST.getUTCFullYear();
+  const mo  = nowKST.getUTCMonth() + 1;
   const pad = n => String(n).padStart(2,'0');
-  const todayStr = y + '-' + pad(mo) + '-' + pad(now.getDate());
+  const todayStr = y + '-' + pad(mo) + '-' + pad(nowKST.getUTCDate());
 
   function filterByOwnerAccount(rows) {
     return rows.filter(function(r) {
@@ -6755,9 +6759,14 @@ function renderSale() {
   setCard('saleSumYear1', sumProfit(year1Rows));
   setCard('saleSumAll',   sumProfit(allCombined));
 
-  // 태그 집계 렌더 (매도 행만 — 배당은 태그 없으므로 allFiltered 기준 유지)
-  renderSaleTagFilterRow(allFiltered);
-  renderSaleTagSummary(allFiltered);
+  // 태그 집계 렌더 (기간 필터 + 소유자/계좌 필터 적용)
+  const tagPeriodRows = allFiltered.filter(function(r) {
+    if (from && r.date < from) return false;
+    if (to   && r.date > to)   return false;
+    return true;
+  });
+  renderSaleTagFilterRow(tagPeriodRows);
+  renderSaleTagSummary(tagPeriodRows);
 
   // 기간 + 태그 필터 적용 행 (배당 포함 시 태그필터는 매도 행에만 적용, 배당은 태그 무관 전체 포함)
   const filteredRows = filterByTag(allFiltered).filter(function(r) {
