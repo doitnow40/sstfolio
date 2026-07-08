@@ -7621,6 +7621,9 @@ function onCfYearChange() {
 // ── 전역 필터 적용 헬퍼 ────────────────────────────────────
 function cfApplyGlobalFilter(rows) {
   return rows.filter(function(r) {
+    // account_id가 없는 행(외부자산 등)은 필터 통과 (귀속 계좌 미지정)
+    const hasAccount = r.account_id !== undefined && r.account_id !== null && r.account_id !== '';
+    if (!hasAccount) return true;
     // owner 필터 (selectedOwners는 전역 Set)
     if (selectedOwners.size > 0) {
       const acct = (state.accounts || []).find(a => String(a.account_id) === String(r.account_id));
