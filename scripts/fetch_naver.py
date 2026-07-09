@@ -91,6 +91,11 @@ async def fetch_kr_one(session, code):
                 data = await r.json(content_type=None)
                 price = parse_price(data)
                 chg   = parse_kr_chg(data)
+                # 가격 파싱 실패 시 디버그 출력
+                if price == 0:
+                    debug = {k: data.get(k) for k in
+                        ['nv','closePrice','currentPrice','stockEndPrice','price']}
+                    print(f'  [WARN] {code} 가격=0: {debug}')
                 if price > 0:
                     if chg is None:
                         debug = {k: data.get(k) for k in
