@@ -74,16 +74,8 @@ header {
   transition: all .2s;
 }
 .btn-refresh:hover { border-color:var(--blue); color:var(--blue); }
-.btn-spinner {
-  display: inline-block;
-  width: 11px; height: 11px;
-  border: 2px solid currentColor;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin .7s linear infinite;
-  vertical-align: middle;
-  margin-right: 4px;
-}
+.fetch-warn { color: var(--yellow, #f59e0b) !important; font-size:11px; margin-left:4px; cursor:help; }
+.current-price-failed { color: var(--yellow, #f59e0b) !important; }
 
 main { padding: 12px 16px; max-width: 1600px; margin: 0 auto; width:100%; }
 
@@ -825,6 +817,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
     <div class="logo"><img src="data:image/jpeg;base64,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" style="width:26px;height:26px;vertical-align:middle;margin-right:6px;border-radius:50%"> SSTfolio <span id="headerSub">로딩중...</span></div>
     <div class="header-right">
       <span class="last-updated" id="lastUpdated">–</span>
+      <span id="fetchStatsBadge" style="display:none;font-size:11px;padding:3px 8px;border-radius:10px;cursor:pointer;font-weight:600;border:1px solid transparent" onclick="showFetchStatsDetail()" title="클릭하여 실패 종목 확인"></span>
       <button class="btn-refresh" id="btnRefresh" onclick="loadData()">⟳ 새로고침</button>
       <button class="btn-refresh" id="btnFetchNow" onclick="triggerFetchNow()" title="GitHub Actions로 현재가 즉시 수집 (~30초)">⚡ 지금 수집</button>
       <button class="btn-refresh" onclick="openModal()">+ 종목 추가</button>
@@ -1619,6 +1612,18 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
   </div>
 </div>
 
+<!-- ── 수집 실패 종목 상세 모달 ──────────────────────────── -->
+<div class="modal-overlay" id="fetchStatsModal" onclick="closeFetchStatsModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:420px">
+    <div class="modal-title">📡 현재가 수집 현황</div>
+    <div id="fetchStatsContent" style="font-size:13px;line-height:1.8"></div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <button class="btn-primary" onclick="triggerFetchNow();closeFetchStatsModal()" style="flex:1">⚡ 지금 수집</button>
+      <button class="btn-secondary" onclick="closeFetchStatsModal()" style="flex:1">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── 외부자산 추가 모달 ─────────────────────────────────── -->
 <div class="modal-overlay" id="cfExtModal" onclick="closeExternalAssetModal()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:400px">
@@ -1773,9 +1778,8 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
       <!-- 실현수익금 -->
       <div class="form-group" style="margin-bottom:10px">
-        <label class="form-label">실현수익금 <span style="font-size:11px;color:var(--text2)">(원화기준 · 자동계산·직접입력 가능)</span></label>
+        <label class="form-label">실현수익금 <span style="font-size:11px;color:var(--text2)">(자동계산·직접입력 가능)</span></label>
         <input type="number" class="form-input" id="saleInputProfit" placeholder="1,300,000" style="font-weight:700">
-        <div id="saleProfitHint" style="display:none;margin-top:4px;font-size:11px;color:var(--text2)"></div>
       </div>
 
       <!-- 태그 + 메모 — 2열 -->
@@ -2084,34 +2088,12 @@ async function triggerFetchNow() {
       ok = data.ok;
       if (!ok) throw new Error(data.error || '실패');
     }
-    btn.innerHTML = '⏳ 수집 대기 중...';
-    // KV updated_at 폴링 — 실제 완료 시점 감지
-    const prevUpdatedAt = (state && state.updatedAt) || null;
-    const pollStart = Date.now();
-    const TIMEOUT   = 90000; // 90초 타임아웃
-    const poll = setInterval(async function() {
-      try {
-        const healthUrl = WORKER_URL + '/api/health';
-        const h = await fetch(healthUrl).then(r => r.json()).catch(() => ({}));
-        const newAt = h.updated_at || null;
-        const elapsed = Math.ceil((Date.now() - pollStart) / 1000);
-        btn.innerHTML = '⏳ 수집 중... ' + elapsed + 's';
-        if (newAt && newAt !== prevUpdatedAt) {
-          clearInterval(poll);
-          btn.innerHTML = '✅ 완료! 새로고침 중...';
-          await loadData();
-          btn.innerHTML = '⚡ 지금 수집';
-          btn.disabled = false;
-        } else if (Date.now() - pollStart > TIMEOUT) {
-          clearInterval(poll);
-          btn.innerHTML = '⚡ 지금 수집';
-          btn.disabled = false;
-          alert('수집 완료를 감지하지 못했습니다.\n새로고침 버튼을 눌러주세요.');
-        }
-      } catch(e) {
-        // 폴링 오류는 무시하고 계속
-      }
-    }, 3000);
+    btn.textContent = '✅ 트리거 완료';
+    setTimeout(function() {
+      alert('GitHub Actions 실행 시작!\n약 30초 후 "새로고침" 버튼을 누르세요.');
+      btn.textContent = '⚡ 지금 수집';
+      btn.disabled = false;
+    }, 500);
   } catch(e) {
     alert('수집 트리거 실패: ' + e.message + '\n\nGAS Script Properties에 GITHUB_TOKEN, GITHUB_REPO가 설정됐는지 확인하세요.');
     btn.textContent = '⚡ 지금 수집';
@@ -2120,10 +2102,6 @@ async function triggerFetchNow() {
 }
 
 async function loadData() {
-  // 새로고침 버튼 로딩 상태
-  const refreshBtn = document.getElementById('btnRefresh');
-  const refreshOrig = refreshBtn ? refreshBtn.innerHTML : null;
-  if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.innerHTML = '<span class="btn-spinner"></span> 로딩 중...'; }
   showLoading();
   try {
     const apiUrl = getApiUrl();
@@ -2171,6 +2149,7 @@ async function loadData() {
 
     hideError();
     renderAll();
+    renderFetchStatsBadge(data.fetch_stats || null);
 
     // ── 백그라운드 프리로딩 (탭 전환 시 즉시 표시) ──────────
     // await 없이 호출 → 메인 화면 렌더링을 막지 않음
@@ -2180,8 +2159,6 @@ async function loadData() {
   } catch (err) {
     showError('데이터 로드 실패: ' + err.message + ' (GAS URL 확인 필요)');
     console.error(err);
-  } finally {
-    if (refreshBtn && refreshOrig) { refreshBtn.disabled = false; refreshBtn.innerHTML = refreshOrig; }
   }
 }
 
@@ -2218,6 +2195,91 @@ function renderAll() {
   if (state.activeTab === 'dividend' && divState.loaded)   renderDividend();
   if (state.activeTab === 'sale'     && saleState.loaded)  renderSale();
   if (state.activeTab === 'cashflow' && cfState.loaded)    renderCashflow();
+}
+
+// ── 수집 신뢰도 뱃지 ─────────────────────────────────────────
+var _fetchStats = null; // 전역 저장 (실패 종목 목록 참조용)
+
+function renderFetchStatsBadge(stats) {
+  _fetchStats = stats;
+  const badge = document.getElementById('fetchStatsBadge');
+  if (!badge) return;
+  if (!stats) { badge.style.display = 'none'; return; }
+
+  const rate    = stats.success_rate ?? 100;
+  const failed  = (stats.kr_failed || []).concat(stats.us_failed || []);
+
+  if (rate >= 100 && failed.length === 0) {
+    badge.style.display = 'none';
+    return;
+  }
+
+  badge.style.display = 'inline-block';
+  if (rate >= 95) {
+    badge.style.background = 'rgba(245,158,11,0.15)';
+    badge.style.borderColor = '#f59e0b';
+    badge.style.color = '#f59e0b';
+    badge.textContent = '⚠️ 수집 ' + rate + '%';
+  } else {
+    badge.style.background = 'rgba(239,68,68,0.15)';
+    badge.style.borderColor = '#ef4444';
+    badge.style.color = '#ef4444';
+    badge.textContent = '🔴 수집 ' + rate + '% — 현재가 부정확';
+  }
+  badge.title = '실패 종목: ' + (failed.join(', ') || '없음') + ' · 클릭하여 상세 확인';
+}
+
+function showFetchStatsDetail() {
+  const stats = _fetchStats;
+  const el = document.getElementById('fetchStatsContent');
+  if (!el) return;
+  if (!stats) { el.innerHTML = '수집 통계 없음'; return; }
+
+  const rate      = stats.success_rate ?? 100;
+  const krFailed  = stats.kr_failed || [];
+  const usFailed  = stats.us_failed || [];
+  const fetchedAt = stats.fetched_at ? new Date(stats.fetched_at).toLocaleString('ko-KR') : '–';
+
+  const rateColor = rate >= 95 ? '#f59e0b' : '#ef4444';
+  const krFailedHtml = krFailed.length
+    ? krFailed.map(t => `<span style="background:var(--bg3);padding:1px 6px;border-radius:4px;margin:2px;display:inline-block">${t}</span>`).join('')
+    : '<span style="color:var(--green)">없음 ✅</span>';
+  const usFailedHtml = usFailed.length
+    ? usFailed.map(t => `<span style="background:var(--bg3);padding:1px 6px;border-radius:4px;margin:2px;display:inline-block">${t}</span>`).join('')
+    : '<span style="color:var(--green)">없음 ✅</span>';
+
+  el.innerHTML = `
+    <div style="margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px;text-align:center">
+      <div style="font-size:22px;font-weight:700;color:${rateColor}">${rate}%</div>
+      <div style="color:var(--text2);font-size:11px">수집 성공률</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <tr><td style="color:var(--text2);padding:3px 0">KR 수집</td>
+          <td style="text-align:right">${stats.kr_ok}/${stats.kr_total}개</td></tr>
+      <tr><td style="color:var(--text2);padding:3px 0">US 수집</td>
+          <td style="text-align:right">${stats.us_ok}/${stats.us_total}개</td></tr>
+      <tr><td style="color:var(--text2);padding:3px 0">수집 시각</td>
+          <td style="text-align:right">${fetchedAt}</td></tr>
+    </table>
+    <div style="margin-top:10px">
+      <div style="color:var(--text2);margin-bottom:4px">KR 실패 종목</div>
+      <div>${krFailedHtml}</div>
+    </div>
+    <div style="margin-top:10px">
+      <div style="color:var(--text2);margin-bottom:4px">US 실패 종목</div>
+      <div>${usFailedHtml}</div>
+    </div>
+    ${(krFailed.length || usFailed.length) ? `
+    <div style="margin-top:12px;padding:8px;background:rgba(245,158,11,0.1);border-radius:6px;font-size:11px;color:#f59e0b">
+      💡 실패 종목은 이전 수집값이 표시됩니다.<br>
+      "지금 수집"을 눌러 재시도하거나, 종목 수정(✏️)으로 현재가를 직접 입력할 수 있습니다.
+    </div>` : ''}
+  `;
+  document.getElementById('fetchStatsModal').classList.add('open');
+}
+
+function closeFetchStatsModal() {
+  document.getElementById('fetchStatsModal').classList.remove('open');
 }
 
 // ── 요약 카드 ────────────────────────────────────────────────
@@ -2559,6 +2621,15 @@ function renderTable() {
       ? `$${(h.current_price || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`
       : (h.current_price || 0).toLocaleString('ko-KR') + '원';
 
+    // 수집 실패 종목 경고 표시
+    const isFetchFailed = _fetchStats && (() => {
+      const failed = (_fetchStats.kr_failed || []).concat(_fetchStats.us_failed || []);
+      return failed.includes(h.ticker);
+    })();
+    const priceWarn = isFetchFailed
+      ? ' <span class="fetch-warn" title="현재가 수집 실패 — 이전 값이 표시됩니다" onclick="showFetchStatsDetail()">⚠️</span>'
+      : '';
+
     const avgDisplay = h.market === 'US'
       ? `$${(h.avg_price || 0).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})}`
       : (h.avg_price || 0).toLocaleString('ko-KR') + '원';
@@ -2571,7 +2642,7 @@ function renderTable() {
           <small style="color:var(--text2)">${h.account_type || ''} · ${h.owner || ''}</small></td>
       <td class="tbl-col-qty">${(h.quantity || 0).toLocaleString()}</td>
       <td class="tbl-col-avg">${avgDisplay}</td>
-      <td>${priceDisplay}</td>
+      <td>${priceDisplay}${priceWarn}</td>
       <td class="tbl-col-cost">${(h.cost_amount || 0).toLocaleString('ko-KR')}원</td>
       <td class="tbl-col-eval">${(h.eval_amount || 0).toLocaleString('ko-KR')}원</td>
       <td style="color:${color}">${sign}${(h.profit_amount || 0).toLocaleString('ko-KR')}원</td>
@@ -2685,7 +2756,7 @@ function buildTickerData() {
         market:        h.market || 'KR',
         sector:        h.sector || '기타',
         current_price: h.current_price || 0,
-        change_rate:   parseFloat(String(h.change_rate||'0').replace('%','')) || 0,
+        change_rate:   h.change_rate   || 0,
         is_fund:       h.is_fund || false,
         qty:         0, cost: 0, eval: 0, profit: 0,
         accounts:    [],
@@ -2993,7 +3064,7 @@ function renderTickerTable(data) {
     else if (col === 'profit')      { av = a.profit;           bv = b.profit; }
     else if (col === 'qty')         { av = a.qty;              bv = b.qty; }
     else if (col === 'weight')      { av = a.weight;           bv = b.weight; }
-    else if (col === 'change_rate') { av = parseFloat(String(a.change_rate||'0').replace('%','')||0); bv = parseFloat(String(b.change_rate||'0').replace('%','')||0); }
+    else if (col === 'change_rate') { av = a.change_rate || 0; bv = b.change_rate || 0; }
     else if (col === 'name')   { av = a.name || ''; bv = b.name || ''; return s.dir * av.localeCompare(bv); }
     else if (col === 'sector') { av = a.sector||''; bv = b.sector||''; return s.dir * av.localeCompare(bv); }
     else { av = 0; bv = 0; }
@@ -6538,18 +6609,11 @@ function renderSaleAccountFilter() {
 }
 
 async function reloadSale() {
-  const btn = document.querySelector('[onclick="reloadSale()"]');
-  const origHTML = btn ? btn.innerHTML : null;
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> 읽는 중...'; }
   saleState.loaded = false;
   saleState.rows   = [];
   document.getElementById('saleTableContainer').innerHTML =
     '<div class="loading"><div class="spinner"></div><span>불러오는 중...</span></div>';
-  try {
-    await loadSale();
-  } finally {
-    if (btn && origHTML) { btn.disabled = false; btn.innerHTML = origHTML; }
-  }
+  await loadSale();
 }
 
 async function loadSale(silent) {
@@ -6572,12 +6636,10 @@ async function loadSale(silent) {
 // ── 기간 계산 ───────────────────────────────────────────────
 function getSaleDateRange() {
   const period = document.getElementById('saleFilterPeriod')?.value || 'ytd';
-  // KST 기준으로 오늘 날짜 계산 (UTC+9)
-  const nowKST = new Date(new Date().getTime() + 9 * 3600 * 1000);
   const now = new Date();
-  const y   = nowKST.getUTCFullYear();
+  const y   = now.getFullYear();
   const pad = n => String(n).padStart(2,'0');
-  const todayStr = y + '-' + pad(nowKST.getUTCMonth()+1) + '-' + pad(nowKST.getUTCDate());
+  const todayStr = y + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
 
   if (period === 'this_month') {
     return { from: y + '-' + pad(now.getMonth()+1) + '-01', to: todayStr };
@@ -6739,13 +6801,11 @@ function getDivRowsAsSale() {
 
 function renderSale() {
   const { from, to } = getSaleDateRange();
-  // KST 기준 오늘 날짜
-  const nowKST = new Date(new Date().getTime() + 9 * 3600 * 1000);
   const now = new Date();
-  const y   = nowKST.getUTCFullYear();
-  const mo  = nowKST.getUTCMonth() + 1;
+  const y   = now.getFullYear();
+  const mo  = now.getMonth() + 1;
   const pad = n => String(n).padStart(2,'0');
-  const todayStr = y + '-' + pad(mo) + '-' + pad(nowKST.getUTCDate());
+  const todayStr = y + '-' + pad(mo) + '-' + pad(now.getDate());
 
   function filterByOwnerAccount(rows) {
     return rows.filter(function(r) {
@@ -6804,14 +6864,9 @@ function renderSale() {
   setCard('saleSumYear1', sumProfit(year1Rows));
   setCard('saleSumAll',   sumProfit(allCombined));
 
-  // 태그 집계 렌더 (기간 필터 + 소유자/계좌 필터 적용)
-  const tagPeriodRows = allFiltered.filter(function(r) {
-    if (from && r.date < from) return false;
-    if (to   && r.date > to)   return false;
-    return true;
-  });
-  renderSaleTagFilterRow(tagPeriodRows);
-  renderSaleTagSummary(tagPeriodRows);
+  // 태그 집계 렌더 (매도 행만 — 배당은 태그 없으므로 allFiltered 기준 유지)
+  renderSaleTagFilterRow(allFiltered);
+  renderSaleTagSummary(allFiltered);
 
   // 기간 + 태그 필터 적용 행 (배당 포함 시 태그필터는 매도 행에만 적용, 배당은 태그 무관 전체 포함)
   const filteredRows = filterByTag(allFiltered).filter(function(r) {
@@ -7377,43 +7432,24 @@ function selectSaleItem(i) {
 
 // 수익금 자동계산
 function calcSaleProfit() {
-  const qty    = parseFloat(document.getElementById('saleInputQty').value)       || 0;
-  const sell   = parseFloat(document.getElementById('saleInputSellPrice').value)  || 0;
-  const buy    = parseFloat(document.getElementById('saleInputBuyPrice').value)   || 0;
-  const market = (document.getElementById('saleInputMarket').value || 'KR').toUpperCase();
+  const qty   = parseFloat(document.getElementById('saleInputQty').value)       || 0;
+  const sell  = parseFloat(document.getElementById('saleInputSellPrice').value)  || 0;
+  const buy   = parseFloat(document.getElementById('saleInputBuyPrice').value)   || 0;
   const rateEl = document.getElementById('saleCalcRate');
-  const hintEl = document.getElementById('saleProfitHint');
-
-  // US 종목: 달러→원화 환산 (state.config.USD_KRW 우선, 없으면 1543 기본값)
-  const usdKrw = market === 'US'
-    ? (parseFloat(String((state.config && state.config.USD_KRW) || '').replace(/,/g,'')) || 1543)
-    : 1;
 
   if (qty > 0 && sell > 0 && buy > 0) {
-    const profitRaw = (sell - buy) * qty;        // 입력 통화 기준
-    const profit    = Math.round(profitRaw * usdKrw); // 항상 원화
-    const rate      = ((sell - buy) / buy) * 100;
-    document.getElementById('saleInputProfit').value = profit;
+    const profit = (sell - buy) * qty;
+    const rate   = ((sell - buy) / buy) * 100;
+    document.getElementById('saleInputProfit').value = Math.round(profit);
     rateEl.textContent = (rate >= 0 ? '+' : '') + rate.toFixed(2) + '%';
     rateEl.style.color = rate >= 0 ? 'var(--green)' : 'var(--red)';
-    if (hintEl) {
-      if (market === 'US') {
-        const sign = profitRaw >= 0 ? '+' : '';
-        hintEl.textContent = sign + '$' + Math.round(profitRaw).toLocaleString() + ' × ' + usdKrw.toLocaleString() + '원 = ' + (profit >= 0 ? '+' : '') + profit.toLocaleString() + '원';
-        hintEl.style.display = '';
-      } else {
-        hintEl.style.display = 'none';
-      }
-    }
   } else if (sell > 0 && buy > 0) {
     const rate = ((sell - buy) / buy) * 100;
     rateEl.textContent = (rate >= 0 ? '+' : '') + rate.toFixed(2) + '%';
     rateEl.style.color = rate >= 0 ? 'var(--green)' : 'var(--red)';
-    if (hintEl) hintEl.style.display = 'none';
   } else {
     rateEl.textContent = '–';
     rateEl.style.color = '';
-    if (hintEl) hintEl.style.display = 'none';
   }
 }
 
@@ -7621,9 +7657,6 @@ function onCfYearChange() {
 // ── 전역 필터 적용 헬퍼 ────────────────────────────────────
 function cfApplyGlobalFilter(rows) {
   return rows.filter(function(r) {
-    // account_id가 없는 행(외부자산 등)은 필터 통과 (귀속 계좌 미지정)
-    const hasAccount = r.account_id !== undefined && r.account_id !== null && r.account_id !== '';
-    if (!hasAccount) return true;
     // owner 필터 (selectedOwners는 전역 Set)
     if (selectedOwners.size > 0) {
       const acct = (state.accounts || []).find(a => String(a.account_id) === String(r.account_id));
