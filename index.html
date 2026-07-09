@@ -2148,8 +2148,8 @@ async function loadData() {
       new Date().toLocaleString('ko-KR');
 
     hideError();
+    renderFetchStatsBadge(data.fetch_stats || null); // 반드시 renderAll() 전에 호출 (_fetchStats 설정)
     renderAll();
-    renderFetchStatsBadge(data.fetch_stats || null);
 
     // ── 백그라운드 프리로딩 (탭 전환 시 즉시 표시) ──────────
     // await 없이 호출 → 메인 화면 렌더링을 막지 않음
