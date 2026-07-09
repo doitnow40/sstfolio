@@ -91,11 +91,6 @@ async def fetch_kr_one(session, code):
                 data = await r.json(content_type=None)
                 price = parse_price(data)
                 chg   = parse_kr_chg(data)
-                # 가격 파싱 실패 시 디버그 출력
-                if price == 0:
-                    debug = {k: data.get(k) for k in
-                        ['nv','closePrice','currentPrice','stockEndPrice','price']}
-                    print(f'  [WARN] {code} 가격=0: {debug}')
                 if price > 0:
                     if chg is None:
                         debug = {k: data.get(k) for k in
@@ -126,6 +121,8 @@ async def fetch_kr_all(codes):
     print(f'  [KR] {ok}/{len(codes)}개 성공')
     if failed:
         print(f'  [KR] 실패 종목: {failed}')
+    results['__failed__'] = failed  # 실패 목록 전달용
+    results['__total__']  = len(codes)
     return results
 
 # ── US 병렬 조회 (Yahoo Finance) ───────────────────────────
@@ -165,6 +162,8 @@ async def fetch_us_all(tickers):
     print(f'  [US] {ok}/{len(tickers)}개 성공')
     if failed:
         print(f'  [US] 실패 종목: {failed}')
+    results['__failed__'] = failed
+    results['__total__']  = len(tickers)
     return results
 
 # ── GAS에서 포트폴리오 데이터 가져오기 ─────────────────────
@@ -319,10 +318,32 @@ async def main():
     if us_tickers:
         us_map = await fetch_us_all(us_tickers)
 
+    # 수집 통계 추출
+    kr_failed = kr_map.pop('__failed__', [])
+    kr_total  = kr_map.pop('__total__',  len(kr_tickers))
+    us_failed = us_map.pop('__failed__', [])
+    us_total  = us_map.pop('__total__',  len(us_tickers))
+    kr_ok     = kr_total - len(kr_failed)
+    us_ok     = us_total - len(us_failed)
+    total     = kr_total + us_total
+    ok_total  = kr_ok + us_ok
+    rate      = round(ok_total / total * 100) if total > 0 else 100
+
     # 포트폴리오 데이터에 현재가 반영
     portfolio = apply_prices(portfolio, kr_map, us_map)
     portfolio['updated_at'] = updated_at
     portfolio['source']     = 'github_actions_python'
+    portfolio['fetch_stats'] = {
+        'kr_total':  kr_total,
+        'kr_ok':     kr_ok,
+        'kr_failed': kr_failed,
+        'us_total':  us_total,
+        'us_ok':     us_ok,
+        'us_failed': us_failed,
+        'success_rate': rate,
+        'fetched_at': updated_at,
+    }
+    print(f'  [STATS] 수집 성공률: {rate}% ({ok_total}/{total}) KR실패:{kr_failed} US실패:{us_failed}')
 
     # KV 저장
     ttl = calc_ttl()
