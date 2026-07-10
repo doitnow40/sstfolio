@@ -96,8 +96,8 @@ async def fetch_kr_one(session, code):
                         debug = {k: data.get(k) for k in
                             ['fluctuationsRatio','closePrice','compareToPreviousClosePrice',
                              'stockEndPrice','currentPrice','changeRate','rate']}
-                        print(f'  [WARN] {code} 등락률 파싱 실패: {debug}')
-                    chg_str = (f'+{chg:.2f}%' if chg >= 0 else f'{chg:.2f}%') if chg is not None else ''
+                        print(f'  [WARN] {code} 등락률 파싱 실패 (기존값 유지): {debug}')
+                    chg_str = (f'+{chg:.2f}%' if chg >= 0 else f'{chg:.2f}%') if chg is not None else None
                     return code, price, chg_str
     except Exception as e:
         print(f'  [ERR] {code} 조회 실패: {e}')
@@ -113,7 +113,10 @@ async def fetch_kr_all(codes):
             tasks = [fetch_kr_one(session, c) for c in batch]
             for code, price, chg in await asyncio.gather(*tasks):
                 if price > 0:
-                    results[code] = {'price': price, 'change_rate': chg}
+                    entry = {'price': price}
+                    if chg is not None:           # None이면 change_rate 생략 → apply_prices에서 기존값 유지
+                        entry['change_rate'] = chg
+                    results[code] = entry
             if i + BATCH < len(codes):
                 await asyncio.sleep(0.2)
     ok = len(results)
@@ -121,7 +124,7 @@ async def fetch_kr_all(codes):
     print(f'  [KR] {ok}/{len(codes)}개 성공')
     if failed:
         print(f'  [KR] 실패 종목: {failed}')
-    results['__failed__'] = failed  # 실패 목록 전달용
+    results['__failed__'] = failed
     results['__total__']  = len(codes)
     return results
 
@@ -239,7 +242,10 @@ def apply_prices(portfolio, kr_map, us_map):
         usd_krw     = float(h.get('usd_krw') or 1)
 
         h['current_price'] = price
-        h['change_rate']   = change_rate
+        if change_rate is not None:           # None이면 기존 change_rate 유지 (일시적 파싱 실패 방지)
+            h['change_rate'] = change_rate
+        else:
+            change_rate = h.get('change_rate', '')  # 등락액 계산용으로 기존값 사용
 
         # eval_amount / cost_amount — 원화 환산
         if market == 'US':
@@ -334,14 +340,9 @@ async def main():
     portfolio['updated_at'] = updated_at
     portfolio['source']     = 'github_actions_python'
     portfolio['fetch_stats'] = {
-        'kr_total':  kr_total,
-        'kr_ok':     kr_ok,
-        'kr_failed': kr_failed,
-        'us_total':  us_total,
-        'us_ok':     us_ok,
-        'us_failed': us_failed,
-        'success_rate': rate,
-        'fetched_at': updated_at,
+        'kr_total': kr_total, 'kr_ok': kr_ok, 'kr_failed': kr_failed,
+        'us_total': us_total, 'us_ok': us_ok, 'us_failed': us_failed,
+        'success_rate': rate, 'fetched_at': updated_at,
     }
     print(f'  [STATS] 수집 성공률: {rate}% ({ok_total}/{total}) KR실패:{kr_failed} US실패:{us_failed}')
 
