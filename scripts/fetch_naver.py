@@ -48,7 +48,7 @@ def calc_ttl():
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
     hhmm = now.hour * 100 + now.minute
     if 900 <= hhmm <= 1540 and now.weekday() < 5:
-        return 600       # 장중: 10분
+        return 7 * 86400   # 장중: 1주일
     return 7 * 86400     # 장마감 후: 1주일
 
 # ── 등락률 파싱 ─────────────────────────────────────────────
