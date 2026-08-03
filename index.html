@@ -2200,33 +2200,46 @@ function renderAll() {
 // ── 수집 신뢰도 뱃지 ─────────────────────────────────────────
 var _fetchStats = null; // 전역 저장 (실패 종목 목록 참조용)
 
+// 행별로 실제 "이전 값 표시 중"인 보유종목 목록 (getPriceWarnHtml과 동일 기준)
+// 상단 배지와 행별 배지가 서로 다른 신호를 쓰던 문제를 여기서 통합
+function getStaleHoldings() {
+  return (state.holdings || []).filter(function(h) {
+    return !h.is_cash && !h.is_fund && getPriceWarnHtml(h) !== '';
+  });
+}
+
 function renderFetchStatsBadge(stats) {
   _fetchStats = stats;
   const badge = document.getElementById('fetchStatsBadge');
   if (!badge) return;
-  if (!stats) { badge.style.display = 'none'; return; }
 
-  const rate    = stats.success_rate ?? 100;
-  const failed  = (stats.kr_failed || []).concat(stats.us_failed || []);
+  const staleHoldings = getStaleHoldings();
+  const staleCount    = staleHoldings.length;
+  const rate          = stats ? (stats.success_rate ?? 100) : 100;
 
-  if (rate >= 100 && failed.length === 0) {
+  // 이번 수집 통계도 100%, 행별로도 이전값 표시 중인 종목이 없으면 → 숨김
+  if (staleCount === 0 && rate >= 100) {
     badge.style.display = 'none';
     return;
   }
 
   badge.style.display = 'inline-block';
-  if (rate >= 95) {
-    badge.style.background = 'rgba(245,158,11,0.15)';
-    badge.style.borderColor = '#f59e0b';
-    badge.style.color = '#f59e0b';
-    badge.textContent = '⚠️ 수집 ' + rate + '%';
-  } else {
-    badge.style.background = 'rgba(239,68,68,0.15)';
+  const severe = rate < 95 || staleCount >= 5;
+  if (severe) {
+    badge.style.background  = 'rgba(239,68,68,0.15)';
     badge.style.borderColor = '#ef4444';
-    badge.style.color = '#ef4444';
-    badge.textContent = '🔴 수집 ' + rate + '% — 현재가 부정확';
+    badge.style.color       = '#ef4444';
+    badge.textContent = '🔴 신뢰도 낮음 ' + staleCount + '종목';
+  } else {
+    badge.style.background  = 'rgba(245,158,11,0.15)';
+    badge.style.borderColor = '#f59e0b';
+    badge.style.color       = '#f59e0b';
+    badge.textContent = '⚠️ 신뢰도 낮음 ' + staleCount + '종목';
   }
-  badge.title = '실패 종목: ' + (failed.join(', ') || '없음') + ' · 클릭하여 상세 확인';
+  const tickerList = [...new Set(staleHoldings.map(function(h){ return h.ticker; }))];
+  badge.title = staleCount + '개 보유종목이 이전 값 표시 중'
+    + (tickerList.length ? ' (' + tickerList.join(', ') + ')' : '')
+    + ' · 클릭하여 상세 확인';
 }
 
 // ── 종목별 신뢰도 경고 (실패/구버전 값 사용 중인 종목에 표시) ──
@@ -2249,7 +2262,27 @@ function showFetchStatsDetail() {
   const stats = _fetchStats;
   const el = document.getElementById('fetchStatsContent');
   if (!el) return;
-  if (!stats) { el.innerHTML = '수집 통계 없음'; return; }
+
+  const staleHoldings = getStaleHoldings();
+  const staleHtml = staleHoldings.length
+    ? staleHoldings.map(function(h) {
+        const asOf = h.price_updated && h.price_updated !== '미조회' ? h.price_updated : '알 수 없음';
+        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--bg3);font-size:11px">
+          <span>${h.name || h.ticker} <small style="color:var(--text2)">(${h.ticker} · ${h.broker||''} ${h.account_type||''} · ${h.owner||''})</small></span>
+          <span style="color:var(--text2);white-space:nowrap">${asOf}</span>
+        </div>`;
+      }).join('')
+    : '<span style="color:var(--green)">없음 ✅</span>';
+  const staleSection = `
+    <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--bg3)">
+      <div style="color:var(--text2);margin-bottom:6px">⚠️ 신뢰도 낮음 종목 (계좌별 · 마지막 정상 갱신)</div>
+      ${staleHtml}
+    </div>`;
+
+  if (!stats) {
+    el.innerHTML = '<div style="color:var(--text2);font-size:12px">이번 수집 통계 없음</div>' + staleSection;
+    return;
+  }
 
   const rate      = stats.success_rate ?? 100;
   const krFailed  = stats.kr_failed || [];
@@ -2285,6 +2318,7 @@ function showFetchStatsDetail() {
       <div style="color:var(--text2);margin-bottom:4px">US 실패 종목</div>
       <div>${usFailedHtml}</div>
     </div>
+    ${staleSection}
     ${(krFailed.length || usFailed.length) ? `
     <div style="margin-top:12px;padding:8px;background:rgba(245,158,11,0.1);border-radius:6px;font-size:11px;color:#f59e0b">
       💡 실패 종목은 이전 수집값이 표시됩니다.<br>
