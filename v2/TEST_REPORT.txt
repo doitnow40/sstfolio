@@ -1,0 +1,14 @@
+SSTfolio v2.0 Test Report
+=========================
+Date: 2026-08-02 KST
+
+PASS  Python syntax: python -m py_compile scripts/fetch_naver.py
+PASS  Python unit test: fresh/previous/closed/stale/unsupported/GAS-unverified merge and KRW calculation
+PASS  Worker syntax: node --check cloudflare/sstfolio_worker.js
+PASS  Worker unit test: KV miss 503, hit 200, trigger 202, cooldown 429, mutation preserves portfolio_data
+PASS  Worker unit test: first collection with no baseline is detected as completed
+PASS  GAS JavaScript syntax check after conversion to .js
+PASS  index.html inline JavaScript syntax check
+
+NOT RUN  Live integration with actual GAS URL, GitHub token, Cloudflare KV/Worker and market-data sources
+Reason: deployment credentials and live v2 resources were not provided in this environment.

@@ -1,0 +1,41 @@
+SSTfolio v2 배포값 기록표
+=========================
+
+[GitHub]
+Repository: ______________________________
+Pages URL: _______________________________
+GITHUB_REPO (owner/repo): ________________
+GITHUB_WORKFLOW: fetch-realtime.yml
+GITHUB_BRANCH: main
+
+[Google]
+Spreadsheet ID (TEST): ___________________
+Spreadsheet ID (PROD): ___________________
+GAS Web App /exec URL: ___________________
+
+[Cloudflare]
+Account ID: ______________________________
+KV Namespace Name: sstfolio-v2-kv
+KV Namespace ID: _________________________
+Worker Name: sstfolio-v2-worker
+Worker URL: ______________________________
+KV Binding variable: SSTFOLIO_KV
+
+[공통 Secret]
+SSTFOLIO_SECRET: _________________________
+
+[GitHub Token]
+Fine-grained PAT name: ___________________
+Expiration: ______________________________
+Repository: ______________________________
+Actions permission: Read and write
+
+[알림]
+ALERT_EMAILS: _____________________________
+
+[운영 전환]
+V1 GitHub schedule disabled: [ ]
+V1 GAS watchdog disabled: [ ]
+V2 schedule enabled: [ ]
+V2 GAS setupTriggers executed: [ ]
+Rollback verified: [ ]
