@@ -2229,6 +2229,22 @@ function renderFetchStatsBadge(stats) {
   badge.title = '실패 종목: ' + (failed.join(', ') || '없음') + ' · 클릭하여 상세 확인';
 }
 
+// ── 종목별 신뢰도 경고 (실패/구버전 값 사용 중인 종목에 표시) ──
+// h.price_stale: true면 이번 수집에서 실패해 이전 값을 그대로 표시 중
+// _fetchStats.kr_failed/us_failed 목록 매칭도 병행 (구버전 데이터 호환용)
+function getPriceWarnHtml(h) {
+  const failedList = _fetchStats
+    ? (_fetchStats.kr_failed || []).concat(_fetchStats.us_failed || [])
+    : [];
+  const isStale = h.price_stale === true || failedList.includes(h.ticker);
+  if (!isStale) return '';
+  const asOf = h.price_updated && h.price_updated !== '미조회'
+    ? h.price_updated
+    : '알 수 없음';
+  const title = `현재가 수집 실패 — 이전 값이 표시됩니다\n마지막 정상 갱신: ${asOf}`;
+  return ` <span class="fetch-warn" title="${title}" onclick="showFetchStatsDetail()">⚠️</span>`;
+}
+
 function showFetchStatsDetail() {
   const stats = _fetchStats;
   const el = document.getElementById('fetchStatsContent');
@@ -2428,7 +2444,7 @@ function renderTableChangePc(rows, sort) {
       + '<td style="font-size:12px;color:var(--text2);white-space:nowrap">' + (h.sector || '') + '</td>'
       + '<td style="font-size:11px;color:var(--text2)">' + h.owner + '<br>' + h.broker + ' ' + h.account_type + '</td>'
       + '<td>' + (h.quantity || 0).toLocaleString() + '</td>'
-      + '<td style="color:' + color + ';font-weight:700">' + cr + '</td>'
+      + '<td style="color:' + color + ';font-weight:700">' + cr + getPriceWarnHtml(h) + '</td>'
       + '<td style="text-align:center">' + makeCandleBar(cr, 100) + '</td>'
       + '<td style="color:' + color + '">' + caSign + ca.toLocaleString('ko-KR') + '원</td>'
       + '<td style="color:' + ppCol + ';font-weight:700">' + ppSign + pp + '%</td>'
@@ -2461,7 +2477,7 @@ function renderTableChangeMobile(rows) {
       + '<div class="mobile-card-sub">' + h.ticker + ' · ' + h.broker + ' ' + h.account_type + ' · ' + h.owner + '</div>'
       + '</div>'
       + '<div class="mobile-card-right" style="display:flex;flex-direction:column;align-items:flex-end">'
-      + '<div class="mobile-card-pct" style="color:' + color + '">' + cr + '</div>'
+      + '<div class="mobile-card-pct" style="color:' + color + '">' + cr + getPriceWarnHtml(h) + '</div>'
       + makeCandleBar(cr, 100)
       + '<div class="mobile-card-profit" style="color:' + color + '">' + caSign + ca.toLocaleString('ko-KR') + '원</div>'
       + '</div>'
@@ -2621,14 +2637,8 @@ function renderTable() {
       ? `$${(h.current_price || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`
       : (h.current_price || 0).toLocaleString('ko-KR') + '원';
 
-    // 수집 실패 종목 경고 표시
-    const isFetchFailed = _fetchStats && (() => {
-      const failed = (_fetchStats.kr_failed || []).concat(_fetchStats.us_failed || []);
-      return failed.includes(h.ticker);
-    })();
-    const priceWarn = isFetchFailed
-      ? ' <span class="fetch-warn" title="현재가 수집 실패 — 이전 값이 표시됩니다" onclick="showFetchStatsDetail()">⚠️</span>'
-      : '';
+    // 수집 실패/구버전 종목 경고 표시 (마지막 정상 갱신시각 툴팁 포함)
+    const priceWarn = getPriceWarnHtml(h);
 
     const avgDisplay = h.market === 'US'
       ? `$${(h.avg_price || 0).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})}`
@@ -2692,7 +2702,7 @@ function renderTableMobile(rows, sort) {
         <div class="mobile-card-sub">${h.ticker} · ${h.broker} ${h.account_type} · ${h.owner}</div>
       </div>
       <div class="mobile-card-right">
-        <div class="mobile-card-price">${evalAmtFmt}원</div>
+        <div class="mobile-card-price">${evalAmtFmt}원${getPriceWarnHtml(h)}</div>
         <div class="mobile-card-pct" style="color:${color}">${sign}${pct}%</div>
         <div class="mobile-card-profit" style="color:${color}">${sign}${profitAmt}원</div>
       </div>
