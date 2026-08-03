@@ -212,7 +212,7 @@ def write_to_kv(key, value, ttl):
     print(f'  → KV 저장 완료')
 
 # ── 포트폴리오 데이터에 현재가 덮어쓰기 ────────────────────
-def apply_prices(portfolio, kr_map, us_map):
+def apply_prices(portfolio, kr_map, us_map, updated_at_kst):
     """
     GAS 원본 JSON 구조를 완전히 보존하면서
     holdings[].current_price, change_rate, eval_amount, cost_amount,
@@ -223,6 +223,10 @@ def apply_prices(portfolio, kr_map, us_map):
       US 종목: price(USD) × quantity × usd_krw
     이렇게 갱신해야 프론트의 상단카드/추이차트/요약카드가
     동일한 원화 기준값을 공유한다.
+
+    price_updated / price_stale : 종목별 신뢰도 표시용
+      - 수집 성공: price_updated = 이번 수집 시각(KST), price_stale = False
+      - 수집 실패: 기존 price_updated(마지막 정상 갱신 시각) 보존, price_stale = True
     """
     # ── holdings 업데이트 ──────────────────────────────────
     holdings = portfolio.get('holdings', [])
@@ -234,6 +238,9 @@ def apply_prices(portfolio, kr_map, us_map):
             continue
         p = kr_map.get(ticker) if market == 'KR' else us_map.get(ticker)
         if not p:
+            # 이번 수집 실패 — 기존 current_price/price_updated 그대로 유지
+            # (h['price_updated']는 GAS 원본값 그대로, 최근 정상 갱신 시각을 보존)
+            h['price_stale'] = True
             continue
         price       = p['price']
         change_rate = p['change_rate']
@@ -242,6 +249,8 @@ def apply_prices(portfolio, kr_map, us_map):
         usd_krw     = float(h.get('usd_krw') or 1)
 
         h['current_price'] = price
+        h['price_updated'] = updated_at_kst   # 이번 수집 성공 시각으로 갱신 (KST, 사람이 읽기 쉬운 포맷)
+        h['price_stale']   = False
         if change_rate is not None:           # None이면 기존 change_rate 유지 (일시적 파싱 실패 방지)
             h['change_rate'] = change_rate
         else:
@@ -336,7 +345,7 @@ async def main():
     rate      = round(ok_total / total * 100) if total > 0 else 100
 
     # 포트폴리오 데이터에 현재가 반영
-    portfolio = apply_prices(portfolio, kr_map, us_map)
+    portfolio = apply_prices(portfolio, kr_map, us_map, updated_at_kst)
     portfolio['updated_at'] = updated_at
     portfolio['source']     = 'github_actions_python'
     portfolio['fetch_stats'] = {
