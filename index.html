@@ -6048,20 +6048,47 @@ async function reloadSnapshot() {
 }
 
 // 수동 스냅샷 저장
+// 화면에 이미 로드된 state.holdings(=사용자가 지금 보고 있는 정확한 값)를
+// 계좌별로 집계해서 저장한다. (예전엔 GAS의 save_snapshot 액션을 호출했는데,
+// 그 액션은 구글시트 자체 값을 읽어서 — 시트가 오래돼있으면 화면과 다른 값이
+// 저장되는 문제가 있었음. 이제 화면 = 저장값이 항상 일치하도록 통일.)
 async function manualSnapshot() {
   const postUrl = WORKER_URL ? WORKER_URL + '/api/snapshot' : GAS_URL;
   if (!postUrl) { alert('Worker URL 또는 GAS URL을 먼저 설정하세요'); return; }
+  if (!state.holdings || state.holdings.length === 0) { alert('보유 종목 데이터가 없습니다. 새로고침 후 다시 시도하세요.'); return; }
+
   const btn = document.activeElement && document.activeElement.tagName === 'BUTTON' ? document.activeElement : null;
   const orig = btnSaving(btn);
   try {
+    // 계좌별 집계 (현금성 자산 포함 — 상단카드/계좌별 탭과 동일 기준)
+    const acctMap = {};
+    state.holdings.forEach(function(h) {
+      const key = String(h.account_id || '');
+      if (!acctMap[key]) {
+        acctMap[key] = {
+          owner: h.owner || '', account_id: h.account_id || '',
+          broker: h.broker || '', account_type: h.account_type || '',
+          eval_amount: 0, cost_amount: 0,
+        };
+      }
+      acctMap[key].eval_amount += Number(h.eval_amount || 0);
+      acctMap[key].cost_amount += Number(h.cost_amount || 0);
+    });
+    const rows = Object.values(acctMap);
+
+    // 오늘 날짜 (KST, yyyy-MM-dd)
+    const nowKST = new Date(new Date().getTime() + 9 * 3600 * 1000);
+    const today  = nowKST.toISOString().slice(0, 10);
+
     const res  = await fetch(postUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save_snapshot' }),
+      body: JSON.stringify({ action: 'save_snapshot_from_data', date: today, rows: rows, force: true }),
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     await btnDone(btn, orig, '저장 완료');
+    trendState.loaded = false;
     await loadTrendData();
   } catch(err) {
     btnError(btn, orig);
