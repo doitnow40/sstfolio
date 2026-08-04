@@ -313,12 +313,14 @@ async def main():
 
     holdings = portfolio.get('holdings', [])
     import re
-    # KR: 숫자로만 구성된 코드만 유효 (한글/영문 섞인 잘못된 ticker 제외)
+    # KR: 6자리 영숫자 코드 유효 (일반 종목은 순수 숫자, TDF/액티브ETF/ETN 등
+    #     서브클래스 코드는 숫자+영문자 조합도 정상 — 예: 0025N0, 0091P0, 0162Z0)
+    #     한글이 섞이거나 길이가 다른 잘못된 ticker만 제외
     # US: 영문자+숫자 조합 유효 (AMD, TSLA, QQQ 등)
     kr_tickers = list(set(h['ticker'] for h in holdings
                           if h.get('market','KR').upper() == 'KR'
                           and h.get('ticker') and not h.get('is_cash')
-                          and re.match(r'^[0-9]+$', str(h.get('ticker','')))))
+                          and re.match(r'^[0-9A-Z]{6}$', str(h.get('ticker','')).upper())))
     us_tickers = list(set(h['ticker'] for h in holdings
                           if h.get('market','KR').upper() == 'US'
                           and h.get('ticker') and not h.get('is_cash')
