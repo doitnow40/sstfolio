@@ -291,6 +291,46 @@ def apply_prices(portfolio, kr_map, us_map, updated_at_kst):
     print(f'  → holdings {updated}개 / prices {len(prices)}개 현재가 패치 완료')
     return portfolio  # GAS 원본 구조 그대로 반환
 
+def save_snapshot_to_gas(portfolio, today_kst):
+    """
+    계좌별 eval_amount/cost_amount 집계 후 GAS에 저장 요청.
+    GAS 자체 가격갱신(updateAllPrices)이 죽어있어도 Python이 도는 한
+    추이분석용 일별 스냅샷이 계속 쌓이도록 함.
+    실패해도 전체 수집은 계속 진행 (best-effort).
+    """
+    acct_map = {}
+    for h in portfolio.get('holdings', []):
+        key = str(h.get('account_id', ''))
+        if key not in acct_map:
+            acct_map[key] = {
+                'owner':        h.get('owner', ''),
+                'account_id':   h.get('account_id', ''),
+                'broker':       h.get('broker', ''),
+                'account_type': h.get('account_type', ''),
+                'eval_amount':  0,
+                'cost_amount':  0,
+            }
+        acct_map[key]['eval_amount'] += float(h.get('eval_amount') or 0)
+        acct_map[key]['cost_amount'] += float(h.get('cost_amount') or 0)
+
+    rows = list(acct_map.values())
+    if not rows:
+        return
+    try:
+        res = requests.post(
+            GAS_URL,
+            json={'action': 'save_snapshot_from_data', 'date': today_kst, 'rows': rows},
+            timeout=30,
+        )
+        result = res.json()
+        if result.get('ok'):
+            print(f'  [SNAPSHOT] 저장 완료: {today_kst} / {result.get("accounts")}개 계좌')
+        else:
+            print(f'  [SNAPSHOT] 저장 실패: {result.get("error")}')
+    except Exception as e:
+        print(f'  [SNAPSHOT] 저장 요청 실패 (무시하고 계속): {e}')
+
+
 # ── 메인 ────────────────────────────────────────────────────
 async def main():
     start      = time.time()
@@ -360,6 +400,10 @@ async def main():
     # KV 저장
     ttl = calc_ttl()
     write_to_kv('portfolio_data', portfolio, ttl)
+
+    # ── 일별 스냅샷 저장 (오후 4시~5시 KST, 하루 1회 취지 — 덮어쓰기라 여러 번 호출돼도 안전) ──
+    if 16 <= now_kst.hour < 17:
+        save_snapshot_to_gas(portfolio, now_kst.strftime('%Y-%m-%d'))
 
     elapsed = round(time.time() - start, 1)
     print(f'=== 완료: {elapsed}초 ===')
