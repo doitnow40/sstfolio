@@ -1842,6 +1842,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <input class="form-input" id="inputWorkerUrl" placeholder="Cloudflare Worker URL (https://sstfolio-worker.doitnow40.workers.dev)" style="margin-bottom:8px">
       <input class="form-input" id="inputGasUrl" placeholder="GAS 웹앱 URL을 여기에 붙여넣기..." style="margin-bottom:8px">
       <button class="btn-primary" onclick="saveGasUrl()">저장 및 데이터 불러오기</button>
+      <button class="btn-secondary" onclick="resetToDefaultUrls()" style="margin-left:8px" title="브라우저에 저장된 접속 주소를 지우고 기본값으로 되돌립니다">기본값으로 초기화</button>
     </div>
   </div>
   <div class="settings-section">
@@ -1978,8 +1979,10 @@ if (typeof ChartDataLabels !== 'undefined') {
   Chart.defaults.plugins.datalabels = { display: false };
 }
 
-let GAS_URL    = localStorage.getItem('sstfolio_gas_url')    || 'https://script.google.com/macros/s/AKfycbxATlxHQi45Oii_TyFZlB1aGCiM_vKDuL811YSkA_BgLusWbJ6Frlut74EOREMYb2DV/exec';
-let WORKER_URL = localStorage.getItem('sstfolio_worker_url') || 'https://sstfolio-worker.doitnow40.workers.dev';
+const DEFAULT_GAS_URL    = 'https://script.google.com/macros/s/AKfycbxATlxHQi45Oii_TyFZlB1aGCiM_vKDuL811YSkA_BgLusWbJ6Frlut74EOREMYb2DV/exec';
+const DEFAULT_WORKER_URL = 'https://sstfolio-worker.doitnow40.workers.dev';
+let GAS_URL    = localStorage.getItem('sstfolio_gas_url')    || DEFAULT_GAS_URL;
+let WORKER_URL = localStorage.getItem('sstfolio_worker_url') || DEFAULT_WORKER_URL;
 function getApiUrl() { return WORKER_URL || GAS_URL; }
 
 // ============================================================
@@ -2022,6 +2025,9 @@ function btnError(btn, orig) {
   btn.disabled    = orig.disabled || false;
   btn.style.opacity = '';
 }
+
+// 자가치유(URL 자동복구) 1회 제한 가드 — 무한 재시도 방지
+let _urlAutoRecovered = false;
 
 // ============================================================
 // 전역 상태
@@ -2157,6 +2163,25 @@ async function loadData() {
     if (!saleState.loaded) loadSale(true);
 
   } catch (err) {
+    // ── 자가치유: 저장된 URL이 JSON이 아닌 응답(HTML 에러/로그인 페이지 등)을
+    //    반환하는 경우 — 브라우저에 남은 구버전 설정값일 가능성이 높으므로
+    //    기본 URL로 자동 복구 후 1회만 재시도한다. (콘솔 명령을 외울 필요 없음)
+    const looksLikeBadJson = err instanceof SyntaxError || /Unexpected token/.test(err.message || '');
+    const usingCustomUrl   = GAS_URL !== DEFAULT_GAS_URL || WORKER_URL !== DEFAULT_WORKER_URL;
+    if (looksLikeBadJson && usingCustomUrl && !_urlAutoRecovered) {
+      _urlAutoRecovered = true;
+      localStorage.removeItem('sstfolio_gas_url');
+      localStorage.removeItem('sstfolio_worker_url');
+      GAS_URL    = DEFAULT_GAS_URL;
+      WORKER_URL = DEFAULT_WORKER_URL;
+      document.getElementById('settingGasUrl').textContent    = GAS_URL;
+      document.getElementById('settingWorkerUrl').textContent = WORKER_URL;
+      document.getElementById('inputGasUrl').value    = GAS_URL;
+      document.getElementById('inputWorkerUrl').value = WORKER_URL;
+      showError('저장된 접속 주소가 응답하지 않아 기본 주소로 자동 복구했습니다. 다시 불러오는 중...');
+      setTimeout(loadData, 400);
+      return;
+    }
     showError('데이터 로드 실패: ' + err.message + ' (GAS URL 확인 필요)');
     console.error(err);
   }
@@ -7988,6 +8013,23 @@ async function deleteExternalAssetRow(id) {
     cfState.loaded = false;
     loadCashflow();
   } catch(e) { alert('삭제 실패: ' + e.message); }
+}
+
+// ============================================================
+// GAS/Worker URL 기본값으로 초기화 (저장된 옛날 URL 문제 수동 복구용)
+// ============================================================
+function resetToDefaultUrls() {
+  if (!confirm('저장된 접속 주소를 지우고 기본값으로 되돌릴까요?')) return;
+  localStorage.removeItem('sstfolio_gas_url');
+  localStorage.removeItem('sstfolio_worker_url');
+  GAS_URL    = DEFAULT_GAS_URL;
+  WORKER_URL = DEFAULT_WORKER_URL;
+  document.getElementById('settingGasUrl').textContent    = GAS_URL;
+  document.getElementById('settingWorkerUrl').textContent = WORKER_URL;
+  document.getElementById('inputGasUrl').value    = GAS_URL;
+  document.getElementById('inputWorkerUrl').value = WORKER_URL;
+  _urlAutoRecovered = false;
+  loadData();
 }
 
 // ============================================================
