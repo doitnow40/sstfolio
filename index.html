@@ -1960,6 +1960,13 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       </div>
     </div>
 
+    <div class="form-group" id="costKrwGroup" style="display:none">
+      <label class="form-label">실제 매수원화금액 (원, 선택)
+        <span style="color:var(--text2);font-size:11px">— HTS 매수금액 그대로 입력 시 원화 수익률이 정확해집니다</span>
+      </label>
+      <input class="form-input" id="formCostKrw" type="number" placeholder="예: 3196663" min="0">
+    </div>
+
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal()">취소</button>
       <button id="holdingDeleteBtn" class="btn-primary" style="background:var(--red);border-color:var(--red);display:none" onclick="deleteHoldingFromModal()">🗑️ 종목 삭제</button>
@@ -4997,6 +5004,7 @@ function setMarket(market) {
   document.getElementById('btnKR').className = 'market-btn' + (market === 'KR' ? ' active-kr' : '');
   document.getElementById('btnUS').className = 'market-btn' + (market === 'US' ? ' active-us' : '');
   document.getElementById('priceUnit').textContent = market === 'US' ? '($)' : '(원)';
+  document.getElementById('costKrwGroup').style.display = market === 'US' ? 'block' : 'none';
   document.getElementById('searchLabel').textContent =
     market === 'KR' ? '종목명 또는 코드로 검색' : '종목명 또는 티커로 검색';
   document.getElementById('formSearch').placeholder =
@@ -5135,6 +5143,7 @@ function openModal(holdingId = null) {
       document.getElementById('formSector').value   = h.sector;
       document.getElementById('formQuantity').value = h.quantity;
       document.getElementById('formAvgPrice').value = h.avg_price;
+      document.getElementById('formCostKrw').value = h.cost_krw || '';
       // 수정 전 원본값 저장 (GAS 행 탐색용)
       state.editingOrigTicker    = String(h.ticker     || '').trim();
       state.editingOrigAccountId = String(h.account_id || '').trim();
@@ -5147,6 +5156,7 @@ function openModal(holdingId = null) {
     document.getElementById('formName').value     = '';
     document.getElementById('formQuantity').value = '';
     document.getElementById('formAvgPrice').value = '';
+    document.getElementById('formCostKrw').value = '';
     document.getElementById('formSector').value   = '기타';
   }
 
@@ -5214,6 +5224,7 @@ async function submitHolding() {
     sector:        document.getElementById('formSector').value,
     quantity:      qty,
     avg_price:     avg,
+    cost_krw:      document.getElementById('formCostKrw').value ? parseFloat(document.getElementById('formCostKrw').value) : undefined,
     orig_ticker:    state.editingId ? (state.editingOrigTicker    || ticker) : undefined,
     orig_account_id:state.editingId ? (state.editingOrigAccountId || document.getElementById('formAccount').value) : undefined,
   };
