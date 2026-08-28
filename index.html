@@ -1977,6 +1977,25 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
 <script>
 // ============================================================
+// ★ Service Worker 자동 정리
+// ============================================================
+// SSTfolio는 Service Worker를 전혀 사용하지 않는다. 그런데도 브라우저
+// 확장 프로그램·예전 실험·다른 사이트와의 캐시 충돌 등으로 이 origin에
+// Service Worker가 등록돼버리면, API 응답(현재가 등)을 몰래 가로채서
+// 실제 서버 상태와 무관하게 옛날 캐시된 값을 계속 보여주는 사고가 날 수
+// 있다 (실제로 겪은 사고: 새로고침해도 며칠 전 가격이 계속 보임).
+// 사람이 매번 F12로 확인해서 지우는 건 지속 가능한 대응이 아니므로,
+// 페이지가 열릴 때마다 자동으로 확인해서 등록된 게 있으면 스스로 지운다.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    registrations.forEach(function(reg) {
+      reg.unregister();
+      console.warn('[SSTfolio] 예상치 못한 Service Worker를 발견해 자동으로 해제했습니다:', reg.scope);
+    });
+  }).catch(function(e) { /* 일부 환경(파일://, 구형 브라우저 등)에서는 API 자체가 없을 수 있음 — 무시 */ });
+}
+
+// ============================================================
 // ============================================================
 // ★ 서비스 URL 설정 (하드코딩 — 어느 기기에서든 자동 연결)
 // ============================================================
