@@ -73,7 +73,11 @@ def parse_kr_chg(data):
     return None
 
 def parse_price(data):
-    for f in ['closePrice', 'currentPrice', 'nv', 'stockEndPrice', 'price']:
+    # ⚠️ 필드 우선순위 중요: nv(실시간 체결가)를 반드시 최우선으로 둘 것.
+    # closePrice를 앞에 두면 일부 종목(배당락 조정 전 기준가 등 추정)에서
+    # 실제 체결가와 다른 값을 반환하는 사고가 있었음 (2026-08-30 삼성전자
+    # 257,000원 vs 281,500원 오표시 사고로 확인됨). 절대 순서 바꾸지 말 것.
+    for f in ['nv', 'currentPrice', 'stockEndPrice', 'closePrice', 'price']:
         v = data.get(f)
         if v:
             p = float(str(v).replace(',', ''))
