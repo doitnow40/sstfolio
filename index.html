@@ -2155,7 +2155,7 @@ async function loadData() {
     const endpoint = WORKER_URL
       ? apiUrl + '/api/portfolio'
       : apiUrl + '?action=portfolio';
-    const res  = await fetch(endpoint);
+    const res  = await fetch(endpoint, { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
 
@@ -5593,7 +5593,7 @@ async function loadTrendData() {
   try {
     const apiUrl = WORKER_URL ? WORKER_URL + '/api/snapshot' : (GAS_URL ? GAS_URL + '?action=snapshot' : null);
     if (!apiUrl) { showTrendNoData(); return; }
-    const res  = await fetch(apiUrl);
+    const res  = await fetch(apiUrl, { cache: 'no-store' });
     const data = await res.json();
     trendState.rawRows = data.rows || [];
     trendState.loaded  = true;
