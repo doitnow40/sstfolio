@@ -7675,13 +7675,19 @@ function selectSaleItem(i) {
 
 // 수익금 자동계산
 function calcSaleProfit() {
-  const qty   = parseFloat(document.getElementById('saleInputQty').value)       || 0;
-  const sell  = parseFloat(document.getElementById('saleInputSellPrice').value)  || 0;
-  const buy   = parseFloat(document.getElementById('saleInputBuyPrice').value)   || 0;
+  const qty    = parseFloat(document.getElementById('saleInputQty').value)       || 0;
+  const sell   = parseFloat(document.getElementById('saleInputSellPrice').value)  || 0;
+  const buy    = parseFloat(document.getElementById('saleInputBuyPrice').value)   || 0;
+  const market = document.getElementById('saleInputMarket').value                 || 'KR';
+  const usdKrw = state.usdKrw || 1500;
+  // US 종목은 매도가/매수가가 달러 기준으로 입력되므로, 실현손익(원화 표시값)은
+  // 반드시 환율을 곱해서 환산해야 함. 이걸 빠뜨리면 "-93원"처럼 달러 금액이
+  // 원화 단위인 척 그대로 저장되는 사고가 남 (실제 발생 이력).
+  const fx = market === 'US' ? usdKrw : 1;
   const rateEl = document.getElementById('saleCalcRate');
 
   if (qty > 0 && sell > 0 && buy > 0) {
-    const profit = (sell - buy) * qty;
+    const profit = (sell - buy) * qty * fx;
     const rate   = ((sell - buy) / buy) * 100;
     document.getElementById('saleInputProfit').value = Math.round(profit);
     rateEl.textContent = (rate >= 0 ? '+' : '') + rate.toFixed(2) + '%';
