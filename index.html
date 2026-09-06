@@ -2759,6 +2759,7 @@ function renderTable() {
       <td style="color:${color};font-weight:700">${sign}${pct}%</td>
       <td class="tbl-col-weight" style="color:var(--text2)">${weight}%</td>
       <td class="tbl-col-btn">
+        ${h.is_cash ? '' : '<button class="btn-icon" onclick="openSaleModalForHolding(\'' + h.id + '\')" title="매도입력">💰</button>'}
         <button class="btn-icon" onclick="editHolding('${h.id}')" title="수정">✏️</button>
         <button class="btn-icon" onclick="deleteHolding('${h.id}')" title="삭제">🗑️</button>
       </td>
@@ -2807,6 +2808,7 @@ function renderTableMobile(rows, sort) {
         <div class="mobile-card-profit" style="color:${color}">${sign}${profitAmt}원</div>
       </div>
       <button class="btn-icon" onclick="editHolding('${h.id}')" title="수정" style="margin-left:4px;flex-shrink:0">✏️</button>
+      ${h.is_cash ? '' : '<button class="btn-icon" onclick="openSaleModalForHolding(\'' + h.id + '\')" title="매도입력" style="flex-shrink:0">💰</button>'}
     </div>`;
   });
 
@@ -2853,7 +2855,7 @@ function initTickerTab() {
 
 // ── 데이터 빌드 ───────────────────────────────────────────────
 function buildTickerData() {
-  const holdings = getFilteredHoldings().filter(h => !h.is_cash);
+  const holdings = getFilteredHoldings(); // 예수금(is_cash)도 포함 — 종목별 탭에서 자산 전체를 보여주기 위함
   const totalEval = holdings.reduce((s, h) => s + (h.eval_amount || 0), 0);
 
   const map = {};
@@ -3817,6 +3819,7 @@ function renderByAccount() {
             + '<div class="mobile-card-profit" style="color:' + c2 + '">' + (ca2>=0?'+':'') + ca2.toLocaleString('ko-KR') + '원</div>'
             + '</div>'
             + '<button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" style="margin-left:4px;flex-shrink:0">✏️</button>'
+            + (h.is_cash ? '' : '<button class="btn-icon" onclick="openSaleModalForHolding(\'' + h.id + '\')" title="매도입력" style="flex-shrink:0">💰</button>')
             + '</div>';
         } else {
           const pct2  = h.profit_pct || 0;
@@ -3833,6 +3836,7 @@ function renderByAccount() {
             + '<div class="mobile-card-profit" style="color:' + col2 + '">' + sign2 + (h.profit_amount||0).toLocaleString('ko-KR') + '원</div>'
             + '</div>'
             + '<button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" style="margin-left:4px;flex-shrink:0">✏️</button>'
+            + (h.is_cash ? '' : '<button class="btn-icon" onclick="openSaleModalForHolding(\'' + h.id + '\')" title="매도입력" style="flex-shrink:0">💰</button>')
             + '</div>';
         }
       });
@@ -3872,7 +3876,10 @@ function renderByAccount() {
           + '<td style="color:' + c2 + '">' + (ca2>=0?'+':'') + ca2.toLocaleString('ko-KR') + '원</td>'
           + '<td style="color:' + pc2 + ';font-weight:700">' + (pp2>=0?'+':'') + pp2 + '%</td>'
           + '<td style="color:' + pc2 + '">' + (pp2>=0?'+':'') + (h.profit_amount||0).toLocaleString('ko-KR') + '원</td>'
-          + '<td><button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" title="수정">✏️</button></td>'
+          + '<td>'
+          + (h.is_cash ? '' : '<button class="btn-icon" onclick="openSaleModalForHolding(\'' + h.id + '\')" title="매도입력">💰</button>')
+          + '<button class="btn-icon" onclick="editHolding(\'' + h.id + '\')" title="수정">✏️</button>'
+          + '</td>'
           + '</tr>';
       });
       html += '</tbody></table>';
@@ -3882,10 +3889,10 @@ function renderByAccount() {
       var sortedAcc2 = applyColSort(accHoldings, true, aId2);
       html += '<table style="table-layout:auto;width:100%;min-width:780px">'
         + '<colgroup>'
-        + '<col style="width:24%"><col style="width:7%"><col style="width:6%">'
-        + '<col style="width:6%"><col style="width:10%">'
-        + '<col style="width:11%"><col style="width:12%">'
-        + '<col style="width:12%"><col style="width:12%">'
+        + '<col style="width:22%"><col style="width:7%"><col style="width:6%">'
+        + '<col style="width:6%"><col style="width:9%">'
+        + '<col style="width:10%"><col style="width:11%">'
+        + '<col style="width:11%"><col style="width:11%"><col style="width:7%">'
         + '</colgroup>'
         + '<thead><tr>'
         + '<th onclick="toggleColSort(\'name\',true,\'' + aId2 + '\')" style="cursor:pointer">종목명' + sortIcon('name',true,aId2) + '</th>'
@@ -3897,6 +3904,7 @@ function renderByAccount() {
         + '<th onclick="toggleColSort(\'cost\',true,\'' + aId2 + '\')" style="cursor:pointer">매수금액' + sortIcon('cost',true,aId2) + '</th>'
         + '<th onclick="toggleColSort(\'eval\',true,\'' + aId2 + '\')" style="cursor:pointer">평가금액' + sortIcon('eval',true,aId2) + '</th>'
         + '<th onclick="toggleColSort(\'profit_pct\',true,\'' + aId2 + '\')" style="cursor:pointer">손익(수익률)' + sortIcon('profit_pct',true,aId2) + '</th>'
+        + '<th></th>'
         + '</tr></thead><tbody>';
       sortedAcc2.forEach(function(h) {
         const pct2  = h.profit_pct || 0;
@@ -3913,6 +3921,7 @@ function renderByAccount() {
           + '<td>' + (h.cost_amount || 0).toLocaleString('ko-KR') + '원</td>'
           + '<td>' + (h.eval_amount || 0).toLocaleString('ko-KR') + '원</td>'
           + '<td style="color:' + col2 + ';font-weight:700">' + sign2 + (h.profit_amount || 0).toLocaleString('ko-KR') + '원<br>' + sign2 + pct2 + '%</td>'
+          + '<td>' + (h.is_cash ? '' : '<button class="btn-icon" onclick="openSaleModalForHolding(\'' + h.id + '\')" title="매도입력">💰</button>') + '</td>'
           + '</tr>';
       });
       html += '</tbody></table>';
@@ -7567,7 +7576,14 @@ function renderSaleMonthChart(rows) {
 }
 
 // ── 모달 ────────────────────────────────────────────────────
-function openSaleModal() {
+// 보유종목 목록에서 특정 종목의 "매도입력" 버튼을 눌렀을 때 호출됨
+function openSaleModalForHolding(id) {
+  const h = (state.holdings || []).find(function(x) { return String(x.id) === String(id); });
+  if (!h) { alert('종목 정보를 찾을 수 없습니다.'); return; }
+  openSaleModal(h);
+}
+
+function openSaleModal(prefillHolding) {
   // 날짜 기본값
   const today = new Date();
   const pad = n => String(n).padStart(2,'0');
@@ -7603,6 +7619,21 @@ function openSaleModal() {
   document.getElementById('saleSkipHoldingNote').style.display = 'none';
   document.getElementById('saleSkipHoldingWrap').style.borderColor = '';
   document.querySelector('#saleModal .modal-title').textContent = '매도 실현수익 입력';
+
+  // 보유종목에서 바로 넘어온 경우 — 종목명/계좌/평단가를 자동으로 채워서
+  // 실현손익 탭에서 매번 검색해서 종목을 고르는 수고와 오타 위험을 없앤다.
+  if (prefillHolding) {
+    const h = prefillHolding;
+    sel.value = String(h.account_id);
+    document.getElementById('saleInputSearch').value = (h.name || h.ticker) + '  (' + h.ticker + ')';
+    document.getElementById('saleInputTicker').value = h.ticker || '';
+    document.getElementById('saleInputName').value   = h.name   || h.ticker || '';
+    document.getElementById('saleInputMarket').value = h.market || 'KR';
+    if (h.avg_price) document.getElementById('saleInputBuyPrice').value = h.avg_price;
+    document.querySelector('#saleModal .modal-title').textContent = (h.name || h.ticker) + ' 매도 입력';
+    setTimeout(function() { document.getElementById('saleInputQty').focus(); }, 100);
+  }
+
   document.getElementById('saleModal').classList.add('open');
 }
 
