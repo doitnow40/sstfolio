@@ -1965,6 +1965,13 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       </div>
     </div>
 
+    <div class="form-group" id="currentValueGroup">
+      <label class="form-label">총평가금액 (원, 직접입력)
+        <span style="color:var(--text2);font-size:11px">— 자동 시세조회가 안 되는 펀드류만 입력. 비워두면 매수금액과 동일하게 처리됩니다.</span>
+      </label>
+      <input class="form-input" id="formCurrentValue" type="number" placeholder="예: 5990176" min="0">
+    </div>
+
     <div class="form-group" id="costKrwGroup" style="display:none">
       <label class="form-label">실제 매수원화금액 (원, 선택)
         <span style="color:var(--text2);font-size:11px">— HTS 매수금액 그대로 입력 시 원화 수익률이 정확해집니다</span>
@@ -5268,12 +5275,13 @@ function openModal(holdingId = null) {
       sel.value = h.account_id;
       setMarket(h.market);
       setAssetRegion(h.asset_region || h.market);
-      document.getElementById('formTicker').value   = h.ticker;
+      document.getElementById('formTicker').value   = h.is_fund ? '' : h.ticker; // 펀드는 시트 티커가 원래 빈 값이어야 하므로, 화면표시용 이름을 그대로 되돌려쓰지 않음
       document.getElementById('formName').value     = h.name;
       document.getElementById('formSearch').value   = h.name + '  (' + h.ticker + ')';
       renderSectorOptions(h.sector);
       document.getElementById('formQuantity').value = h.quantity;
       document.getElementById('formAvgPrice').value = h.avg_price;
+      document.getElementById('formCurrentValue').value = h.is_fund && h.current_value ? h.current_value : '';
       document.getElementById('formCostKrw').value = h.cost_krw || '';
       // 수정 전 원본값 저장 (GAS 행 탐색용)
       state.editingOrigTicker    = String(h.ticker     || '').trim();
@@ -5287,6 +5295,7 @@ function openModal(holdingId = null) {
     document.getElementById('formName').value     = '';
     document.getElementById('formQuantity').value = '';
     document.getElementById('formAvgPrice').value = '';
+    document.getElementById('formCurrentValue').value = '';
     document.getElementById('formCostKrw').value = '';
     renderSectorOptions('기타');
   }
@@ -5351,7 +5360,7 @@ async function submitHolding() {
   const qty    = parseFloat(document.getElementById('formQuantity').value);
   const avg    = parseFloat(document.getElementById('formAvgPrice').value);
 
-  if (!ticker) { alert('종목코드(티커)를 입력하거나 검색해서 선택해주세요.'); return; }
+  if (!ticker && !name) { alert('종목코드(티커) 또는 종목명 중 하나는 입력해주세요. (자동시세 조회가 안 되는 펀드는 종목명만 입력하고 티커는 비워두세요)'); return; }
   if (!qty || !avg) { alert('수량과 평단가는 필수입니다.'); return; }
   if (document.getElementById('formSector').value === '__add_new__') {
     alert('새 섹터를 입력하고 "추가" 버튼을 눌러 먼저 등록해주세요.');
@@ -5369,6 +5378,7 @@ async function submitHolding() {
     sector:        document.getElementById('formSector').value,
     quantity:      qty,
     avg_price:     avg,
+    current_value: document.getElementById('formCurrentValue').value ? parseFloat(document.getElementById('formCurrentValue').value) : undefined,
     cost_krw:      document.getElementById('formCostKrw').value ? parseFloat(document.getElementById('formCostKrw').value) : undefined,
     orig_ticker:    state.editingId ? (state.editingOrigTicker    || ticker) : undefined,
     orig_account_id:state.editingId ? (state.editingOrigAccountId || document.getElementById('formAccount').value) : undefined,
