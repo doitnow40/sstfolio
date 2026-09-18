@@ -847,6 +847,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 
 <!-- ── 에러 배너 ─────────────────────────────────────────── -->
 <div class="error-banner" id="errorBanner"></div>
+<div class="error-banner" id="pipelineBanner" style="display:none"></div>
 
 <!-- ── 요약 카드 ─────────────────────────────────────────── -->
 <div class="summary-grid">
@@ -2168,6 +2169,8 @@ async function loadData() {
 
     if (data.error) throw new Error(data.error);
 
+    checkPipelineHealth(data);
+
     state.holdings      = data.holdings      || [];
     state.accounts      = data.accounts      || [];
     state.config        = data.config        || {};
@@ -2239,6 +2242,27 @@ function showLoading() {
   document.getElementById('tableContainer').innerHTML =
     '<div class="loading"><div class="spinner"></div><span>불러오는 중...</span></div>';
 }
+// ── 자동수집 파이프라인 완전정지 감지 ──────────────────────────
+// Python(GitHub Actions)이 정상 작동 중이면 응답에 source/updated_at/
+// fetch_stats 같은 필드가 항상 있음. 이게 통째로 없으면, KV가 비어서
+// Worker가 GAS 원본(=사실상 방치된 옛날 데이터)을 그대로 돌려주고 있다는
+// 뜻 — 즉 자동수집이 완전히 멈춘 것. 개별 종목 ⚠️ 배지로는 이 상황을
+// 감지할 방법이 없어서(비교할 "새 데이터" 자체가 없으니) 별도로 확인한다.
+// (실제 발생 이력: 2026-09-16, fetch_naver.py 파일 손상으로 몇 시간 방치됨)
+function checkPipelineHealth(data) {
+  const el = document.getElementById('pipelineBanner');
+  if (!el) return;
+  if (!data.source && !data.updated_at) {
+    el.innerHTML = '🔴 자동 수집이 완전히 중단된 것으로 보입니다 — 화면의 현재가/평가금액이 실시간이 아닐 수 있습니다. (관리자 확인 필요)';
+    el.style.display = 'block';
+    el.style.background = 'rgba(239,68,68,0.15)';
+    el.style.borderColor = '#ef4444';
+    el.style.color = '#ef4444';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 function showError(msg) {
   const el = document.getElementById('errorBanner');
   el.textContent = '⚠️ ' + msg;
