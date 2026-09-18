@@ -85,6 +85,26 @@ def parse_price(data):
                 return p
     return 0
 
+def cross_check_price(data, price):
+    """
+    parse_price()가 고른 값이, 같은 응답 안의 closePrice 필드와 너무 크게
+    어긋나면 오수집으로 간주한다. "수집은 성공했는데 값 자체가 조용히
+    틀리는" 유형(필드 오매칭 등)을 잡기 위한 것 — ±50% 급변 감지(직전 값
+    대비)와는 달리, 응답 하나 안에서 자체적으로 앞뒤가 맞는지를 본다.
+    (2026-09 재발 이력에 대한 대응. 임계값 8%는 지금까지 관측된 사고들의
+    괴리폭(9~10%대)보다 살짝 낮게 잡아서, 실제 사고는 잡되 정상적인 순간적
+    시세 지연 정도는 웬만하면 통과시키기 위한 절충값.)
+    """
+    try:
+        close = float(str(data.get('closePrice', '')).replace(',', ''))
+    except (TypeError, ValueError):
+        return True  # closePrice 자체가 없으면 검증 불가 — 그냥 통과 (과거 동작 유지)
+    if close <= 0:
+        return True
+    if abs(price - close) / close > 0.08:
+        return False
+    return True
+
 # ── KR 병렬 조회 ────────────────────────────────────────────
 async def fetch_kr_one(session, code):
     url = f'https://m.stock.naver.com/api/stock/{code}/basic'
@@ -95,6 +115,9 @@ async def fetch_kr_one(session, code):
                 data = await r.json(content_type=None)
                 price = parse_price(data)
                 chg   = parse_kr_chg(data)
+                if price > 0 and not cross_check_price(data, price):
+                    print(f'  [WARN] {code} 등락정합성 불일치 (price={price}, closePrice={data.get("closePrice")}) — 오수집 의심, 값 폐기')
+                    price = 0
                 if price > 0:
                     if chg is None:
                         debug = {k: data.get(k) for k in
