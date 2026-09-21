@@ -17,6 +17,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap@2.3.0/dist/chartjs-chart-treemap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script>
+// 화면이 그려지기 전에 저장된 테마를 먼저 적용 — 이게 없으면 다크로 그려졌다가
+// 라이트로 바뀌는 깜빡임(FOUC)이 생김. 반드시 <style> 태그보다 앞에 있어야 함.
+(function() {
+  var saved = localStorage.getItem('sstfolio_theme');
+  if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+})();
+</script>
 <style>
 /* ── 기본 리셋 & 변수 ──────────────────────────────────────── */
 :root {
@@ -35,6 +43,24 @@
   --accent:    #1f6feb;
   --radius:    8px;
   --font:      'Pretendard', 'Apple SD Gothic Neo', sans-serif;
+}
+/* ── 라이트 모드 ──────────────────────────────────────────────
+   완전 흰색(#fff) 대신 은은한 밝은 회색을 기본 배경으로 써서
+   장시간 봐도 눈부심이 덜하고, 카드/패널과의 경계도 자연스럽게 구분되게 함. */
+:root[data-theme="light"] {
+  --bg:        #eef0f2;
+  --bg2:       #ffffff;
+  --bg3:       #e4e7eb;
+  --panel-bg:  #ffffff;
+  --border:    #d7dbe0;
+  --text:      #1c2128;
+  --text2:     #5b6472;
+  --green:     #d9362a;
+  --red:       #2563eb;
+  --blue:      #2563eb;
+  --yellow:    #a86400;
+  --purple:    #8b5cf6;
+  --accent:    #2563eb;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
@@ -829,6 +855,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
       <button class="btn-refresh" id="btnRefresh" onclick="loadData()">⟳ 새로고침</button>
       <button class="btn-refresh" id="btnFetchNow" onclick="triggerFetchNow()" title="GitHub Actions로 현재가 즉시 수집 (~30초)">⚡ 지금 수집</button>
       <button class="btn-refresh" onclick="openModal()">+ 종목 추가</button>
+      <button class="btn-refresh" id="btnThemeToggle" onclick="toggleTheme()" title="화면 테마 전환">🌙</button>
       <button class="btn-refresh" onclick="openHelp()" style="background:rgba(88,166,255,.15);border-color:var(--blue);color:var(--blue)" title="도움말">❓</button>
     </div>
   </div>
@@ -2019,6 +2046,29 @@ if ('serviceWorker' in navigator) {
 }
 
 // ============================================================
+// ============================================================
+// ★ 다크/라이트 테마 토글
+// ============================================================
+function applyThemeIcon() {
+  const btn = document.getElementById('btnThemeToggle');
+  if (!btn) return;
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  btn.textContent = isLight ? '☀️' : '🌙'; // 지금 모드를 아이콘으로 보여줌
+  btn.title = isLight ? '라이트 모드 (클릭 시 다크로 전환)' : '다크 모드 (클릭 시 라이트로 전환)';
+}
+function toggleTheme() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if (isLight) {
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('sstfolio_theme', 'dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('sstfolio_theme', 'light');
+  }
+  applyThemeIcon();
+}
+applyThemeIcon(); // 페이지 로드 시 head의 조기적용 스크립트와 아이콘 동기화
+
 // ============================================================
 // ★ 서비스 URL 설정 (하드코딩 — 어느 기기에서든 자동 연결)
 // ============================================================
