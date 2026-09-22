@@ -5818,6 +5818,14 @@ function renderTrendChart() {
   }
   // ────────────────────────────────────────────────────────────
 
+  // ⚠️ 아래 zero-check에서 return하면 함수 끝의 updatePeriodBtnAvailability를
+  // 못 만나서 드롭다운이 직전 상태로 얼어붙는 문제가 있었음 — 여기서 먼저
+  // 갱신해서, 선택한 기간에 데이터가 0개여도 드롭다운은 항상 최신 상태 유지.
+  (function() {
+    const minDate0 = rows.reduce(function(m, r) { return r.date < m ? r.date : m; }, '9999');
+    updatePeriodBtnAvailability(minDate0);
+  })();
+
   if (rows.length === 0) { showTrendNoData(); return; }
   document.getElementById('trendNoData').style.display = 'none';
   document.getElementById('trendChart').style.display  = 'block';
@@ -6005,7 +6013,10 @@ function renderTrendChart() {
   }
 
   // 기간 버튼 비활성화 (데이터 없는 기간)
-  const minDate = trendState.rawRows.reduce(function(m, r) { return r.date < m ? r.date : m; }, '9999');
+  // ⚠️ 전체 데이터(trendState.rawRows) 기준이 아니라, 지금 화면에 적용된
+  // 소유자/계좌 필터가 반영된 rows 기준으로 계산해야 함. 그렇지 않으면
+  // 필터를 걸었을 때 실제로는 데이터가 있는 기간인데도 잘못 비활성화됨.
+  const minDate = rows.reduce(function(m, r) { return r.date < m ? r.date : m; }, '9999');
   updatePeriodBtnAvailability(minDate);
 
   // ── 신고가 감지 + 전고점 탐색 (total 모드 + 평가액/수익금 뷰 한정) ──
