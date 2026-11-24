@@ -18,7 +18,7 @@ GitHub Actions에서 실행 (장중 5분 주기 cron)
   WORKER_URL           : Cloudflare Worker URL
 """
 
-import os, json, time, datetime, asyncio
+import os, re, json, time, datetime, asyncio
 import aiohttp, requests
 
 GAS_URL       = os.environ['GAS_WEBAPP_URL']
@@ -36,6 +36,9 @@ YAHOO_HEADERS = {
     'User-Agent': 'Mozilla/5.0',
     'Accept': 'application/json',
 }
+
+# 매도 종목 시세 추적 기간 (일) — 최근 1년 내 매도한 종목의 현재가도 함께 수집
+SOLD_LOOKBACK_DAYS = 365
 
 KV_WRITE_URL = (
     f'https://api.cloudflare.com/client/v4/'
@@ -239,7 +242,7 @@ def write_to_kv(key, value, ttl):
     print(f'  → KV 저장 완료')
 
 # ── 포트폴리오 데이터에 현재가 덮어쓰기 ────────────────────
-def apply_prices(portfolio, kr_map, us_map, updated_at_kst):
+def apply_prices(portfolio, kr_map, us_map, updated_at_kst, asof_iso=None):
     """
     GAS 원본 JSON 구조를 완전히 보존하면서
     holdings[].current_price, change_rate, eval_amount, cost_amount,
@@ -270,7 +273,7 @@ def apply_prices(portfolio, kr_map, us_map, updated_at_kst):
             h['price_stale'] = True
             continue
         price       = p['price']
-        change_rate = p['change_rate']
+        change_rate = p.get('change_rate')    # 파싱 실패 시 키가 없을 수 있음 → None이면 아래에서 기존값 유지
         qty         = float(h.get('quantity') or 0)
         avg_price   = float(h.get('avg_price') or 0)
         usd_krw     = float(h.get('usd_krw') or 1)
@@ -312,11 +315,82 @@ def apply_prices(portfolio, kr_map, us_map, updated_at_kst):
         market = (pr.get('market') or 'KR').upper()
         p = kr_map.get(ticker) if market == 'KR' else us_map.get(ticker)
         if p:
-            pr['price']       = p['price']
-            pr['change_rate'] = p['change_rate']
+            pr['price'] = p['price']
+            if p.get('change_rate') is not None:
+                pr['change_rate'] = p['change_rate']
+            if asof_iso:
+                pr['asof'] = asof_iso     # 이 시세를 실제로 수집한 시각(UTC ISO) — 프론트의 '오래된 시세' 판정용
 
     print(f'  → holdings {updated}개 / prices {len(prices)}개 현재가 패치 완료')
     return portfolio  # GAS 원본 구조 그대로 반환
+
+# ── 최근 매도 종목(현재 미보유) 목록 ────────────────────────
+def fetch_sold_targets(now_kst, held_kr, held_us):
+    """
+    GAS 매도 내역(?action=sale)에서 최근 SOLD_LOOKBACK_DAYS일 내 매도한 종목을 뽑아,
+    '현재 보유 중이 아닌' 종목만 (kr_list, us_list, name_map) 으로 반환.
+    보유 종목은 이미 holdings 기준으로 수집되므로 중복 조회하지 않는다.
+    실패해도 본 수집은 계속 진행 (best-effort).
+    """
+    from_date = (now_kst - datetime.timedelta(days=SOLD_LOOKBACK_DAYS)).strftime('%Y-%m-%d')
+    print(f'[1-2] 매도 내역 조회 (from {from_date}, 최근 {SOLD_LOOKBACK_DAYS}일)...')
+    try:
+        resp = requests.get(GAS_URL, params={'action': 'sale', 'from': from_date}, timeout=30)
+        resp.raise_for_status()
+        rows = (resp.json() or {}).get('rows', [])
+    except Exception as e:
+        print(f'  [SOLD] 매도 내역 조회 실패 (매도 종목 시세 수집 생략): {e}')
+        return [], [], {}
+
+    kr_set, us_set, names = set(), set(), {}
+    for r in rows:
+        tk = str(r.get('ticker') or '').strip().upper()
+        if not tk or tk.startswith('CASH'):
+            continue
+        market = str(r.get('market') or 'KR').strip().upper()
+        if market == 'US':
+            if re.match(r'^[A-Z0-9.-]+$', tk) and tk not in held_us:
+                us_set.add(tk)
+                names.setdefault(('US', tk), str(r.get('name') or tk))
+        else:
+            if tk.isdigit() and len(tk) < 6:
+                tk = tk.zfill(6)
+            if re.match(r'^[0-9A-Z]{6}$', tk) and tk not in held_kr:
+                kr_set.add(tk)
+                names.setdefault(('KR', tk), str(r.get('name') or tk))
+    kr_list, us_list = sorted(kr_set), sorted(us_set)
+    print(f'  [SOLD] 매도 {len(rows)}건 → 미보유 추적 대상 KR {len(kr_list)}개, US {len(us_list)}개')
+    return kr_list, us_list, names
+
+
+def apply_sold_prices(portfolio, kr_map, us_map, names, asof_iso):
+    """
+    매도 종목의 현재가를 portfolio['prices'] 에 반영 (기존 항목은 갱신, 없으면 추가).
+    수집 실패 종목은 건드리지 않는다 → asof 가 갱신되지 않아 프론트가 '오래된 시세'로 표시.
+    """
+    prices = portfolio.setdefault('prices', [])
+    index = {}
+    for pr in prices:
+        key = (str(pr.get('market') or 'KR').upper(), str(pr.get('ticker') or '').strip().upper())
+        index[key] = pr
+    added = updated = 0
+    for market, pmap in (('KR', kr_map), ('US', us_map)):
+        for tk, p in pmap.items():
+            key = (market, tk)
+            pr = index.get(key)
+            if pr is None:
+                pr = {'ticker': tk, 'market': market, 'name': names.get(key, tk),
+                      'price': p['price'], 'change_rate': p.get('change_rate') or ''}
+                prices.append(pr)
+                added += 1
+            else:
+                pr['price'] = p['price']
+                if p.get('change_rate') is not None:
+                    pr['change_rate'] = p['change_rate']
+                updated += 1
+            pr['asof'] = asof_iso
+    print(f'  [SOLD] prices 반영: 갱신 {updated}개 / 신규 {added}개')
+
 
 def save_snapshot_to_gas(portfolio, today_kst):
     """
@@ -413,8 +487,29 @@ async def main():
     ok_total  = kr_ok + us_ok
     rate      = round(ok_total / total * 100) if total > 0 else 100
 
+    # 최근 1년 매도 종목(현재 미보유) 현재가 수집 — 본 수집 통계(fetch_stats)와 분리
+    sold_stats = {'lookback_days': SOLD_LOOKBACK_DAYS, 'total': 0, 'ok': 0, 'failed': []}
+    sold_kr_map, sold_us_map, sold_names = {}, {}, {}
+    try:
+        sold_kr, sold_us, sold_names = fetch_sold_targets(now_kst, set(kr_tickers), set(us_tickers))
+        if sold_kr:
+            sold_kr_map = await fetch_kr_all(sold_kr)
+        if sold_us:
+            sold_us_map = await fetch_us_all(sold_us)
+        s_failed = sold_kr_map.pop('__failed__', []) + sold_us_map.pop('__failed__', [])
+        sold_kr_map.pop('__total__', None)
+        sold_us_map.pop('__total__', None)
+        sold_stats['total']  = len(sold_kr) + len(sold_us)
+        sold_stats['failed'] = s_failed
+        sold_stats['ok']     = sold_stats['total'] - len(s_failed)
+    except Exception as e:
+        print(f'  [SOLD] 매도 종목 시세 수집 오류 (무시하고 계속): {e}')
+        sold_kr_map, sold_us_map = {}, {}
+
     # 포트폴리오 데이터에 현재가 반영
-    portfolio = apply_prices(portfolio, kr_map, us_map, updated_at_kst)
+    portfolio = apply_prices(portfolio, kr_map, us_map, updated_at_kst, asof_iso=updated_at)
+    apply_sold_prices(portfolio, sold_kr_map, sold_us_map, sold_names, updated_at)
+    portfolio['sold_stats'] = sold_stats
     portfolio['updated_at'] = updated_at
     portfolio['source']     = 'github_actions_python'
     portfolio['fetch_stats'] = {
