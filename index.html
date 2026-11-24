@@ -748,6 +748,7 @@ tbody td:nth-child(2) { text-align:left; color:var(--text2); font-size:11px; }
 .sale-badge-us  { background:rgba(255,190,60,.12);  color:#ffbe3c;    border:1px solid rgba(255,190,60,.3);  font-size:10px; padding:1px 5px; border-radius:3px; }
 .sale-after-pos { color:var(--green); font-weight:600; }
 .sale-after-neg { color:var(--red);   font-weight:600; }
+.sale-price-stale { color:var(--text2); font-size:11px; opacity:.75; text-decoration:line-through; text-decoration-color:rgba(210,153,34,.6); cursor:help; }
 .sale-profit-pos { color:var(--green); font-weight:700; }
 .sale-profit-neg { color:var(--red);   font-weight:700; }
 @media(max-width:680px) {
@@ -2228,6 +2229,7 @@ async function loadData() {
 
     // 현재가 맵 구성 (완전매도 종목 포함 모든 ticker 조회용)
     // GAS buildPriceMap이 이미 normalizeTicker 적용한 키로 반환하므로 그대로 사용
+    state.dataUpdatedAt = data.updated_at || '';   // Python 수집기의 마지막 수집 시각 (없으면 GAS 원본 데이터)
     state.priceMap = {};
     (data.prices || []).forEach(function(p) {
       const tk = String(p.ticker || '').trim(); // 이미 6자리 패딩된 상태
@@ -2235,6 +2237,7 @@ async function loadData() {
         price:       p.price       || 0,
         change_rate: p.change_rate || '',
         name:        p.name        || '',
+        asof:        p.asof        || '',   // 이 시세를 실제 수집한 시각(UTC ISO). 없으면 오래된 시트 값
       };
     });
     // holdings도 priceMap에 병합 (최신 current_price 우선, ticker 정규화 적용)
@@ -2245,6 +2248,7 @@ async function loadData() {
           price:       h.current_price || 0,
           change_rate: h.change_rate   || '',
           name:        h.name          || '',
+          asof:        h.price_stale ? '' : (state.dataUpdatedAt || ''),
         };
       }
     });
@@ -7081,32 +7085,62 @@ function normalizeSaleTicker(ticker, market) {
   return ticker;
 }
 
+// ── 시세 신선도 판정 ────────────────────────────────────────
+// asof(수집 시각)가 없거나, 마지막 수집(updated_at) 대비 36시간 넘게 뒤처졌거나,
+// 지금 기준 7일 넘게 지났으면 '오래된 시세'로 본다.
+// (주말·휴장 때문에 절대 24시간 기준은 쓰지 않고, 마지막 수집 시각과 상대 비교한다.
+//  Python 수집이 평일에만 돌기 때문이다.)
+const SALE_PRICE_STALE_REL_MS = 36 * 3600 * 1000;
+const SALE_PRICE_STALE_ABS_MS = 7 * 24 * 3600 * 1000;
+function isSalePriceStale(asof) {
+  if (!asof) return true;
+  const t = Date.parse(asof);
+  if (isNaN(t)) return true;
+  const ref = state.dataUpdatedAt ? Date.parse(state.dataUpdatedAt) : NaN;
+  if (!isNaN(ref) && (ref - t) > SALE_PRICE_STALE_REL_MS) return true;
+  if ((Date.now() - t) > SALE_PRICE_STALE_ABS_MS) return true;
+  return false;
+}
+
+function formatSaleAsof(asof) {
+  if (!asof) return '';
+  const d = new Date(asof);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric',
+                                      hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 function getSaleLiveInfo(ticker, market) {
   const tickerStr = normalizeSaleTicker(ticker, market);
 
-  // 1순위: 보유 종목 (current_price 가장 정확)
+  // 1순위: 보유 종목 (Python이 5분마다 갱신하는 current_price)
   const h = (state.holdings || []).find(function(x) {
     return normalizeSaleTicker(x.ticker, x.market) === tickerStr;
   });
   if (h && h.current_price) {
+    const asof = h.price_stale ? '' : (state.dataUpdatedAt || '');
     return {
       currentPrice: h.current_price,
       changeRate:   h.change_rate || null,
       market:       h.market || 'KR',
+      asof:         asof,
+      stale:        isSalePriceStale(asof),
     };
   }
 
-  // 2순위: priceMap (완전매도 종목 포함)
+  // 2순위: priceMap (최근 1년 매도 종목은 Python이 함께 수집, 그 외는 오래된 시트 값일 수 있음)
   const p = (state.priceMap || {})[tickerStr];
   if (p && p.price) {
     return {
       currentPrice: p.price,
       changeRate:   p.change_rate || null,
       market:       market || 'KR',
+      asof:         p.asof || '',
+      stale:        isSalePriceStale(p.asof),
     };
   }
 
-  return { currentPrice: null, changeRate: null, market: null };
+  return { currentPrice: null, changeRate: null, market: null, asof: '', stale: true };
 }
 
 // ── 매도 후 손익률 계산 (매도가 대비 현재가) ────────────────
@@ -7257,13 +7291,14 @@ function renderSale() {
 
   const sorted = [...filteredRows].sort(function(a,b){ return b.date.localeCompare(a.date); });
 
-  let html = '<div style="overflow-x:auto"><table style="table-layout:auto;width:100%;min-width:700px">'
+  let html = '<div style="overflow-x:auto"><table style="table-layout:auto;width:100%;min-width:780px">'
     + '<thead><tr>'
     + '<th style="white-space:nowrap">매도일</th>'
     + '<th style="white-space:nowrap">소유자</th>'
     + '<th style="white-space:nowrap">종목</th>'
     + '<th style="text-align:right;white-space:nowrap">매도가</th>'
     + '<th style="text-align:right;white-space:nowrap">평단가</th>'
+    + '<th style="text-align:right;white-space:nowrap" title="매도후 손익 계산에 쓰인 현재가 (⚠ = 오래된 시세)">현재가</th>'
     + '<th style="text-align:right;white-space:nowrap">실현손익</th>'
     + '<th style="text-align:right;white-space:nowrap">수익률</th>'
     + '<th style="text-align:right;white-space:nowrap">매도후 손익</th>'
@@ -7284,6 +7319,7 @@ function renderSale() {
         + '<td><strong>' + (r.name||'–') + '</strong> <span style="font-size:10px;background:rgba(46,160,67,.2);color:#3fb950;border:1px solid rgba(46,160,67,.4);padding:1px 5px;border-radius:3px;margin-left:2px">배당</span></td>'
         + '<td style="text-align:right;color:var(--text2);font-size:11px">–</td>'
         + '<td style="text-align:right;color:var(--text2);font-size:11px">–</td>'
+        + '<td style="text-align:right;color:var(--text2);font-size:11px">–</td>'
         + '<td style="text-align:right;font-weight:700;color:' + divColor + '">' + divFmt + '</td>'
         + '<td style="text-align:right;color:var(--text2);font-size:11px">–</td>'
         + '<td style="text-align:right;color:var(--text2);font-size:11px">–</td>'
@@ -7295,7 +7331,8 @@ function renderSale() {
     }
 
     const live        = getSaleLiveInfo(r.ticker, r.market);
-    const afterRate   = r.sell_price && live.currentPrice
+    // 오래된 시세로는 매도후 손익을 계산하지 않는다 (틀린 숫자를 조용히 보여주지 않기 위함)
+    const afterRate   = r.sell_price && live.currentPrice && !live.stale
       ? calcAfterSaleRate(r.sell_price, live.currentPrice)
       : null;
     const isKR        = (r.market || 'KR') !== 'US';
@@ -7322,17 +7359,36 @@ function renderSale() {
       : '–';
     const rateCls    = r.profit_rate >= 0 ? 'sale-after-pos' : 'sale-after-neg';
 
+    // 현재가 (매도후 손익 계산에 쓰인 값 — 기준 시각은 마우스를 올리면 표시)
+    let curHtml = '<span style="color:var(--text2);font-size:11px" title="시세 없음 (추적 기간 1년 밖이거나 수집 실패)">–</span>';
+    if (live.currentPrice) {
+      const curNum = Number(live.currentPrice);
+      const curFmt = isKR
+        ? curNum.toLocaleString('ko-KR') + '원'
+        : '$' + curNum.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+      const asofTxt = formatSaleAsof(live.asof);
+      if (live.stale) {
+        curHtml = '<span class="sale-price-stale" title="오래된 시세입니다'
+          + (asofTxt ? ' (마지막 수집 ' + asofTxt + ')' : ' (수집 기록 없음)')
+          + ' — 매도후 손익을 계산하지 않았습니다">⚠ ' + curFmt + '</span>';
+      } else {
+        curHtml = '<span title="시세 기준 ' + (asofTxt || '') + '">' + curFmt + '</span>';
+      }
+    }
+
     // 매도후 손익 (현재가 vs 매도가)
-    let afterHtml = '<span style="color:var(--text2);font-size:11px">미보유</span>';
+    let afterHtml = '<span style="color:var(--text2);font-size:11px" title="시세 없음 (추적 기간 1년 밖이거나 수집 실패)">–</span>';
     if (afterRate !== null) {
       const afterSign = afterRate >= 0 ? '+' : '';
       const afterCls  = afterRate >= 0 ? 'sale-after-pos' : 'sale-after-neg';
       afterHtml = `<span class="${afterCls}">${afterSign}${afterRate.toFixed(2)}%</span>`;
+    } else if (live.currentPrice && live.stale) {
+      afterHtml = '<span class="sale-price-stale" title="시세가 오래되어 계산하지 않았습니다">⚠ 시세 오래됨</span>';
     }
 
-    // 오늘 등락률
+    // 오늘 등락률 (오래된 시세의 등락률은 '오늘' 값이 아니므로 숨김)
     let todayHtml = '<span style="color:var(--text2);font-size:11px">–</span>';
-    if (live.changeRate) {
+    if (live.changeRate && !live.stale) {
       const crNum = parseFloat(String(live.changeRate).replace('%',''));
       const crCls = crNum >= 0 ? 'sale-after-pos' : 'sale-after-neg';
       todayHtml = `<span class="${crCls}">${live.changeRate}</span>`;
@@ -7348,6 +7404,7 @@ function renderSale() {
       + '<td><strong>' + nameHtml + '</strong> ' + mktBadge + '<br><small style="color:var(--text2)">' + (r.ticker||'') + (r.qty ? ' · ' + r.qty + '주' : '') + '</small></td>'
       + '<td style="text-align:right;font-size:12px;white-space:nowrap">' + sellPriceFmt + '</td>'
       + '<td style="text-align:right;font-size:12px;white-space:nowrap;color:var(--text2)">' + buyPriceFmt + '</td>'
+      + '<td style="text-align:right;font-size:12px;white-space:nowrap">' + curHtml + '</td>'
       + '<td style="text-align:right;white-space:nowrap" class="' + profitCls + '">' + profitFmt + '</td>'
       + '<td style="text-align:right;white-space:nowrap" class="' + rateCls + '">' + rateFmt + '</td>'
       + '<td style="text-align:right;white-space:nowrap">' + afterHtml + '</td>'
@@ -8708,7 +8765,8 @@ document.addEventListener('click', e => {
         <div style="margin-bottom:14px">
           <div style="font-weight:700;color:var(--text1);margin-bottom:8px">④ 매도후 손익 & 오늘 등락</div>
           <div style="font-size:12px;line-height:1.8;color:var(--text2)">
-            <strong style="color:var(--text1)">매도후 손익</strong>: 현재 보유 중인 종목이면 매도가 대비 현재가를 실시간 비교<br>
+            <strong style="color:var(--text1)">현재가</strong>: 매도후 손익 계산에 쓰인 시세. 보유 종목과 <u>최근 1년 내 매도 종목</u>은 5분마다 수집되며, 마우스를 올리면 기준 시각이 보입니다. ⚠ 표시는 시세가 오래되어 계산에서 제외했다는 뜻입니다.<br>
+            <strong style="color:var(--text1)">매도후 손익</strong>: 매도가 대비 현재가를 비교 (매도 후 1년이 지난 종목은 시세를 수집하지 않아 –로 표시)<br>
             📈 양수 = 팔고 나서 더 올랐다 (아쉬운 상황) / 📉 음수 = 팔고 나서 내려갔다 (잘 판 상황)<br>
             <strong style="color:var(--text1)">오늘 등락</strong>: 해당 종목의 오늘 등락률 (보유 중인 경우만 표시)
           </div>
