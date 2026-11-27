@@ -5525,8 +5525,10 @@ let currentViewMode = 'asset'; // 'asset' | 'change'
 // ============================================================
 function _naverStockUrl(ticker) {
   // KR 종목: 숫자 코드만 추출
-  const numCode = ticker.replace(/[^0-9]/g, '');
+  let numCode = ticker.replace(/[^0-9]/g, '');
   if (!numCode) return null;
+  // 실현손익 탭 등 시트 원본 ticker는 앞자리 0이 빠진 채(예: 5387, 660) 올 수 있다 → 6자리로 패딩
+  if (numCode.length < 6) numCode = numCode.padStart(6, '0');
   return 'https://stock.naver.com/domestic/stock/' + numCode + '/price';
 }
 
